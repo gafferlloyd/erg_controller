@@ -888,25 +888,30 @@ function writeFIT(records, startMs) {
   u8(1);   // stop
 
   // ── File header (14 bytes) ──
+  // First 12 bytes, then 2-byte header CRC computed over those 12
   const dataSize = buf.length;
-  const header = [];
-  function hu8(v)  { header.push(v & 0xFF); }
-  function hu16(v) { header.push(v & 0xFF, (v >> 8) & 0xFF); }
-  function hu32(v) { header.push(v & 0xFF, (v >> 8) & 0xFF, (v >> 16) & 0xFF, (v >> 24) & 0xFF); }
+  const headerBody = [
+    14,                           // header size
+    0x20,                         // protocol version 2.0
+    0x54, 0x08,                   // profile version 2132 little-endian (2132 = 0x0854)
+    (dataSize)       & 0xFF,
+    (dataSize >> 8)  & 0xFF,
+    (dataSize >> 16) & 0xFF,
+    (dataSize >> 24) & 0xFF,
+    0x2E, 0x46, 0x49, 0x54,       // '.FIT'
+  ];
+  // Header CRC covers the first 12 bytes of the header only
+  const headerCRC = computeFitCRC(headerBody);
+  const header = [
+    ...headerBody,
+    headerCRC & 0xFF,
+    (headerCRC >> 8) & 0xFF,
+  ];
 
-  hu8(14);          // header size
-  hu8(0x20);        // protocol version 2.0
-  hu16(2132);       // profile version 21.32
-  hu32(dataSize);   // data size (bytes)
-  // '.FIT' as ASCII
-  hu8(0x2E); hu8(0x46); hu8(0x49); hu8(0x54);
-  // Header CRC (2 bytes) — optional, set to 0
-  hu16(0);
-
-  // ── CRC over data ──
+  // ── File CRC covers header + all data bytes ──
   const allBytes = [...header, ...buf];
-  const crc = computeFitCRC(buf);
-  allBytes.push(crc & 0xFF, (crc >> 8) & 0xFF);
+  const fileCRC = computeFitCRC(allBytes);
+  allBytes.push(fileCRC & 0xFF, (fileCRC >> 8) & 0xFF);
 
   return new Uint8Array(allBytes);
 }
