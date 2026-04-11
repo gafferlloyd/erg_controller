@@ -487,6 +487,7 @@ body::before {
     </table>
   </div>
 
+  <!-- Record -->
   <div class="section">
     <div class="section-label">Minute analysis</div>
     <div class="analysis-grid">
@@ -502,74 +503,6 @@ body::before {
         <div class="analysis-title">To be decided</div>
         <div class="analysis-placeholder">Add another minute-level comparison here</div>
       </div>
-    </div>
-  </div>
-
-  <!-- Record -->
-  <div class="rec-section" id="rec-section">
-    <div class="rec-row">
-      <button class="btn-rec start" id="btn-rec" onclick="toggleRecording()" disabled>⬤ Start</button>
-      <button class="btn-dl" id="btn-dl" onclick="downloadFIT()" disabled>↓ .fit</button>
-    </div>
-    <div class="rec-timer" id="rec-timer">
-      <div class="rec-blink"></div>
-      <span id="rec-label">Connect a device to begin</span>
-    </div>
-  </div>
-
-</div><!-- /left -->
-
-<!-- ═══ RIGHT COLUMN ═══ -->
-<div class="right">
-
-  <!-- Power channel -->
-  <div class="channel" style="flex:1.1">
-    <div class="ch-main">
-      <div class="ch-header">
-        <span class="ch-name">Power</span>
-        <span class="ch-val pwr dim" id="cv-pwr">—</span>
-        <span class="ch-unit">W</span>
-        <span style="margin-left:auto;font-family:var(--mono);font-size:.6rem;color:var(--muted)" id="cv-pwr-range"></span>
-      </div>
-      <div class="ch-canvas-wrap"><canvas id="gc-pwr"></canvas></div>
-    </div>
-    <div class="ch-thumb">
-      <div class="ch-thumb-label">Full session</div>
-      <canvas id="tc-pwr"></canvas>
-    </div>
-  </div>
-
-  <!-- Cadence channel -->
-  <div class="channel" style="flex:1">
-    <div class="ch-main">
-      <div class="ch-header">
-        <span class="ch-name">Cadence</span>
-        <span class="ch-val cad dim" id="cv-cad">—</span>
-        <span class="ch-unit">rpm</span>
-        <span style="margin-left:auto;font-family:var(--mono);font-size:.6rem;color:var(--muted)" id="cv-cad-range"></span>
-      </div>
-      <div class="ch-canvas-wrap"><canvas id="gc-cad"></canvas></div>
-    </div>
-    <div class="ch-thumb">
-      <div class="ch-thumb-label">Full session</div>
-      <canvas id="tc-cad"></canvas>
-    </div>
-  </div>
-
-  <!-- HR channel -->
-  <div class="channel" style="flex:1">
-    <div class="ch-main">
-      <div class="ch-header">
-        <span class="ch-name">Heart Rate</span>
-        <span class="ch-val hr dim" id="cv-hr">—</span>
-        <span class="ch-unit">bpm</span>
-        <span style="margin-left:auto;font-family:var(--mono);font-size:.6rem;color:var(--muted)" id="cv-hr-range"></span>
-      </div>
-      <div class="ch-canvas-wrap"><canvas id="gc-hr"></canvas></div>
-    </div>
-    <div class="ch-thumb">
-      <div class="ch-thumb-label">Full session</div>
-      <canvas id="tc-hr"></canvas>
     </div>
   </div>
 
@@ -1223,6 +1156,7 @@ function drawScatter(canvas, points, color, xLabel, yLabel) {
   canvas.width = W*dpr; canvas.height = H*dpr;
   const ctx = canvas.getContext('2d'); ctx.scale(dpr,dpr);
   ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = 'rgba(255,255,255,.03)'; ctx.fillRect(0,0,W,H);
   if(!points.length){
     ctx.fillStyle='#4a6080'; ctx.font='10px monospace'; ctx.textAlign='center';
     ctx.fillText('No complete minute data yet', W/2, H/2+4);
