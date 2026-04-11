@@ -38,19 +38,16 @@ body::before {
 
 .container{position:relative;z-index:1;max-width:1600px;margin:0 auto;}
 
-/* ── Header ── */
 header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:12px;}
 header h1{font-family:var(--mono);font-size:1.2rem;color:var(--accent);letter-spacing:.08em;}
 header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
 
-/* ── Main Layout: Left (compact devices) + Right (data) ── */
 .main-dashboard {
   display: flex;
   gap: 16px;
   margin-bottom: 16px;
 }
 
-/* LEFT SIDEBAR - Compact device status */
 .device-sidebar {
   width: 140px;
   flex-shrink: 0;
@@ -143,13 +140,11 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
 .btn-forget-mini { color: var(--muted); }
 .btn-forget-mini:hover { color: var(--red); border-color: var(--red); }
 
-/* RIGHT CONTENT - Data area */
 .data-area {
   flex: 1;
   min-width: 0;
 }
 
-/* Metrics row - compact but prominent */
 .metrics-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -214,7 +209,6 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
 .mbar-cad { background: var(--green); }
 .mbar-hr { background: var(--red); }
 
-/* ERG Mode Control Panel */
 .erg-panel {
   background: var(--panel);
   border: 2px solid var(--accent);
@@ -328,7 +322,6 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
   filter: brightness(1.1);
 }
 
-/* Recording bar - more compact */
 .recording-bar {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -406,9 +399,8 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
 .btn-fit { color: var(--amber); border-color: var(--amber); }
 .btn-fit:hover { background: var(--amber); color: var(--bg); }
 
-/* Graph sections - REDUCED SIZE (50% of original) */
 .section-title {
-  font-size: 1.0rem;  /* DOUBLED from 0.5rem equivalent */
+  font-size: 1.0rem;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--muted);
@@ -424,7 +416,6 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
   margin-bottom: 20px;
 }
 
-/* Full session graphs - square and compact (REDUCED 50%) */
 .full-session-graphs {
   display: flex;
   flex-direction: column;
@@ -442,7 +433,7 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
 }
 
 .graph-header {
-  font-size: 0.6rem;  /* DOUBLED from 0.3rem equivalent */
+  font-size: 0.6rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--muted);
@@ -461,7 +452,6 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
   min-height: 0;
 }
 
-/* 2-minute graphs - scrolling container */
 .two-minute-section {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -493,7 +483,6 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
   display: block;
 }
 
-/* Stats section - DOUBLED FONT SIZE */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -509,7 +498,7 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
 }
 
 .stats-panel h3 {
-  font-size: 1.0rem;  /* DOUBLED */
+  font-size: 1.0rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--muted);
@@ -521,14 +510,13 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
   justify-content: space-between;
   align-items: baseline;
   margin-bottom: 8px;
-  font-size: 1.0rem;  /* DOUBLED from 0.75rem */
+  font-size: 1.0rem;
 }
 
 .stats-key { color: var(--muted); }
 .stats-val { font-family: var(--mono); color: var(--text); font-weight: 500; }
 .stats-val.np { color: var(--purple); font-weight: 700; }
 
-/* Log - smaller, less prominent */
 .log-section {
   margin-top: 16px;
 }
@@ -603,7 +591,6 @@ footer {
 </header>
 
 <div class="main-dashboard">
-  <!-- LEFT: Compact device pills -->
   <div class="device-sidebar">
     <div class="device-pill" id="pill-trainer">
       <div class="device-icon">
@@ -630,9 +617,7 @@ footer {
     </div>
   </div>
 
-  <!-- RIGHT: Main data area -->
   <div class="data-area">
-    <!-- Big metrics -->
     <div class="metrics-row">
       <div class="metric-tile" id="tile-pwr">
         <div class="metric-label">POWER</div>
@@ -654,7 +639,6 @@ footer {
       </div>
     </div>
 
-    <!-- ERG Mode Control Panel -->
     <div class="erg-panel">
       <div class="erg-controls">
         <div class="target-power">
@@ -673,11 +657,11 @@ footer {
           <button class="btn-erg" onclick="adjustPowerPercent(-10)">-10%</button>
           <button class="btn-erg" onclick="adjustPowerPercent(10)">+10%</button>
           <button class="btn-erg primary" onclick="setErgPower()">APPLY</button>
+          <button class="btn-erg" onclick="debugErgMode()">🔍 Debug</button>
         </div>
       </div>
     </div>
 
-    <!-- Recording controls -->
     <div class="recording-bar" id="rec-bar">
       <button class="btn-rec" id="btn-rec" onclick="toggleRecording()" disabled>⬤ Start</button>
       <button class="btn-rec btn-pause" id="btn-pause" onclick="togglePause()" disabled style="display:none">⏸ Pause</button>
@@ -691,9 +675,7 @@ footer {
       </div>
     </div>
 
-    <!-- Graphs: Full session (square) + Last 2min (scrollable) -->
     <div class="graphs-2col" id="graphs-container" style="display:none">
-      <!-- Full Session - Square compact graphs (REDUCED 50%) -->
       <div>
         <div class="section-title">FULL SESSION</div>
         <div class="full-session-graphs">
@@ -712,7 +694,6 @@ footer {
         </div>
       </div>
 
-      <!-- Last 2 Minutes - Scrollable horizontally -->
       <div>
         <div class="section-title">LAST 2 MINUTES → (scroll)</div>
         <div class="two-minute-section">
@@ -734,7 +715,6 @@ footer {
       </div>
     </div>
 
-    <!-- Stats (DOUBLED FONT SIZE) -->
     <div class="stats-grid" id="stats-container" style="display:none">
       <div class="stats-panel">
         <h3>FULL SESSION</h3>
@@ -758,7 +738,6 @@ footer {
       </div>
     </div>
 
-    <!-- Log -->
     <div class="log-section">
       <div class="log-header">
         <span>Event Log</span>
@@ -775,9 +754,6 @@ footer {
 <script>
 'use strict';
 
-// ═══════════════════════════════════════════════
-//  GATT UUIDs
-// ═══════════════════════════════════════════════
 const UUID = {
   CPS_SERVICE:0x1818, CPS_MEASUREMENT:0x2A63,
   FTMS_SERVICE:0x1826, FTMS_INDOOR_BIKE:0x2AD2,
@@ -785,9 +761,6 @@ const UUID = {
   HR_SERVICE:0x180D, HR_MEASUREMENT:0x2A37,
 };
 
-// ═══════════════════════════════════════════════
-//  State
-// ═══════════════════════════════════════════════
 let trainerDevice=null, hrDevice=null;
 let trainerLive=false, hrLive=false;
 let recording=false, paused=false;
@@ -797,10 +770,9 @@ let lastPower=null, lastCadence=null, lastHR=null;
 let prevCrankRevs=null, prevCrankTime=null, cpsRawLogged=0;
 let currentTargetPower=50;
 let ftmsControlPoint=null;
+let ftmsServer=null;
+let isErgMode=false;
 
-// ═══════════════════════════════════════════════
-//  Logging
-// ═══════════════════════════════════════════════
 function log(msg,cls='info'){
   const el=document.getElementById('log');
   const d=document.createElement('div');
@@ -810,10 +782,7 @@ function log(msg,cls='info'){
 }
 function clearLog(){document.getElementById('log').innerHTML='';}
 
-// ═══════════════════════════════════════════════
-//  ERG Mode Control
-// ═══════════════════════════════════════════════
-async function setErgPower(targetWatts=currentTargetPower){
+async function initializeErgMode() {
   if (!trainerDevice || !trainerLive) {
     log('No trainer connected for ERG control', 'warn');
     return false;
@@ -821,6 +790,8 @@ async function setErgPower(targetWatts=currentTargetPower){
   
   try {
     const server = await trainerDevice.gatt.connect();
+    ftmsServer = server;
+    
     let ftmsService;
     try {
       ftmsService = await server.getPrimaryService(UUID.FTMS_SERVICE);
@@ -831,51 +802,119 @@ async function setErgPower(targetWatts=currentTargetPower){
     
     try {
       ftmsControlPoint = await ftmsService.getCharacteristic(UUID.FTMS_CONTROL);
+      log('FTMS Control Point acquired - ready for ERG mode', 'ok');
     } catch(e) {
       log('Control point not found - trainer may not support ERG mode', 'err');
       return false;
     }
     
-    // Command: Set Target Power (Indoor Bike Data)
-    // Format: [command=0x01, reserved=0x00, power LSB, power MSB]
-    const command = new Uint8Array([
-      0x01,  // Set Target Power command
-      0x00,  // Reserved
-      targetWatts & 0xFF,
-      (targetWatts >> 8) & 0xFF
-    ]);
+    await ftmsControlPoint.startNotifications();
+    ftmsControlPoint.addEventListener('characteristicvaluechanged', onControlPointResponse);
     
-    await ftmsControlPoint.writeValue(command);
-    log(`ERG mode set to ${targetWatts}W`, 'ok');
-    document.getElementById('target-power-display').textContent = targetWatts;
-    document.getElementById('power-slider').value = targetWatts;
-    currentTargetPower = targetWatts;
     return true;
   } catch(e) {
-    log(`Failed to set ERG power: ${e.message}`, 'err');
+    log(`Failed to initialize ERG mode: ${e.message}`, 'err');
     return false;
   }
 }
 
-function adjustPower(delta){
+function onControlPointResponse(event) {
+  const data = event.target.value;
+  const responseCode = data.getUint8(0);
+  const requestOpCode = data.getUint8(1);
+  const resultCode = data.getUint8(2);
+  
+  if (responseCode === 0x80) {
+    if (resultCode === 0x01) {
+      log(`ERG command successful (op: ${requestOpCode})`, 'ok');
+    } else if (resultCode === 0x02) {
+      log(`ERG command rejected - not supported`, 'err');
+    } else if (resultCode === 0x04) {
+      log(`ERG command failed - invalid parameter`, 'err');
+    }
+  }
+}
+
+async function setErgMode(targetWatts) {
+  if (!ftmsControlPoint) {
+    log('ERG mode not initialized - attempting to initialize...', 'warn');
+    const init = await initializeErgMode();
+    if (!init) {
+      log('Cannot set ERG mode - trainer not compatible', 'err');
+      return false;
+    }
+  }
+  
+  try {
+    const configCommand = new Uint8Array([
+      0x02,  // Set Fitness Machine Configuration
+      0x00,
+      0x01,  // Flags LSB - Set target power enabled
+      0x00
+    ]);
+    
+    await ftmsControlPoint.writeValue(configCommand);
+    log('Sent ERG mode configuration command', 'ok');
+    
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const powerCommand = new Uint8Array([
+      0x01,  // Set Target Power
+      0x00,
+      targetWatts & 0xFF,
+      (targetWatts >> 8) & 0xFF
+    ]);
+    
+    await ftmsControlPoint.writeValue(powerCommand);
+    log(`Target power set to ${targetWatts}W in ERG mode`, 'ok');
+    
+    currentTargetPower = targetWatts;
+    document.getElementById('target-power-display').textContent = targetWatts;
+    document.getElementById('power-slider').value = targetWatts;
+    isErgMode = true;
+    
+    return true;
+  } catch(e) {
+    log(`Failed to set ERG mode: ${e.message}`, 'err');
+    return false;
+  }
+}
+
+async function adjustPower(delta) {
   let newPower = currentTargetPower + delta;
   newPower = Math.max(0, Math.min(800, newPower));
-  currentTargetPower = newPower;
-  document.getElementById('target-power-display').textContent = currentTargetPower;
-  document.getElementById('power-slider').value = currentTargetPower;
-  setErgPower(currentTargetPower);
+  await setErgMode(newPower);
 }
 
-function adjustPowerPercent(percent){
+async function adjustPowerPercent(percent) {
   let newPower = Math.round(currentTargetPower * (1 + percent/100));
   newPower = Math.max(0, Math.min(800, newPower));
-  currentTargetPower = newPower;
-  document.getElementById('target-power-display').textContent = currentTargetPower;
-  document.getElementById('power-slider').value = currentTargetPower;
-  setErgPower(currentTargetPower);
+  await setErgMode(newPower);
 }
 
-// Keyboard shortcuts
+async function setErgPower() {
+  const sliderValue = parseInt(document.getElementById('power-slider').value);
+  await setErgMode(sliderValue);
+}
+
+async function debugErgMode() {
+  log('=== ERG Mode Debug ===', 'warn');
+  log(`Trainer connected: ${trainerLive}`, 'info');
+  log(`Control point exists: ${!!ftmsControlPoint}`, 'info');
+  
+  if (!ftmsControlPoint) {
+    log('Attempting to initialize...', 'warn');
+    await initializeErgMode();
+  }
+  
+  if (ftmsControlPoint) {
+    const properties = ftmsControlPoint.properties;
+    log(`Control point properties: write=${properties.write} notify=${properties.notify}`, 'info');
+  }
+  
+  log('=====================', 'warn');
+}
+
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   
@@ -893,15 +932,11 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Slider event
 document.getElementById('power-slider').addEventListener('input', (e) => {
   currentTargetPower = parseInt(e.target.value);
   document.getElementById('target-power-display').textContent = currentTargetPower;
 });
 
-// ═══════════════════════════════════════════════
-//  Device UI (compact pills)
-// ═══════════════════════════════════════════════
 function setDevUI(role, live, name){
   const pill = document.getElementById(`pill-${role}`);
   const nameEl = document.getElementById(`${role}-name`);
@@ -918,7 +953,6 @@ function setDevUI(role, live, name){
   if(name) nameEl.textContent = name;
   else if(!name && !live) nameEl.textContent = '—';
   
-  // Update metric tiles based on data availability
   if(role === 'trainer'){
     document.getElementById('tile-pwr').classList.toggle('live', trainerLive && lastPower !== null);
     document.getElementById('tile-cad').classList.toggle('live', trainerLive && lastCadence !== null);
@@ -942,16 +976,10 @@ function updateStartBtn(){
   }
 }
 
-// ═══════════════════════════════════════════════
-//  localStorage — remember device names
-// ═══════════════════════════════════════════════
 const saveDevice  =(role,name)=>localStorage.setItem(`ble_${role}`,name);
 const forgetSaved =(role)=>localStorage.removeItem(`ble_${role}`);
 const savedName   =(role)=>localStorage.getItem(`ble_${role}`);
 
-// ═══════════════════════════════════════════════
-//  Auto-connect on load
-// ═══════════════════════════════════════════════
 async function autoConnect(){
   if(!navigator.bluetooth){
     log('Web Bluetooth unavailable — use Chrome','err');
@@ -996,9 +1024,6 @@ async function autoConnect(){
   updateStartBtn();
 }
 
-// ═══════════════════════════════════════════════
-//  Manual scan
-// ═══════════════════════════════════════════════
 async function manualConnect(role){
   if(!navigator.bluetooth) return;
   try{
@@ -1058,9 +1083,6 @@ function forgetDevice(role){
   log(`Forgot ${role}`,'warn');
 }
 
-// ═══════════════════════════════════════════════
-//  Trainer connect (with retry)
-// ═══════════════════════════════════════════════
 async function connectTrainer(dev, attempt=1){
   trainerDevice=dev;
   if(attempt===1){
@@ -1098,12 +1120,12 @@ async function connectTrainer(dev, attempt=1){
         log('Subscribed: FTMS Indoor Bike','ok');
         subscribed=true;
         
-        // Try to get control point for ERG mode
-        try{
-          ftmsControlPoint = await svc.getCharacteristic(UUID.FTMS_CONTROL);
-          log('FTMS Control Point available - ERG mode ready','ok');
-        } catch(e) {
-          log('FTMS Control Point not found - ERG mode unavailable','warn');
+        log('Initializing ERG mode control...', 'info');
+        const ergInit = await initializeErgMode();
+        if (ergInit) {
+          setTimeout(() => {
+            setErgMode(50);
+          }, 500);
         }
       } catch(_){log('FTMS not found','err');}
     }
@@ -1111,8 +1133,6 @@ async function connectTrainer(dev, attempt=1){
     if(subscribed){
       trainerLive=true;
       setDevUI('trainer', true, dev.name);
-      // Set initial ERG power
-      setTimeout(() => setErgPower(50), 1000);
     } else {
       setDevUI('trainer', false, dev.name);
     }
@@ -1124,9 +1144,6 @@ async function connectTrainer(dev, attempt=1){
   updateStartBtn();
 }
 
-// ═══════════════════════════════════════════════
-//  HR connect (with retry)
-// ═══════════════════════════════════════════════
 async function connectHR(dev, attempt=1){
   hrDevice=dev;
   if(attempt===1){
@@ -1156,9 +1173,6 @@ async function connectHR(dev, attempt=1){
   updateStartBtn();
 }
 
-// ═══════════════════════════════════════════════
-//  Data parsers
-// ═══════════════════════════════════════════════
 function onCPS(event){
   const data=event.target.value;
   const flags=data.getUint16(0,true);
@@ -1241,9 +1255,6 @@ function onHR(event){
   stampRecord();
 }
 
-// ═══════════════════════════════════════════════
-//  Recording with Pause
-// ═══════════════════════════════════════════════
 function stampRecord(){
   if(!recording || paused) return;
   records.push({t:Date.now(),power:lastPower,cadence:lastCadence,hr:lastHR});
@@ -1290,7 +1301,6 @@ function startRecording(){
   document.getElementById('graphs-container').style.display='';
   document.getElementById('stats-container').style.display='';
 
-  // 1-second updates for 2-minute graphs and stats
   graphTimer=setInterval(()=>{
     if(!paused){
       graphData.push({t:Date.now(),power:lastPower,cadence:lastCadence,hr:lastHR});
@@ -1299,7 +1309,6 @@ function startRecording(){
     }
   },1000);
   
-  // 10-second updates for full session square graphs
   fullGraphTimer=setInterval(()=>{
     if(!paused){
       renderFullSessionGraphs();
@@ -1339,16 +1348,12 @@ function stopRecording(){
   document.getElementById('rec-bar').classList.remove('is-recording');
   document.getElementById('rec-label').textContent=`Stopped — ${records.length} samples`;
   
-  // Final render of all graphs
   renderFullSessionGraphs();
   renderGraphs2Min();
   renderStats();
   log(`Recording stopped. ${records.length} samples.`,'ok');
 }
 
-// ═══════════════════════════════════════════════
-//  Graphing - Full Session (square, 10s updates)
-// ═══════════════════════════════════════════════
 function drawSquareChart(canvasId, points, color, unit, curId){
   const canvas=document.getElementById(canvasId);
   if(!canvas)return;
@@ -1373,11 +1378,9 @@ function drawSquareChart(canvasId, points, color, unit, curId){
   const pl=8,pr=8,pt=8,pb=8;
   const cW=W-pl-pr, cH=H-pt-pb;
 
-  // Grid
   ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=1;
   for(let i=0;i<=4;i++){const y=pt+(cH/4)*i+.5;ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();}
 
-  // Area fill
   ctx.beginPath();ctx.fillStyle=color+'1a';
   points.forEach((p,i)=>{
     const x=pl+(i/(points.length-1))*cW;
@@ -1386,7 +1389,6 @@ function drawSquareChart(canvasId, points, color, unit, curId){
   });
   ctx.lineTo(W-pr,pt+cH);ctx.lineTo(pl,pt+cH);ctx.closePath();ctx.fill();
 
-  // Line
   ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.lineJoin='round';
   let started=false;
   points.forEach((p,i)=>{
@@ -1397,7 +1399,6 @@ function drawSquareChart(canvasId, points, color, unit, curId){
   });
   ctx.stroke();
 
-  // Labels
   ctx.fillStyle='#4a5568';ctx.font=`9px monospace`;ctx.textAlign='left';
   ctx.fillText(Math.round(hi),pl+2,pt+10);
   ctx.fillText(Math.round(lo),pl+2,pt+cH-2);
@@ -1420,9 +1421,6 @@ function renderFullSessionGraphs(){
   drawSquareChart('chart-hr-full', points.hr, '#ff3c5a', 'bpm', 'cur-hr-full');
 }
 
-// ═══════════════════════════════════════════════
-//  Graphing - 2 Minute (scrollable, linear scaling)
-// ═══════════════════════════════════════════════
 function drawScrollingChart(canvasId, points, color, unit, curId){
   const canvas=document.getElementById(canvasId);
   if(!canvas)return;
@@ -1443,14 +1441,11 @@ function drawScrollingChart(canvasId, points, color, unit, curId){
   const pl=8,pr=8,pt=8,pb=8;
   const cW=W-pl-pr, cH=H-pt-pb;
 
-  // Fixed width per point - linear scaling based on point count
   const pointWidth = cW / (points.length - 1);
   
-  // Grid
   ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=1;
   for(let i=0;i<=4;i++){const y=pt+(cH/4)*i+.5;ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();}
 
-  // Area fill with linear positioning
   ctx.beginPath();ctx.fillStyle=color+'1a';
   points.forEach((p,i)=>{
     const x=pl + (i * pointWidth);
@@ -1459,7 +1454,6 @@ function drawScrollingChart(canvasId, points, color, unit, curId){
   });
   ctx.lineTo(W-pr,pt+cH);ctx.lineTo(pl,pt+cH);ctx.closePath();ctx.fill();
 
-  // Line
   ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.lineJoin='round';
   let started=false;
   points.forEach((p,i)=>{
@@ -1470,7 +1464,6 @@ function drawScrollingChart(canvasId, points, color, unit, curId){
   });
   ctx.stroke();
 
-  // Labels
   ctx.fillStyle='#4a5568';ctx.font=`9px monospace`;ctx.textAlign='left';
   ctx.fillText(Math.round(hi),pl+2,pt+10);
   ctx.fillText(Math.round(lo),pl+2,pt+cH-2);
@@ -1492,9 +1485,6 @@ function renderGraphs2Min(){
   }
 }
 
-// ═══════════════════════════════════════════════
-//  Stats & Normalised Power
-// ═══════════════════════════════════════════════
 function normPower(data){
   const p=data.map(d=>d.power??0);
   if(p.length<30)return null;
@@ -1533,9 +1523,6 @@ function renderStats(){
   setStat('s2-np',t.np,' W');setStat('s2-avg-cad',t.avgCad,' rpm');setStat('s2-avg-hr',t.avgHR,' bpm');setStat('s2-max-hr',t.maxHR,' bpm');
 }
 
-// ═══════════════════════════════════════════════
-//  CSV Export
-// ═══════════════════════════════════════════════
 function downloadCSV(){
   if(!records.length){
     log('No data to export','warn');
@@ -1563,9 +1550,6 @@ function downloadCSV(){
   log(`CSV exported: ${records.length} records`,'ok');
 }
 
-// ═══════════════════════════════════════════════
-//  FIT file writer
-// ═══════════════════════════════════════════════
 const FIT_EPOCH=631065600;
 const fitTs=ms=>Math.round(ms/1000)-FIT_EPOCH;
 
@@ -1647,9 +1631,6 @@ function downloadFIT(){
   log(`Downloaded erg_${ds}.fit — ${data.length} bytes, ${records.length} records`,'ok');
 }
 
-// ═══════════════════════════════════════════════
-//  Boot
-// ═══════════════════════════════════════════════
 window.addEventListener('load',autoConnect);
 </script>
 </body>
