@@ -523,43 +523,87 @@ async function disconnectTrainer() {
 
 // CPS Measurement (0x2A63)
 // Byte 0-1: flags, Byte 2-3: instantaneous power (int16, watts)
-// Crank revolutions in flags bit 4 → bytes vary
+// Optional fields follow depending on flags bits.
+//
+// Flag bits relevant here:
+//   bit 0  = Pedal Power Balance present      (1 byte)
+//   bit 1  = Pedal Power Balance Reference    (no extra bytes, modifier of bit 0)
+//   bit 2  = Accumulated Torque present       (2 bytes)
+//   bit 3  = Accumulated Torque Source        (no extra bytes)
+//   bit 4  = Wheel Revolution Data present    (4+2 = 6 bytes)
+//   bit 5  = Crank Revolution Data present    (2+2 = 4 bytes)  ← cadence lives here
+//
+// NOTE: Some trainers (including KICKR) always append Crank Revolution Data
+// regardless of the flag — we log raw bytes so we can verify.
+
+let cpsRawLogged = 0; // only log raw bytes for first 5 packets
+
 function onCPSMeasurement(event) {
   const data = event.target.value; // DataView
   const flags = data.getUint16(0, true);
-
   const power = data.getInt16(2, true);
+
+  // Log raw bytes for first few packets so we can diagnose cadence offset
+  if (cpsRawLogged < 5) {
+    const raw = Array.from(new Uint8Array(data.buffer))
+      .map(b => b.toString(16).padStart(2,'0')).join(' ');
+    log(`CPS raw [${data.byteLength}B] flags=0x${flags.toString(16).padStart(4,'0')}: ${raw}`, 'warn');
+    cpsRawLogged++;
+  }
+
   lastPower = power;
   document.getElementById('val-power').textContent = power;
 
-  // Crank Revolution Data present? (bit 4 of flags)
-  if (flags & 0x10) {
-    // offset: 4 bytes for power already + wheel data if present (bit 0,1 = wheel rev)
-    // Wheel revolution data = 6 bytes if bits 0+1 set
-    let offset = 4;
-    if (flags & 0x01) offset += 6; // skip wheel rev data if present
+  // Walk through optional fields to reach crank revolution data
+  let offset = 4; // start after flags (2) + power (2)
 
-    const crankRevs = data.getUint16(offset, true);
-    const crankTime = data.getUint16(offset + 2, true); // 1/1024 sec units
+  // bit 0: Pedal Power Balance (1 byte)
+  if (flags & 0x01) offset += 1;
+  // bit 2: Accumulated Torque (2 bytes)
+  if (flags & 0x04) offset += 2;
+  // bit 4: Wheel Revolution Data (cumulative revs uint32 + last event time uint16 = 6 bytes)
+  if (flags & 0x10) offset += 6;
+
+  // bit 5: Crank Revolution Data (cumulative crank revs uint16 + last crank event time uint16)
+  const crankFlagSet = !!(flags & 0x20);
+
+  // Also attempt to read crank data if the packet is long enough,
+  // even if the flag isn't set (some KICKR firmware omits the flag but sends the data)
+  const crankDataAvailable = crankFlagSet || (data.byteLength >= offset + 4);
+
+  if (crankDataAvailable && data.byteLength >= offset + 4) {
+    const crankRevs = data.getUint16(offset,     true);
+    const crankTime = data.getUint16(offset + 2, true); // units: 1/1024 s
+
+    if (!crankFlagSet && cpsRawLogged <= 5) {
+      log(`Crank flag NOT set but packet long enough — reading offset ${offset}`, 'warn');
+    }
 
     if (prevCrankRevs !== null && prevCrankTime !== null) {
       let deltaRevs = crankRevs - prevCrankRevs;
       let deltaTime = crankTime - prevCrankTime;
+      // Handle 16-bit rollover
       if (deltaRevs < 0) deltaRevs += 65536;
       if (deltaTime < 0) deltaTime += 65536;
-      if (deltaTime > 0 && deltaRevs > 0) {
+
+      if (deltaRevs > 0 && deltaTime > 0) {
         const cadence = Math.round((deltaRevs / deltaTime) * 1024 * 60);
         if (cadence > 0 && cadence < 250) {
           lastCadence = cadence;
           document.getElementById('val-cadence').textContent = cadence;
         }
-      } else if (deltaTime > 2048) { // ~2s of no crank events
+      } else if (deltaTime > 2048) {
+        // ~2 s since last crank event → rider has stopped pedalling
         lastCadence = 0;
         document.getElementById('val-cadence').textContent = '0';
       }
     }
     prevCrankRevs = crankRevs;
     prevCrankTime = crankTime;
+  } else {
+    if (cpsRawLogged <= 5) {
+      log(`No crank data: flag=${crankFlagSet}, byteLen=${data.byteLength}, needed offset+4=${offset+4}`, 'warn');
+    }
   }
 
   stampRecord();
