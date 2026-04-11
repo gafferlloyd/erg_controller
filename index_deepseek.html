@@ -587,7 +587,7 @@ footer {
 
 <header>
   <h1>ERG_CONTROLLER</h1>
-  <span>BLE Recorder — ERG Mode + CSV/FIT</span>
+  <span>BLE Recorder — Wahoo KICKR ERG Mode + CSV/FIT</span>
 </header>
 
 <div class="main-dashboard">
@@ -748,7 +748,7 @@ footer {
   </div>
 </div>
 
-<footer>gafferlloyd/erg_controller · ERG Mode Active · Keyboard: ↑↓ (±10W) · Shift+↑↓ (±10%)</footer>
+<footer>gafferlloyd/erg_controller · Wahoo KICKR ERG Mode · Keyboard: ↑↓ (±10W) · Shift+↑↓ (±10%)</footer>
 </div>
 
 <script>
@@ -757,9 +757,11 @@ footer {
 const UUID = {
   CPS_SERVICE:0x1818, CPS_MEASUREMENT:0x2A63,
   FTMS_SERVICE:0x1826, FTMS_INDOOR_BIKE:0x2AD2,
-  FTMS_CONTROL:0x2AD9,
   HR_SERVICE:0x180D, HR_MEASUREMENT:0x2A37,
 };
+
+// Wahoo KICKR proprietary control UUID
+const WAHOO_CONTROL_UUID = "A026E005-0A7D-4AB3-97FA-F1500F9FEB8B";
 
 let trainerDevice=null, hrDevice=null;
 let trainerLive=false, hrLive=false;
@@ -769,8 +771,7 @@ let records=[], graphData=[];
 let lastPower=null, lastCadence=null, lastHR=null;
 let prevCrankRevs=null, prevCrankTime=null, cpsRawLogged=0;
 let currentTargetPower=50;
-let ftmsControlPoint=null;
-let ftmsServer=null;
+let wahooControlCharacteristic=null;
 let isErgMode=false;
 
 function log(msg,cls='info'){
@@ -782,159 +783,185 @@ function log(msg,cls='info'){
 }
 function clearLog(){document.getElementById('log').innerHTML='';}
 
-async function initializeErgMode() {
-  if (!trainerDevice || !trainerLive) {
-    log('No trainer connected for ERG control', 'warn');
-    return false;
-  }
-  
-  try {
-    const server = await trainerDevice.gatt.connect();
-    ftmsServer = server;
-    
-    let ftmsService;
-    try {
-      ftmsService = await server.getPrimaryService(UUID.FTMS_SERVICE);
-    } catch(e) {
-      log('FTMS Service not found - trainer may not support ERG mode', 'err');
-      return false;
+async function initializeWahooErgMode() {
+    if (!trainerDevice || !trainerLive) {
+        log('No trainer connected for ERG control', 'warn');
+        return false;
     }
     
     try {
-      ftmsControlPoint = await ftmsService.getCharacteristic(UUID.FTMS_CONTROL);
-      log('FTMS Control Point acquired - ready for ERG mode', 'ok');
+        const server = await trainerDevice.gatt.connect();
+        
+        // Get all services and search for Wahoo control characteristic
+        const services = await server.getPrimaryServices();
+        
+        for (const service of services) {
+            try {
+                const characteristic = await service.getCharacteristic(WAHOO_CONTROL_UUID);
+                if (characteristic) {
+                    wahooControlCharacteristic = characteristic;
+                    log('Found Wahoo KICKR control characteristic!', 'ok');
+                    
+                    // Enable notifications to get responses from trainer
+                    await wahooControlCharacteristic.startNotifications();
+                    wahooControlCharacteristic.addEventListener('characteristicvaluechanged', onWahooResponse);
+                    return true;
+                }
+            } catch(e) {
+                // Continue searching
+            }
+        }
+        
+        log('Wahoo control characteristic not found - trainer may not be a Wahoo KICKR', 'err');
+        return false;
+        
     } catch(e) {
-      log('Control point not found - trainer may not support ERG mode', 'err');
-      return false;
+        log(`Failed to initialize Wahoo ERG mode: ${e.message}`, 'err');
+        return false;
     }
-    
-    await ftmsControlPoint.startNotifications();
-    ftmsControlPoint.addEventListener('characteristicvaluechanged', onControlPointResponse);
-    
-    return true;
-  } catch(e) {
-    log(`Failed to initialize ERG mode: ${e.message}`, 'err');
-    return false;
-  }
 }
 
-function onControlPointResponse(event) {
-  const data = event.target.value;
-  const responseCode = data.getUint8(0);
-  const requestOpCode = data.getUint8(1);
-  const resultCode = data.getUint8(2);
-  
-  if (responseCode === 0x80) {
-    if (resultCode === 0x01) {
-      log(`ERG command successful (op: ${requestOpCode})`, 'ok');
-    } else if (resultCode === 0x02) {
-      log(`ERG command rejected - not supported`, 'err');
-    } else if (resultCode === 0x04) {
-      log(`ERG command failed - invalid parameter`, 'err');
-    }
-  }
+function onWahooResponse(event) {
+    const data = event.target.value;
+    log(`Wahoo trainer response: ${Array.from(new Uint8Array(data.buffer))}`, 'data');
 }
 
-async function setErgMode(targetWatts) {
-  if (!ftmsControlPoint) {
-    log('ERG mode not initialized - attempting to initialize...', 'warn');
-    const init = await initializeErgMode();
-    if (!init) {
-      log('Cannot set ERG mode - trainer not compatible', 'err');
-      return false;
+async function setWahooErgMode(targetWatts) {
+    if (!wahooControlCharacteristic) {
+        log('Wahoo control not initialized - attempting to initialize...', 'warn');
+        const init = await initializeWahooErgMode();
+        if (!init) {
+            log('Cannot set ERG mode - trainer not compatible', 'err');
+            return false;
+        }
     }
-  }
-  
-  try {
-    const configCommand = new Uint8Array([
-      0x02,  // Set Fitness Machine Configuration
-      0x00,
-      0x01,  // Flags LSB - Set target power enabled
-      0x00
-    ]);
     
-    await ftmsControlPoint.writeValue(configCommand);
-    log('Sent ERG mode configuration command', 'ok');
+    try {
+        // Wahoo's proprietary command format for ERG target power
+        // 20-byte command packet
+        const command = new Uint8Array(20);
+        command[0] = 0x01;  // ERG Target Power command
+        
+        // Set target power (little-endian)
+        command[1] = targetWatts & 0xFF;
+        command[2] = (targetWatts >> 8) & 0xFF;
+        
+        await wahooControlCharacteristic.writeValue(command);
+        log(`Wahoo KICKR ERG mode set to ${targetWatts}W`, 'ok');
+        
+        currentTargetPower = targetWatts;
+        document.getElementById('target-power-display').textContent = targetWatts;
+        document.getElementById('power-slider').value = targetWatts;
+        isErgMode = true;
+        
+        return true;
+        
+    } catch(e) {
+        log(`Failed to set Wahoo ERG mode: ${e.message}`, 'err');
+        return false;
+    }
+}
+
+async function setWahooSimulationErgMode(targetWatts) {
+    if (!wahooControlCharacteristic) {
+        const init = await initializeWahooErgMode();
+        if (!init) return false;
+    }
     
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    const powerCommand = new Uint8Array([
-      0x01,  // Set Target Power
-      0x00,
-      targetWatts & 0xFF,
-      (targetWatts >> 8) & 0xFF
-    ]);
-    
-    await ftmsControlPoint.writeValue(powerCommand);
-    log(`Target power set to ${targetWatts}W in ERG mode`, 'ok');
-    
-    currentTargetPower = targetWatts;
-    document.getElementById('target-power-display').textContent = targetWatts;
-    document.getElementById('power-slider').value = targetWatts;
-    isErgMode = true;
-    
-    return true;
-  } catch(e) {
-    log(`Failed to set ERG mode: ${e.message}`, 'err');
-    return false;
-  }
+    try {
+        const command = new Uint8Array(20);
+        command[0] = 0x03;  // Set Simulation Parameters
+        
+        // Flags: Enable ERG mode and set target power
+        command[3] = 0x01;  // Flags LSB - ERG mode enabled
+        command[4] = 0x00;  // Flags MSB
+        
+        // Target power (watts)
+        command[5] = targetWatts & 0xFF;
+        command[6] = (targetWatts >> 8) & 0xFF;
+        
+        await wahooControlCharacteristic.writeValue(command);
+        log(`Wahoo KICKR simulation ERG mode set to ${targetWatts}W`, 'ok');
+        
+        currentTargetPower = targetWatts;
+        document.getElementById('target-power-display').textContent = targetWatts;
+        document.getElementById('power-slider').value = targetWatts;
+        isErgMode = true;
+        
+        return true;
+        
+    } catch(e) {
+        log(`Failed to set Wahoo simulation ERG mode: ${e.message}`, 'err');
+        return false;
+    }
 }
 
 async function adjustPower(delta) {
-  let newPower = currentTargetPower + delta;
-  newPower = Math.max(0, Math.min(800, newPower));
-  await setErgMode(newPower);
+    let newPower = currentTargetPower + delta;
+    newPower = Math.max(0, Math.min(800, newPower));
+    await setWahooErgMode(newPower);
 }
 
 async function adjustPowerPercent(percent) {
-  let newPower = Math.round(currentTargetPower * (1 + percent/100));
-  newPower = Math.max(0, Math.min(800, newPower));
-  await setErgMode(newPower);
+    let newPower = Math.round(currentTargetPower * (1 + percent/100));
+    newPower = Math.max(0, Math.min(800, newPower));
+    await setWahooErgMode(newPower);
 }
 
 async function setErgPower() {
-  const sliderValue = parseInt(document.getElementById('power-slider').value);
-  await setErgMode(sliderValue);
+    const sliderValue = parseInt(document.getElementById('power-slider').value);
+    await setWahooErgMode(sliderValue);
 }
 
 async function debugErgMode() {
-  log('=== ERG Mode Debug ===', 'warn');
-  log(`Trainer connected: ${trainerLive}`, 'info');
-  log(`Control point exists: ${!!ftmsControlPoint}`, 'info');
-  
-  if (!ftmsControlPoint) {
-    log('Attempting to initialize...', 'warn');
-    await initializeErgMode();
-  }
-  
-  if (ftmsControlPoint) {
-    const properties = ftmsControlPoint.properties;
-    log(`Control point properties: write=${properties.write} notify=${properties.notify}`, 'info');
-  }
-  
-  log('=====================', 'warn');
+    log('=== WAHOO KICKR ERG Mode Debug ===', 'warn');
+    log(`Trainer connected: ${trainerLive}`, 'info');
+    log(`Wahoo control char exists: ${!!wahooControlCharacteristic}`, 'info');
+    
+    if (!wahooControlCharacteristic) {
+        log('Attempting to initialize Wahoo control...', 'warn');
+        await initializeWahooErgMode();
+    }
+    
+    if (wahooControlCharacteristic) {
+        const properties = wahooControlCharacteristic.properties;
+        log(`Control properties: write=${properties.write} notify=${properties.notify}`, 'info');
+        
+        // Try to read the trainer's current settings
+        try {
+            const value = await wahooControlCharacteristic.readValue();
+            log(`Current trainer state: ${Array.from(new Uint8Array(value.buffer))}`, 'data');
+        } catch(e) {
+            log(`Could not read trainer state: ${e.message}`, 'warn');
+        }
+    }
+    
+    log('Try setting a test ERG power of 100W...', 'info');
+    await setWahooErgMode(100);
+    
+    log('=====================', 'warn');
 }
 
 document.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-  
-  switch(e.key) {
-    case 'ArrowUp':
-      e.preventDefault();
-      if (e.shiftKey) adjustPowerPercent(10);
-      else adjustPower(10);
-      break;
-    case 'ArrowDown':
-      e.preventDefault();
-      if (e.shiftKey) adjustPowerPercent(-10);
-      else adjustPower(-10);
-      break;
-  }
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
+    switch(e.key) {
+        case 'ArrowUp':
+            e.preventDefault();
+            if (e.shiftKey) adjustPowerPercent(10);
+            else adjustPower(10);
+            break;
+        case 'ArrowDown':
+            e.preventDefault();
+            if (e.shiftKey) adjustPowerPercent(-10);
+            else adjustPower(-10);
+            break;
+    }
 });
 
 document.getElementById('power-slider').addEventListener('input', (e) => {
-  currentTargetPower = parseInt(e.target.value);
-  document.getElementById('target-power-display').textContent = currentTargetPower;
+    currentTargetPower = parseInt(e.target.value);
+    document.getElementById('target-power-display').textContent = currentTargetPower;
 });
 
 function setDevUI(role, live, name){
@@ -1034,7 +1061,7 @@ async function manualConnect(role){
           {services:[UUID.CPS_SERVICE]},{services:[UUID.FTMS_SERVICE]},
           {namePrefix:'KICKR'},{namePrefix:'Wahoo'},
         ],
-        optionalServices:[UUID.CPS_SERVICE,UUID.FTMS_SERVICE,UUID.FTMS_CONTROL],
+        optionalServices:[UUID.CPS_SERVICE,UUID.FTMS_SERVICE],
       });
       saveDevice('trainer',dev.name);
       setDevUI('trainer', false, dev.name);
@@ -1062,6 +1089,7 @@ function forgetDevice(role){
   if(role==='trainer'){
     try{if(trainerDevice?.gatt?.connected)trainerDevice.gatt.disconnect();}catch(_){}
     trainerDevice=null;trainerLive=false;
+    wahooControlCharacteristic=null;
     setDevUI('trainer', false, '');
     lastPower=null; lastCadence=null;
     document.getElementById('val-pwr').textContent='—';
@@ -1088,6 +1116,7 @@ async function connectTrainer(dev, attempt=1){
   if(attempt===1){
     dev.addEventListener('gattserverdisconnected',()=>{
       trainerLive=false;
+      wahooControlCharacteristic=null;
       setDevUI('trainer', false, dev.name);
       document.getElementById('tile-pwr').classList.remove('live');
       document.getElementById('tile-cad').classList.remove('live');
@@ -1120,12 +1149,14 @@ async function connectTrainer(dev, attempt=1){
         log('Subscribed: FTMS Indoor Bike','ok');
         subscribed=true;
         
-        log('Initializing ERG mode control...', 'info');
-        const ergInit = await initializeErgMode();
-        if (ergInit) {
-          setTimeout(() => {
-            setErgMode(50);
-          }, 500);
+        log('Initializing Wahoo KICKR ERG control...', 'info');
+        const wahooInit = await initializeWahooErgMode();
+        if (wahooInit) {
+            setTimeout(() => {
+                setWahooErgMode(50);
+            }, 1000);
+        } else {
+            log('Wahoo control not found - trainer may not be a KICKR', 'warn');
         }
       } catch(_){log('FTMS not found','err');}
     }
