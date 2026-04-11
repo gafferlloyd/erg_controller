@@ -246,6 +246,15 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
 .btn-rec:not(:disabled):hover { filter: brightness(1.15); transform: translateY(-1px); }
 .btn-rec.recording { background: var(--red); color: #fff; }
 
+.btn-pause {
+  background: var(--amber);
+  color: var(--bg);
+}
+
+.btn-pause.paused {
+  background: var(--green);
+}
+
 .rec-status {
   font-family: var(--mono);
   font-size: 0.7rem;
@@ -300,11 +309,21 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
   margin-bottom: 20px;
 }
 
-.graph-card {
+/* Full session graphs - square and compact */
+.full-session-graphs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.graph-card-square {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 12px;
+  padding: 10px;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .graph-header {
@@ -312,17 +331,50 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--muted);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   display: flex;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
 .graph-header span { color: var(--text); font-family: var(--mono); font-weight: 600; }
 
-.graph-card canvas {
+.graph-card-square canvas {
   display: block;
   width: 100%;
-  height: 140px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* 2-minute graphs - scrolling container */
+.two-minute-section {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.two-minute-scroll {
+  display: flex;
+  gap: 16px;
+  min-width: min-content;
+}
+
+.two-minute-card {
+  width: 300px;
+  flex-shrink: 0;
+}
+
+.two-minute-card .graph-header {
+  margin-bottom: 8px;
+}
+
+.two-minute-card canvas {
+  width: 100%;
+  height: 180px;
+  display: block;
 }
 
 /* Stats section */
@@ -489,6 +541,7 @@ footer {
     <!-- Recording controls -->
     <div class="recording-bar" id="rec-bar">
       <button class="btn-rec" id="btn-rec" onclick="toggleRecording()" disabled>⬤ Start</button>
+      <button class="btn-rec btn-pause" id="btn-pause" onclick="togglePause()" disabled style="display:none">⏸ Pause</button>
       <div class="rec-status">
         <div class="rec-blink"></div>
         <span id="rec-label">Connect device to begin</span>
@@ -499,39 +552,45 @@ footer {
       </div>
     </div>
 
-    <!-- Graphs: Full session & Last 2min side by side -->
+    <!-- Graphs: Full session (square) + Last 2min (scrollable) -->
     <div class="graphs-2col" id="graphs-container" style="display:none">
-      <!-- Full Session -->
+      <!-- Full Session - Square compact graphs -->
       <div>
         <div class="section-title">FULL SESSION</div>
-        <div class="graph-card">
-          <div class="graph-header">Power <span id="cur-pwr-full">—</span></div>
-          <canvas id="chart-pwr-full"></canvas>
-        </div>
-        <div class="graph-card" style="margin-top:12px">
-          <div class="graph-header">Cadence <span id="cur-cad-full">—</span></div>
-          <canvas id="chart-cad-full"></canvas>
-        </div>
-        <div class="graph-card" style="margin-top:12px">
-          <div class="graph-header">Heart Rate <span id="cur-hr-full">—</span></div>
-          <canvas id="chart-hr-full"></canvas>
+        <div class="full-session-graphs">
+          <div class="graph-card-square">
+            <div class="graph-header">Power <span id="cur-pwr-full">—</span></div>
+            <canvas id="chart-pwr-full"></canvas>
+          </div>
+          <div class="graph-card-square">
+            <div class="graph-header">Cadence <span id="cur-cad-full">—</span></div>
+            <canvas id="chart-cad-full"></canvas>
+          </div>
+          <div class="graph-card-square">
+            <div class="graph-header">Heart Rate <span id="cur-hr-full">—</span></div>
+            <canvas id="chart-hr-full"></canvas>
+          </div>
         </div>
       </div>
 
-      <!-- Last 2 Minutes -->
+      <!-- Last 2 Minutes - Scrollable horizontally -->
       <div>
-        <div class="section-title">LAST 2 MINUTES</div>
-        <div class="graph-card">
-          <div class="graph-header">Power <span id="cur-pwr-2m">—</span></div>
-          <canvas id="chart-pwr-2m"></canvas>
-        </div>
-        <div class="graph-card" style="margin-top:12px">
-          <div class="graph-header">Cadence <span id="cur-cad-2m">—</span></div>
-          <canvas id="chart-cad-2m"></canvas>
-        </div>
-        <div class="graph-card" style="margin-top:12px">
-          <div class="graph-header">Heart Rate <span id="cur-hr-2m">—</span></div>
-          <canvas id="chart-hr-2m"></canvas>
+        <div class="section-title">LAST 2 MINUTES → (scroll)</div>
+        <div class="two-minute-section">
+          <div class="two-minute-scroll">
+            <div class="two-minute-card">
+              <div class="graph-header">Power <span id="cur-pwr-2m">—</span></div>
+              <canvas id="chart-pwr-2m"></canvas>
+            </div>
+            <div class="two-minute-card">
+              <div class="graph-header">Cadence <span id="cur-cad-2m">—</span></div>
+              <canvas id="chart-cad-2m"></canvas>
+            </div>
+            <div class="two-minute-card">
+              <div class="graph-header">Heart Rate <span id="cur-hr-2m">—</span></div>
+              <canvas id="chart-hr-2m"></canvas>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -571,7 +630,7 @@ footer {
   </div>
 </div>
 
-<footer>gafferlloyd/erg_controller · Web Bluetooth API · Chrome required · CSV export included</footer>
+<footer>gafferlloyd/erg_controller · Web Bluetooth API · Chrome required · CSV + FIT export</footer>
 </div>
 
 <script>
@@ -591,7 +650,8 @@ const UUID = {
 // ═══════════════════════════════════════════════
 let trainerDevice=null, hrDevice=null;
 let trainerLive=false, hrLive=false;
-let recording=false, recStart=null, recTimer=null, graphTimer=null;
+let recording=false, paused=false;
+let recStart=null, recTimer=null, graphTimer=null, fullGraphTimer=null;
 let records=[], graphData=[];
 let lastPower=null, lastCadence=null, lastHR=null;
 let prevCrankRevs=null, prevCrankTime=null, cpsRawLogged=0;
@@ -941,38 +1001,78 @@ function onHR(event){
 }
 
 // ═══════════════════════════════════════════════
-//  Recording
+//  Recording with Pause
 // ═══════════════════════════════════════════════
 function stampRecord(){
-  if(!recording)return;
+  if(!recording || paused) return;
   records.push({t:Date.now(),power:lastPower,cadence:lastCadence,hr:lastHR});
 }
 
+function togglePause(){
+  if(!recording) return;
+  paused = !paused;
+  const pauseBtn = document.getElementById('btn-pause');
+  if(paused){
+    pauseBtn.textContent = '▶ Resume';
+    pauseBtn.classList.add('paused');
+    log('Recording paused','warn');
+    document.getElementById('rec-label').textContent = '⏸ Paused — click resume';
+  } else {
+    pauseBtn.textContent = '⏸ Pause';
+    pauseBtn.classList.remove('paused');
+    log('Recording resumed','ok');
+  }
+}
+
 function toggleRecording(){
-  if(!recording)startRecording(); else stopRecording();
+  if(!recording) startRecording(); else stopRecording();
 }
 
 function startRecording(){
   records=[];graphData=[];
-  recStart=Date.now();recording=true;
+  recStart=Date.now();recording=true;paused=false;
   prevCrankRevs=null;prevCrankTime=null;
 
   const btn=document.getElementById('btn-rec');
   btn.textContent='■ Stop';
   btn.classList.add('recording');
+  
+  const pauseBtn=document.getElementById('btn-pause');
+  pauseBtn.style.display='inline-block';
+  pauseBtn.textContent='⏸ Pause';
+  pauseBtn.classList.remove('paused');
+  pauseBtn.disabled=false;
+  
   document.getElementById('btn-csv').disabled=true;
   document.getElementById('btn-fit').disabled=true;
   document.getElementById('rec-bar').classList.add('is-recording');
   document.getElementById('graphs-container').style.display='';
   document.getElementById('stats-container').style.display='';
 
-  graphTimer=setInterval(sampleGraph,1000);
+  // 1-second updates for 2-minute graphs and stats
+  graphTimer=setInterval(()=>{
+    if(!paused){
+      graphData.push({t:Date.now(),power:lastPower,cadence:lastCadence,hr:lastHR});
+      renderGraphs2Min();
+      renderStats();
+    }
+  },1000);
+  
+  // 10-second updates for full session square graphs
+  fullGraphTimer=setInterval(()=>{
+    if(!paused){
+      renderFullSessionGraphs();
+    }
+  },10000);
+  
   recTimer=setInterval(()=>{
-    const el=Math.floor((Date.now()-recStart)/1000);
-    const h=String(Math.floor(el/3600)).padStart(2,'0');
-    const m=String(Math.floor((el%3600)/60)).padStart(2,'0');
-    const s=String(el%60).padStart(2,'0');
-    document.getElementById('rec-label').textContent=`Recording  ${h}:${m}:${s}  ·  ${records.length} samples`;
+    if(!paused){
+      const el=Math.floor((Date.now()-recStart)/1000);
+      const h=String(Math.floor(el/3600)).padStart(2,'0');
+      const m=String(Math.floor((el%3600)/60)).padStart(2,'0');
+      const s=String(el%60).padStart(2,'0');
+      document.getElementById('rec-label').textContent=`Recording  ${h}:${m}:${s}  ·  ${records.length} samples`;
+    }
   },1000);
 
   log('Recording started','ok');
@@ -980,35 +1080,44 @@ function startRecording(){
 
 function stopRecording(){
   recording=false;
-  clearInterval(recTimer);clearInterval(graphTimer);
+  paused=false;
+  clearInterval(recTimer);
+  clearInterval(graphTimer);
+  clearInterval(fullGraphTimer);
+  
   const btn=document.getElementById('btn-rec');
   btn.textContent='⬤ Start';
   btn.classList.remove('recording');
+  
+  const pauseBtn=document.getElementById('btn-pause');
+  pauseBtn.style.display='none';
+  pauseBtn.disabled=true;
+  
   document.getElementById('btn-csv').disabled=(records.length===0);
   document.getElementById('btn-fit').disabled=(records.length===0);
   document.getElementById('rec-bar').classList.remove('is-recording');
   document.getElementById('rec-label').textContent=`Stopped — ${records.length} samples`;
-  renderGraphs();renderStats();
+  
+  // Final render of all graphs
+  renderFullSessionGraphs();
+  renderGraphs2Min();
+  renderStats();
   log(`Recording stopped. ${records.length} samples.`,'ok');
 }
 
 // ═══════════════════════════════════════════════
-//  Graphing
+//  Graphing - Full Session (square, 10s updates)
 // ═══════════════════════════════════════════════
-function sampleGraph(){
-  graphData.push({t:Date.now(),power:lastPower,cadence:lastCadence,hr:lastHR});
-  renderGraphs();renderStats();
-}
-
-function drawChart(canvasId, points, color, unit, curId){
+function drawSquareChart(canvasId, points, color, unit, curId){
   const canvas=document.getElementById(canvasId);
   if(!canvas)return;
-  const dpr=window.devicePixelRatio||1;
-  const W=canvas.parentElement.clientWidth-24;
-  const H=140;
-  canvas.width=W*dpr; canvas.height=H*dpr;
+  const container = canvas.parentElement;
+  const size = container.clientWidth;
+  const H = size;
+  const W = size;
+  
+  canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext('2d');
-  ctx.scale(dpr,dpr);
   ctx.clearRect(0,0,W,H);
 
   const valid=points.filter(p=>p.v!=null);
@@ -1020,7 +1129,7 @@ function drawChart(canvasId, points, color, unit, curId){
   const vals=valid.map(p=>p.v);
   const lo=Math.min(...vals), hi=Math.max(...vals);
   const range=hi-lo||1;
-  const pl=4,pr=4,pt=6,pb=6;
+  const pl=8,pr=8,pt=8,pb=8;
   const cW=W-pl-pr, cH=H-pt-pb;
 
   // Grid
@@ -1037,7 +1146,7 @@ function drawChart(canvasId, points, color, unit, curId){
   ctx.lineTo(W-pr,pt+cH);ctx.lineTo(pl,pt+cH);ctx.closePath();ctx.fill();
 
   // Line
-  ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.lineJoin='round';
+  ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.lineJoin='round';
   let started=false;
   points.forEach((p,i)=>{
     if(p.v==null){started=false;return;}
@@ -1047,35 +1156,98 @@ function drawChart(canvasId, points, color, unit, curId){
   });
   ctx.stroke();
 
-  // Range labels
+  // Labels
   ctx.fillStyle='#4a5568';ctx.font=`9px monospace`;ctx.textAlign='left';
   ctx.fillText(Math.round(hi),pl+2,pt+10);
   ctx.fillText(Math.round(lo),pl+2,pt+cH-2);
 
-  // Current value
-  if(curId){
+  if(curId && valid.length){
     const last=valid[valid.length-1];
     document.getElementById(curId).textContent=`${Math.round(last.v)} ${unit}`;
   }
 }
 
-function renderGraphs(){
-  if(!graphData.length)return;
-  const full={
-    pwr:graphData.map(d=>({v:d.power})),
-    cad:graphData.map(d=>({v:d.cadence})),
-    hr :graphData.map(d=>({v:d.hr})),
+function renderFullSessionGraphs(){
+  if(!graphData.length) return;
+  const points = {
+    pwr: graphData.map(d=>({v:d.power})),
+    cad: graphData.map(d=>({v:d.cadence})),
+    hr: graphData.map(d=>({v:d.hr}))
   };
-  drawChart('chart-pwr-full',full.pwr,'#00e5ff','W',  'cur-pwr-full');
-  drawChart('chart-cad-full',full.cad,'#00ff88','rpm','cur-cad-full');
-  drawChart('chart-hr-full', full.hr, '#ff3c5a','bpm','cur-hr-full');
+  drawSquareChart('chart-pwr-full', points.pwr, '#00e5ff', 'W', 'cur-pwr-full');
+  drawSquareChart('chart-cad-full', points.cad, '#00ff88', 'rpm', 'cur-cad-full');
+  drawSquareChart('chart-hr-full', points.hr, '#ff3c5a', 'bpm', 'cur-hr-full');
+}
 
+// ═══════════════════════════════════════════════
+//  Graphing - 2 Minute (scrollable, linear scaling)
+// ═══════════════════════════════════════════════
+function drawScrollingChart(canvasId, points, color, unit, curId){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas)return;
+  const W=300, H=180;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  const valid=points.filter(p=>p.v!=null);
+  if(valid.length<2){
+    ctx.fillStyle='#4a5568';ctx.font=`11px monospace`;ctx.textAlign='center';
+    ctx.fillText('No data yet',W/2,H/2);return;
+  }
+
+  const vals=valid.map(p=>p.v);
+  const lo=Math.min(...vals), hi=Math.max(...vals);
+  const range=hi-lo||1;
+  const pl=8,pr=8,pt=8,pb=8;
+  const cW=W-pl-pr, cH=H-pt-pb;
+
+  // Fixed width per point - linear scaling based on point count
+  const pointWidth = cW / (points.length - 1);
+  
+  // Grid
+  ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const y=pt+(cH/4)*i+.5;ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();}
+
+  // Area fill with linear positioning
+  ctx.beginPath();ctx.fillStyle=color+'1a';
+  points.forEach((p,i)=>{
+    const x=pl + (i * pointWidth);
+    const y=p.v==null?pt+cH:pt+cH-((p.v-lo)/range)*cH;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.lineTo(W-pr,pt+cH);ctx.lineTo(pl,pt+cH);ctx.closePath();ctx.fill();
+
+  // Line
+  ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.lineJoin='round';
+  let started=false;
+  points.forEach((p,i)=>{
+    if(p.v==null){started=false;return;}
+    const x=pl + (i * pointWidth);
+    const y=pt+cH-((p.v-lo)/range)*cH;
+    if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // Labels
+  ctx.fillStyle='#4a5568';ctx.font=`9px monospace`;ctx.textAlign='left';
+  ctx.fillText(Math.round(hi),pl+2,pt+10);
+  ctx.fillText(Math.round(lo),pl+2,pt+cH-2);
+
+  if(curId && valid.length){
+    const last=valid[valid.length-1];
+    document.getElementById(curId).textContent=`${Math.round(last.v)} ${unit}`;
+  }
+}
+
+function renderGraphs2Min(){
+  if(!graphData.length) return;
   const cut=Date.now()-120000;
-  const sl=graphData.filter(d=>d.t>=cut);
+  const sl = graphData.filter(d=>d.t>=cut);
   if(sl.length>1){
-    drawChart('chart-pwr-2m',sl.map(d=>({v:d.power})),  '#00e5ff','W',  'cur-pwr-2m');
-    drawChart('chart-cad-2m',sl.map(d=>({v:d.cadence})),'#00ff88','rpm','cur-cad-2m');
-    drawChart('chart-hr-2m', sl.map(d=>({v:d.hr})),     '#ff3c5a','bpm','cur-hr-2m');
+    drawScrollingChart('chart-pwr-2m', sl.map(d=>({v:d.power})), '#00e5ff', 'W', 'cur-pwr-2m');
+    drawScrollingChart('chart-cad-2m', sl.map(d=>({v:d.cadence})), '#00ff88', 'rpm', 'cur-cad-2m');
+    drawScrollingChart('chart-hr-2m', sl.map(d=>({v:d.hr})), '#ff3c5a', 'bpm', 'cur-hr-2m');
   }
 }
 
@@ -1121,7 +1293,7 @@ function renderStats(){
 }
 
 // ═══════════════════════════════════════════════
-//  CSV Export (NEW)
+//  CSV Export
 // ═══════════════════════════════════════════════
 function downloadCSV(){
   if(!records.length){
@@ -1129,7 +1301,6 @@ function downloadCSV(){
     return;
   }
   
-  // CSV headers
   const headers = ['Timestamp (ISO)', 'Timestamp (ms)', 'Power (W)', 'Cadence (rpm)', 'Heart Rate (bpm)'];
   const rows = records.map(r => [
     new Date(r.t).toISOString(),
@@ -1140,8 +1311,6 @@ function downloadCSV(){
   ]);
   
   const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
-  
-  // Add BOM for UTF-8 encoding
   const blob = new Blob(['\uFEFF' + csvContent], {type: 'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
