@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR Servo</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=DM+Sans:wght@300;400;500&display=swap');
+
+:root {
+  --bg:     #080b0f;
+  --panel:  #0e1218;
+  --panel2: #131920;
+  --border: #1a2233;
+  --accent: #00d4ff;
+  --green:  #00e87a;
+  --red:    #ff3355;
+  --amber:  #ffaa00;
+  --purple: #aa66ff;
+  --text:   #c8d8e8;
+  --muted:  #3d5068;
+  --mono:   'Share Tech Mono', monospace;
+  --sans:   'DM Sans', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-weight: 300;
+  min-height: 100vh;
+  padding: 16px;
+}
+
+h1 {
+  font-family: var(--mono);
+  font-size: .85rem;
+  color: var(--accent);
+  letter-spacing: .12em;
+  margin-bottom: 16px;
+}
+
+/* ── layout ── */
+.grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 12px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel-title {
+  font-family: var(--mono);
+  font-size: .6rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+}
+
+/* ── connection pills ── */
+.pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.pill {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--red);
+  border-radius: 20px;
+  padding: 4px 12px 4px 8px;
+  font-size: .68rem;
+  font-family: var(--mono);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color .3s;
+  position: relative;
+}
+.pill.connected { border-color: var(--green); }
+.pill-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+.pill.connected .pill-dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.pill-label { color: var(--muted); font-size: .65rem; }
+.pill.connected .pill-label { color: var(--green); }
+
+/* ── big numbers ── */
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.metric {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  text-align: center;
+}
+.metric-val {
+  font-family: var(--mono);
+  font-size: 2.2rem;
+  line-height: 1;
+  color: var(--accent);
+}
+.metric-val.hr  { color: var(--red); }
+.metric-val.pwr { color: var(--amber); }
+.metric-val.ok  { color: var(--green); }
+.metric-lbl {
+  font-size: .58rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* ── PID knobs ── */
+.param-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .72rem;
+}
+.param-row label {
+  font-family: var(--mono);
+  color: var(--muted);
+  width: 120px;
+  flex-shrink: 0;
+}
+.param-row input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+.param-val {
+  font-family: var(--mono);
+  font-size: .72rem;
+  color: var(--text);
+  width: 42px;
+  text-align: right;
+}
+
+/* ── target HR ── */
+.target-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.target-row label {
+  font-family: var(--mono);
+  font-size: .7rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.target-row input[type=number] {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 1rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  width: 70px;
+  text-align: center;
+}
+.bpm-label {
+  font-family: var(--mono);
+  font-size: .7rem;
+  color: var(--muted);
+}
+
+/* ── servo toggle ── */
+.btn-servo {
+  width: 100%;
+  padding: 9px;
+  border-radius: 4px;
+  border: 1px solid var(--muted);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  cursor: pointer;
+  transition: all .2s;
+}
+.btn-servo.on {
+  border-color: var(--green);
+  color: var(--green);
+  box-shadow: 0 0 8px rgba(0,232,122,.25);
+}
+.btn-servo:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ── status bar ── */
+.status-bar {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: .63rem;
+  color: var(--muted);
+}
+.status-item { display: flex; gap: 5px; align-items: center; }
+.status-item span { color: var(--text); }
+
+/* ── chart ── */
+canvas {
+  width: 100%;
+  background: var(--panel2);
+  border-radius: 4px;
+  display: block;
+}
+
+/* ── log ── */
+.log-box {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  height: 130px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: .6rem;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+.log-box .ok   { color: var(--green); }
+.log-box .err  { color: var(--red); }
+.log-box .warn { color: var(--amber); }
+.log-box .tx   { color: var(--accent); }
+.log-box .info { color: var(--muted); }
+
+/* ── note box ── */
+.note {
+  background: rgba(255,170,0,.07);
+  border: 1px solid rgba(255,170,0,.2);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: .68rem;
+  color: var(--amber);
+  line-height: 1.5;
+}
+</style>
+</head>
+<body>
+
+<h1>HR SERVO — heart-rate-controlled ERG</h1>
+
+<div class="grid">
+
+  <!-- LEFT COLUMN -->
+  <div style="display:flex;flex-direction:column;gap:12px;">
+
+    <!-- Connections -->
+    <div class="panel">
+      <div class="panel-title">Devices</div>
+      <div class="pills">
+        <div class="pill" id="pill-trainer" onclick="connectDevice('trainer')">
+          <div class="pill-dot" id="pdot-trainer"></div>
+          <span class="pill-label" id="plbl-trainer">Trainer</span>
+        </div>
+        <div class="pill" id="pill-hr" onclick="connectDevice('hr')">
+          <div class="pill-dot" id="pdot-hr"></div>
+          <span class="pill-label" id="plbl-hr">Heart Rate</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live metrics -->
+    <div class="panel">
+      <div class="panel-title">Live</div>
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-val hr" id="m-hr">—</div>
+          <div class="metric-lbl">Heart Rate (bpm)</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val pwr" id="m-pwr">—</div>
+          <div class="metric-lbl">Power (W)</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="m-target">—</div>
+          <div class="metric-lbl">HR Target (bpm)</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="m-setpoint">—</div>
+          <div class="metric-lbl">ERG Setpoint (W)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Target HR -->
+    <div class="panel">
+      <div class="panel-title">Target Heart Rate</div>
+      <div class="target-row">
+        <label>Target HR</label>
+        <input type="number" id="target-hr" value="145" min="60" max="200" step="1">
+        <span class="bpm-label">bpm</span>
+      </div>
+      <div class="target-row">
+        <label>Deadband ±</label>
+        <input type="number" id="deadband" value="3" min="1" max="10" step="1">
+        <span class="bpm-label">bpm</span>
+      </div>
+    </div>
+
+    <!-- PID tuning -->
+    <div class="panel">
+      <div class="panel-title">PID Tuning</div>
+
+      <div class="param-row">
+        <label>Kp (W/bpm)</label>
+        <input type="range" id="kp" min="0.5" max="10" step="0.5" value="3"
+               oninput="document.getElementById('kp-v').textContent=this.value">
+        <span class="param-val" id="kp-v">3</span>
+      </div>
+      <div class="param-row">
+        <label>Ki (W/bpm/tick)</label>
+        <input type="range" id="ki" min="0" max="1" step="0.05" value="0.1"
+               oninput="document.getElementById('ki-v').textContent=this.value">
+        <span class="param-val" id="ki-v">0.1</span>
+      </div>
+      <div class="param-row">
+        <label>Kd (W·tick/bpm)</label>
+        <input type="range" id="kd" min="0" max="20" step="1" value="5"
+               oninput="document.getElementById('kd-v').textContent=this.value">
+        <span class="param-val" id="kd-v">5</span>
+      </div>
+      <div class="param-row">
+        <label>Tick interval (s)</label>
+        <input type="range" id="tick" min="5" max="60" step="5" value="15"
+               oninput="document.getElementById('tick-v').textContent=this.value">
+        <span class="param-val" id="tick-v">15</span>
+      </div>
+      <div class="param-row">
+        <label>Max ΔW/tick</label>
+        <input type="range" id="maxdelta" min="5" max="50" step="5" value="20"
+               oninput="document.getElementById('maxdelta-v').textContent=this.value">
+        <span class="param-val" id="maxdelta-v">20</span>
+      </div>
+      <div class="param-row">
+        <label>Power floor (W)</label>
+        <input type="range" id="pmin" min="30" max="150" step="5" value="60"
+               oninput="document.getElementById('pmin-v').textContent=this.value">
+        <span class="param-val" id="pmin-v">60</span>
+      </div>
+      <div class="param-row">
+        <label>Power ceil (W)</label>
+        <input type="range" id="pmax" min="100" max="500" step="10" value="350"
+               oninput="document.getElementById('pmax-v').textContent=this.value">
+        <span class="param-val" id="pmax-v">350</span>
+      </div>
+    </div>
+
+    <!-- Servo toggle -->
+    <button class="btn-servo" id="btn-servo" onclick="toggleServo()" disabled>SERVO OFF</button>
+
+    <!-- Design note -->
+    <div class="note">
+      <strong>Why slow ticks?</strong> Heart rate lags power by ~30–60 s.
+      Fast control loops will oscillate wildly — the HR is still rising from
+      the last change when you make the next one. Keep the tick interval ≥ 15 s
+      and max ΔW/tick modest until you've characterised your own lag.
+    </div>
+
+  </div><!-- /left -->
+
+  <!-- RIGHT COLUMN -->
+  <div style="display:flex;flex-direction:column;gap:12px;">
+
+    <!-- Chart -->
+    <div class="panel" style="flex:1;">
+      <div class="panel-title">HR &amp; Power — last 10 min</div>
+      <canvas id="chart" height="280"></canvas>
+    </div>
+
+    <!-- Controller state -->
+    <div class="panel">
+      <div class="panel-title">Controller State</div>
+      <div class="status-bar">
+        <div class="status-item">Error <span id="st-err">—</span> bpm</div>
+        <div class="status-item">Integral <span id="st-int">—</span></div>
+        <div class="status-item">Derivative <span id="st-der">—</span> bpm/tick</div>
+        <div class="status-item">Output <span id="st-out">—</span> W</div>
+        <div class="status-item">Next tick <span id="st-next">—</span></div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="panel">
+      <div class="panel-title">Log</div>
+      <div class="log-box" id="log"></div>
+    </div>
+
+  </div><!-- /right -->
+
+</div><!-- /grid -->
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════════════
+//  GATT UUIDs  (same as index.html)
+// ══════════════════════════════════════════════════════
+const UUID = {
+  CPS_SERVICE:     0x1818,
+  CPS_MEASUREMENT: 0x2A63,
+  FTMS_SERVICE:    0x1826,
+  FTMS_INDOOR:     0x2AD2,
+  FTMS_CP:         0x2AD9,
+  HR_SERVICE:      0x180D,
+  HR_MEASUREMENT:  0x2A37,
+};
+
+// ══════════════════════════════════════════════════════
+//  State
+// ══════════════════════════════════════════════════════
+let trainerDevice = null, hrDevice = null;
+let trainerLive   = false, hrLive  = false;
+let ftmsCP        = null;
+let ergHandshakeDone = false;
+
+let lastHR    = null;
+let lastPower = null;
+
+// Servo
+let servoActive  = false;
+let ergSetpoint  = 100;       // current watts commanded
+let pidIntegral  = 0;
+let prevError    = null;
+let tickTimer    = null;
+let tickCountdown = 0;
+let countdownTimer = null;
+
+// Chart history — 600 points @ 1 s = 10 min
+const HIST = 600;
+const chartHR    = new Array(HIST).fill(null);
+const chartPwr   = new Array(HIST).fill(null);
+const chartTgt   = new Array(HIST).fill(null);
+let   chartTimer = null;
+
+// ══════════════════════════════════════════════════════
+//  Log
+// ══════════════════════════════════════════════════════
+function log(msg, cls='info') {
+  const el = document.getElementById('log');
+  const d  = document.createElement('div');
+  d.className = cls;
+  d.textContent = `[${new Date().toTimeString().slice(0,8)}] ${msg}`;
+  el.prepend(d);
+}
+
+// ══════════════════════════════════════════════════════
+//  Pill helpers
+// ══════════════════════════════════════════════════════
+function setPill(role, connected, name) {
+  const pill = document.getElementById(`pill-${role}`);
+  const dot  = document.getElementById(`pdot-${role}`);
+  const lbl  = document.getElementById(`plbl-${role}`);
+  pill.classList.toggle('connected', connected);
+  dot.style.background  = connected ? 'var(--green)' : 'var(--red)';
+  lbl.textContent = name || (connected ? 'Connected' : 'Not connected');
+}
+
+// ══════════════════════════════════════════════════════
+//  BLE — connect dispatcher
+// ══════════════════════════════════════════════════════
+async function connectDevice(role) {
+  if (!navigator.bluetooth) { log('Web Bluetooth not available — use Chrome', 'err'); return; }
+  if (role === 'trainer') await connectTrainer();
+  else                    await connectHR();
+}
+
+// ── Trainer ──────────────────────────────────────────
+async function connectTrainer() {
+  setPill('trainer', false, 'Scanning…');
+  let dev;
+  try {
+    dev = await navigator.bluetooth.requestDevice({
+      filters: [
+        { namePrefix: 'KICKR' }, { namePrefix: 'Wahoo' },
+        { services: [UUID.CPS_SERVICE] }, { services: [UUID.FTMS_SERVICE] }
+      ],
+      optionalServices: [UUID.CPS_SERVICE, UUID.FTMS_SERVICE, UUID.FTMS_CP, UUID.FTMS_INDOOR],
+    });
+  } catch(e) { setPill('trainer', false, 'Cancelled'); return; }
+
+  trainerDevice = dev;
+  dev.addEventListener('gattserverdisconnected', () => {
+    trainerLive = false; ftmsCP = null; ergHandshakeDone = false;
+    setPill('trainer', false, 'Disconnected');
+    log('Trainer disconnected', 'warn');
+    updateServoBtn();
+  });
+
+  setPill('trainer', false, 'Connecting…');
+  try {
+    const server = await dev.gatt.connect();
+    let gotData = false;
+
+    // Try CPS first
+    try {
+      const svc = await server.getPrimaryService(UUID.CPS_SERVICE);
+      const chr = await svc.getCharacteristic(UUID.CPS_MEASUREMENT);
+      chr.addEventListener('characteristicvaluechanged', onCPS);
+      await chr.startNotifications();
+      gotData = true;
+      log('Subscribed: CPS power', 'ok');
+    } catch(_) {}
+
+    // FTMS data
+    if (!gotData) {
+      try {
+        const svc = await server.getPrimaryService(UUID.FTMS_SERVICE);
+        const chr = await svc.getCharacteristic(UUID.FTMS_INDOOR);
+        chr.addEventListener('characteristicvaluechanged', onFTMS);
+        await chr.startNotifications();
+        gotData = true;
+        log('Subscribed: FTMS indoor', 'ok');
+      } catch(_) {}
+    }
+
+    // FTMS control point
+    try {
+      const svc = await server.getPrimaryService(UUID.FTMS_SERVICE);
+      const cp  = await svc.getCharacteristic(UUID.FTMS_CP);
+      cp.addEventListener('characteristicvaluechanged', onCPResponse);
+      await cp.startNotifications();
+      ftmsCP = cp;
+      log('FTMS Control Point ready', 'ok');
+    } catch(e) { log(`FTMS CP unavailable: ${e.message}`, 'warn'); }
+
+    if (gotData) {
+      trainerLive = true;
+      setPill('trainer', true, dev.name);
+    } else {
+      setPill('trainer', false, 'No data service');
+    }
+  } catch(e) {
+    setPill('trainer', false, 'Failed');
+    log(`Trainer connect failed: ${e.message}`, 'err');
+  }
+  updateServoBtn();
+}
+
+// ── HR monitor ───────────────────────────────────────
+async function connectHR() {
+  setPill('hr', false, 'Scanning…');
+  let dev;
+  try {
+    dev = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [UUID.HR_SERVICE] }],
+      optionalServices: [UUID.HR_SERVICE],
+    });
+  } catch(e) { setPill('hr', false, 'Cancelled'); return; }
+
+  hrDevice = dev;
+  dev.addEventListener('gattserverdisconnected', () => {
+    hrLive = false;
+    setPill('hr', false, 'Disconnected');
+    log('HR monitor disconnected', 'warn');
+    updateServoBtn();
+  });
+
+  setPill('hr', false, 'Connecting…');
+  try {
+    const server = await dev.gatt.connect();
+    const svc    = await server.getPrimaryService(UUID.HR_SERVICE);
+    const chr    = await svc.getCharacteristic(UUID.HR_MEASUREMENT);
+    chr.addEventListener('characteristicvaluechanged', onHR);
+    await chr.startNotifications();
+    hrLive = true;
+    setPill('hr', true, dev.name);
+    log(`HR monitor connected: ${dev.name}`, 'ok');
+  } catch(e) {
+    setPill('hr', false, 'Failed');
+    log(`HR connect failed: ${e.message}`, 'err');
+  }
+  updateServoBtn();
+}
+
+// ══════════════════════════════════════════════════════
+//  GATT data handlers
+// ══════════════════════════════════════════════════════
+function onCPS(e) {
+  const v = e.target.value;
+  lastPower = v.getInt16(2, true);
+  document.getElementById('m-pwr').textContent = lastPower;
+}
+
+function onFTMS(e) {
+  const v    = e.target.value;
+  const flags = v.getUint16(0, true);
+  let offset  = 2;
+  // Speed (always present)
+  offset += 2;
+  // Average speed?
+  if (flags & 0x0002) offset += 2;
+  // Cadence?
+  if (flags & 0x0004) offset += 2;
+  // Total distance?
+  if (flags & 0x0008) offset += 3;
+  // Resistance level?
+  if (flags & 0x0010) offset += 2;
+  // Instantaneous power
+  if (flags & 0x0040 && offset + 1 < v.byteLength) {
+    lastPower = v.getInt16(offset, true);
+    document.getElementById('m-pwr').textContent = lastPower;
+  }
+}
+
+function onHR(e) {
+  const v       = e.target.value;
+  const flags   = v.getUint8(0);
+  lastHR        = (flags & 0x01) ? v.getUint16(1, true) : v.getUint8(1);
+  document.getElementById('m-hr').textContent = lastHR;
+}
+
+function onCPResponse(e) {
+  const v = e.target.value;
+  if (v.getUint8(0) === 0x80) {
+    const req = v.getUint8(1), res = v.getUint8(2);
+    if (req === 0x00 && res === 0x01 && !ergHandshakeDone) {
+      ergHandshakeDone = true;
+      log('FTMS handshake OK', 'ok');
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  FTMS write helpers
+// ══════════════════════════════════════════════════════
+async function writeCPBytes(bytes) {
+  if (!ftmsCP) throw new Error('No control point');
+  const buf = new Uint8Array(bytes).buffer;
+  if (ftmsCP.writeValueWithResponse) await ftmsCP.writeValueWithResponse(buf);
+  else                               await ftmsCP.writeValue(buf);
+}
+
+async function sendPower(watts) {
+  const w = Math.round(Math.max(0, Math.min(2000, watts)));
+  const lo = w & 0xFF, hi = (w >> 8) & 0xFF;
+  await writeCPBytes([0x05, lo, hi]);
+  log(`[TX] Set power ${w}W`, 'tx');
+}
+
+async function ftmsHandshake() {
+  if (ergHandshakeDone) return;
+  try {
+    await writeCPBytes([0x00]);   // Request Control
+    log('[TX] 00 Request Control', 'tx');
+  } catch(e) { log(`Handshake failed: ${e.message}`, 'err'); }
+}
+
+// ══════════════════════════════════════════════════════
+//  Servo toggle
+// ══════════════════════════════════════════════════════
+function updateServoBtn() {
+  const btn = document.getElementById('btn-servo');
+  btn.disabled = !(trainerLive && hrLive && ftmsCP);
+}
+
+function toggleServo() {
+  servoActive = !servoActive;
+  const btn = document.getElementById('btn-servo');
+
+  if (servoActive) {
+    pidIntegral = 0;
+    prevError   = null;
+    // Start at a conservative wattage based on target HR
+    ergSetpoint = 100;
+    btn.textContent = 'SERVO ON';
+    btn.classList.add('on');
+    ftmsHandshake().then(() => sendPower(ergSetpoint));
+
+    // Chart sampler
+    chartTimer = setInterval(sampleChart, 1000);
+
+    // PID tick
+    scheduleNextTick();
+
+    log('HR servo started', 'ok');
+  } else {
+    servoActive = false;
+    btn.textContent = 'SERVO OFF';
+    btn.classList.remove('on');
+    clearTimeout(tickTimer);
+    clearInterval(chartTimer);
+    clearInterval(countdownTimer);
+    document.getElementById('st-next').textContent = '—';
+    writeCPBytes([0x08]).catch(() => {});   // Stop / release resistance
+    log('HR servo stopped', 'warn');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  PID tick
+// ══════════════════════════════════════════════════════
+function scheduleNextTick() {
+  if (!servoActive) return;
+  const interval = parseInt(document.getElementById('tick').value) * 1000;
+  tickCountdown = Math.round(interval / 1000);
+
+  // Visual countdown
+  clearInterval(countdownTimer);
+  countdownTimer = setInterval(() => {
+    if (tickCountdown > 0) {
+      document.getElementById('st-next').textContent = `${tickCountdown}s`;
+      tickCountdown--;
+    }
+  }, 1000);
+
+  tickTimer = setTimeout(() => {
+    clearInterval(countdownTimer);
+    pidTick();
+    scheduleNextTick();
+  }, interval);
+}
+
+function pidTick() {
+  if (!servoActive || lastHR === null) return;
+
+  const targetHR  = parseInt(document.getElementById('target-hr').value);
+  const deadband  = parseInt(document.getElementById('deadband').value);
+  const Kp        = parseFloat(document.getElementById('kp').value);
+  const Ki        = parseFloat(document.getElementById('ki').value);
+  const Kd        = parseFloat(document.getElementById('kd').value);
+  const maxDelta  = parseFloat(document.getElementById('maxdelta').value);
+  const pMin      = parseInt(document.getElementById('pmin').value);
+  const pMax      = parseInt(document.getElementById('pmax').value);
+
+  // Error: positive means HR is BELOW target → we should increase power
+  //        negative means HR is ABOVE target → we should decrease power
+  const error = targetHR - lastHR;
+
+  // Deadband: do nothing if within tolerance
+  if (Math.abs(error) <= deadband) {
+    document.getElementById('st-err').textContent  = error.toFixed(1);
+    document.getElementById('st-int').textContent  = pidIntegral.toFixed(2);
+    document.getElementById('st-der').textContent  = '0 (deadband)';
+    document.getElementById('st-out').textContent  = ergSetpoint;
+    log(`PID tick — error ${error} bpm within deadband ±${deadband}`, 'info');
+    document.getElementById('m-target').textContent = targetHR;
+    document.getElementById('m-setpoint').textContent = ergSetpoint;
+    return;
+  }
+
+  // Derivative
+  const derivative = (prevError !== null) ? (error - prevError) : 0;
+  prevError = error;
+
+  // Integral with anti-windup: only accumulate if output isn't saturated
+  pidIntegral += error;
+  const intClamp = maxDelta * 5 / Math.max(Ki, 0.001);
+  pidIntegral = Math.max(-intClamp, Math.min(intClamp, pidIntegral));
+
+  // PID output = how much to change power
+  const rawDelta = Kp * error + Ki * pidIntegral + Kd * derivative;
+
+  // Rate-limit the change
+  const delta = Math.max(-maxDelta, Math.min(maxDelta, rawDelta));
+
+  // New setpoint
+  let newSetpoint = ergSetpoint + delta;
+  newSetpoint = Math.round(Math.max(pMin, Math.min(pMax, newSetpoint)));
+
+  // Update state + display
+  ergSetpoint = newSetpoint;
+  document.getElementById('st-err').textContent  = error.toFixed(1);
+  document.getElementById('st-int').textContent  = pidIntegral.toFixed(2);
+  document.getElementById('st-der').textContent  = derivative.toFixed(2);
+  document.getElementById('st-out').textContent  = ergSetpoint;
+  document.getElementById('m-target').textContent  = targetHR;
+  document.getElementById('m-setpoint').textContent = ergSetpoint;
+
+  log(`PID tick — HR ${lastHR} / tgt ${targetHR} | err ${error.toFixed(1)} | Δ ${delta.toFixed(1)}W → ${ergSetpoint}W`, 'info');
+
+  sendPower(ergSetpoint);
+}
+
+// ══════════════════════════════════════════════════════
+//  Chart
+// ══════════════════════════════════════════════════════
+function sampleChart() {
+  const targetHR = parseInt(document.getElementById('target-hr').value);
+  chartHR.push(lastHR);       chartHR.shift();
+  chartPwr.push(lastPower);   chartPwr.shift();
+  chartTgt.push(targetHR);    chartTgt.shift();
+  drawChart();
+}
+
+function drawChart() {
+  const canvas = document.getElementById('chart');
+  const W = canvas.offsetWidth, H = 280;
+  if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#131920';
+  ctx.fillRect(0, 0, W, H);
+
+  const PAD = { t: 12, b: 28, l: 38, r: 52 };
+  const chartW = W - PAD.l - PAD.r;
+  const chartH = H - PAD.t - PAD.b;
+
+  // Determine ranges
+  const hrVals  = chartHR.filter(v => v !== null);
+  const pwrVals = chartPwr.filter(v => v !== null);
+  const tgtVals = chartTgt.filter(v => v !== null);
+
+  const hrMin  = hrVals.length  ? Math.min(...hrVals,  ...tgtVals) - 10 : 60;
+  const hrMax  = hrVals.length  ? Math.max(...hrVals,  ...tgtVals) + 10 : 200;
+  const pwrMin = pwrVals.length ? Math.max(0, Math.min(...pwrVals) - 20) : 0;
+  const pwrMax = pwrVals.length ? Math.max(...pwrVals) + 20              : 300;
+
+  const hrY  = v => PAD.t + chartH * (1 - (v - hrMin)  / (hrMax  - hrMin));
+  const pwY  = v => PAD.t + chartH * (1 - (v - pwrMin) / (pwrMax - pwrMin));
+  const xOf  = i => PAD.l + (i / (HIST - 1)) * chartW;
+
+  // Grid lines
+  ctx.strokeStyle = '#1a2233'; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = PAD.t + (i / 4) * chartH;
+    ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(PAD.l + chartW, y); ctx.stroke();
+  }
+
+  // Axes labels — left (HR), right (Power)
+  ctx.fillStyle = '#ff3355'; ctx.font = '9px Share Tech Mono'; ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const val = hrMin + (i / 4) * (hrMax - hrMin);
+    ctx.fillText(Math.round(val), PAD.l - 4, PAD.t + chartH * (1 - i / 4) + 3);
+  }
+  ctx.fillStyle = '#ffaa00'; ctx.textAlign = 'left';
+  for (let i = 0; i <= 4; i++) {
+    const val = pwrMin + (i / 4) * (pwrMax - pwrMin);
+    ctx.fillText(Math.round(val) + 'W', PAD.l + chartW + 4, PAD.t + chartH * (1 - i / 4) + 3);
+  }
+
+  // Target HR line (dashed)
+  const tgt = parseInt(document.getElementById('target-hr').value);
+  ctx.strokeStyle = 'rgba(255,51,85,.35)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(PAD.l, hrY(tgt)); ctx.lineTo(PAD.l + chartW, hrY(tgt)); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Power line
+  function drawLine(data, colorFn, yFn) {
+    ctx.beginPath();
+    let started = false;
+    data.forEach((v, i) => {
+      if (v === null) { started = false; return; }
+      const x = xOf(i), y = yFn(v);
+      if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+    });
+    ctx.strokeStyle = colorFn;
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+  }
+
+  drawLine(chartPwr, 'rgba(255,170,0,.8)',  pwY);
+  drawLine(chartHR,  'rgba(255,51,85,.9)',  hrY);
+
+  // Legend
+  ctx.font = '9px Share Tech Mono'; ctx.textAlign = 'left';
+  ctx.fillStyle = '#ff3355'; ctx.fillText('HR', PAD.l + 4, PAD.t + 12);
+  ctx.fillStyle = '#ffaa00'; ctx.fillText('Power', PAD.l + 28, PAD.t + 12);
+  ctx.fillStyle = 'rgba(255,51,85,.5)'; ctx.fillText('Target', PAD.l + 72, PAD.t + 12);
+
+  // X axis: time labels
+  ctx.fillStyle = '#3d5068'; ctx.textAlign = 'center'; ctx.font = '8px Share Tech Mono';
+  ['−10m', '−7.5m', '−5m', '−2.5m', 'now'].forEach((lbl, i) => {
+    ctx.fillText(lbl, PAD.l + (i / 4) * chartW, H - 8);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  Init
+// ══════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  setPill('trainer', false, 'Trainer');
+  setPill('hr',      false, 'Heart Rate');
+  drawChart();
+});
+window.addEventListener('resize', drawChart);
+</script>
+</body>
+</html>
