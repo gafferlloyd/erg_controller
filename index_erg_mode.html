@@ -475,13 +475,15 @@ body::before {
       <tr><td>NP</td>         <td class="np"  id="st-np">—</td></tr>
       <tr><td>Avg Cadence</td><td class="now" id="st-avg-cad">—</td></tr>
       <tr><td>Avg HR</td>     <td class="now" id="st-avg-hr">—</td></tr>
-      <tr><td>Eff. (W/bpm)</td><td class="now" id="st-efficiency">—</td></tr>
+      <tr><td>Eff. NP (W/bpm)</td><td class="now" id="st-efficiency">—</td></tr>
+      <tr><td>Eff. Avg (W/bpm)</td><td class="now" id="st-efficiency-avg">—</td></tr>
       <tr><td>Max HR</td>     <td class="now" id="st-max-hr">—</td></tr>
       <tr class="row-header"><td colspan="3">Last 2 min</td></tr>
       <tr><td>Avg Power</td>  <td class="now" id="st2-avg-pwr">—</td></tr>
       <tr><td>NP</td>         <td class="np"  id="st2-np">—</td></tr>
       <tr><td>Avg HR</td>     <td class="now" id="st2-avg-hr">—</td></tr>
-      <tr><td>Eff. (W/bpm)</td><td class="now" id="st2-efficiency">—</td></tr>
+      <tr><td>Eff. NP (W/bpm)</td><td class="now" id="st2-efficiency">—</td></tr>
+      <tr><td>Eff. Avg (W/bpm)</td><td class="now" id="st2-efficiency-avg">—</td></tr>
     </table>
   </div>
 
@@ -1172,6 +1174,7 @@ function computeStats(data){
     avgPwr,maxPwr:mx(vp),minPwr:mn(vp),np:normPower(data),
     avgCad:avg(vc),avgHR,maxHR:mx(vh),
     efficiency: np && avgHR ? (np / avgHR).toFixed(2) : null,
+    efficiencyAvg: avgPwr && avgHR ? (avgPwr / avgHR).toFixed(2) : null,
   };
 }
 function setStat(id,v,u=''){document.getElementById(id).textContent=v!=null?`${v}${u}`:'—';}
@@ -1179,10 +1182,10 @@ function renderStats(){
   if(!graphData.length)return;
   const f=computeStats(graphData);
   setStat('st-avg-pwr',f.avgPwr,' W');setStat('st-max-pwr',f.maxPwr,' W');setStat('st-min-pwr',f.minPwr,' W');
-  setStat('st-np',f.np,' W');setStat('st-avg-cad',f.avgCad,' rpm');setStat('st-avg-hr',f.avgHR,' bpm');setStat('st-efficiency',f.efficiency,' W/bpm');setStat('st-max-hr',f.maxHR,' bpm');
+  setStat('st-np',f.np,' W');setStat('st-avg-cad',f.avgCad,' rpm');setStat('st-avg-hr',f.avgHR,' bpm');setStat('st-efficiency',f.efficiency,' W/bpm');setStat('st-efficiency-avg',f.efficiencyAvg,' W/bpm');setStat('st-max-hr',f.maxHR,' bpm');
   const cut=Date.now()-120000;
   const t=computeStats(graphData.filter(d=>d.t>=cut));
-  setStat('st2-avg-pwr',t.avgPwr,' W');setStat('st2-np',t.np,' W');setStat('st2-avg-hr',t.avgHR,' bpm');setStat('st2-efficiency',t.efficiency,' W/bpm');
+  setStat('st2-avg-pwr',t.avgPwr,' W');setStat('st2-np',t.np,' W');setStat('st2-avg-hr',t.avgHR,' bpm');setStat('st2-efficiency',t.efficiency,' W/bpm');setStat('st2-efficiency-avg',t.efficiencyAvg,' W/bpm');
   renderMinuteAnalysis();
 }
 
