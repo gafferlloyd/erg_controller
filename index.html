@@ -5,959 +5,889 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ERG Controller</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap');
 
-  :root {
-    --bg:       #0a0c10;
-    --panel:    #111418;
-    --border:   #1e2530;
-    --accent:   #00e5ff;
-    --green:    #00ff88;
-    --red:      #ff3c5a;
-    --amber:    #ffb300;
-    --text:     #d0dae8;
-    --muted:    #4a5568;
-    --mono:     'Share Tech Mono', monospace;
-    --sans:     'Barlow', sans-serif;
-  }
+:root {
+  --bg:      #0a0c10;
+  --panel:   #111418;
+  --border:  #1e2530;
+  --accent:  #00e5ff;
+  --green:   #00ff88;
+  --red:     #ff3c5a;
+  --amber:   #ffb300;
+  --purple:  #b070ff;
+  --text:    #d0dae8;
+  --muted:   #4a5568;
+  --mono:    'Share Tech Mono', monospace;
+  --sans:    'Barlow', sans-serif;
+}
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    font-weight: 300;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px 16px 48px;
-  }
+body {
+  background:var(--bg);color:var(--text);font-family:var(--sans);font-weight:300;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:20px 16px 60px;
+}
+body::before {
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(0,229,255,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,255,.025) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;z-index:0;
+}
 
-  /* subtle grid background */
-  body::before {
-    content: '';
-    position: fixed; inset: 0;
-    background-image:
-      linear-gradient(rgba(0,229,255,.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,229,255,.03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
-  }
+.container{position:relative;z-index:1;width:100%;max-width:920px;}
 
-  .container { position: relative; z-index: 1; width: 100%; max-width: 860px; }
+header{display:flex;align-items:baseline;gap:16px;margin-bottom:24px;border-bottom:1px solid var(--border);padding-bottom:14px;}
+header h1{font-family:var(--mono);font-size:1.4rem;color:var(--accent);letter-spacing:.08em;}
+header span{font-size:.7rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;}
 
-  /* ── Header ── */
-  header {
-    display: flex;
-    align-items: baseline;
-    gap: 16px;
-    margin-bottom: 32px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 16px;
-  }
-  header h1 {
-    font-family: var(--mono);
-    font-size: 1.5rem;
-    color: var(--accent);
-    letter-spacing: .08em;
-  }
-  header span {
-    font-size: .75rem;
-    color: var(--muted);
-    letter-spacing: .12em;
-    text-transform: uppercase;
-  }
+/* ── Device cards ── */
+.devices{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+@media(max-width:520px){.devices{grid-template-columns:1fr;}}
 
-  /* ── Device row ── */
-  .devices {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-  @media (max-width: 520px) { .devices { grid-template-columns: 1fr; } }
+.device-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:6px;
+  padding:14px 16px;display:flex;flex-direction:column;gap:8px;transition:border-color .4s;
+}
+.device-card.live{border-color:var(--green);}
+.device-card.live .dc-bar{background:var(--green);}
 
-  .device-card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 16px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .device-card h3 {
-    font-size: .7rem;
-    text-transform: uppercase;
-    letter-spacing: .14em;
-    color: var(--muted);
-  }
-  .device-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-family: var(--mono);
-    font-size: .8rem;
-  }
-  .dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--muted);
-    flex-shrink: 0;
-    transition: background .3s;
-  }
-  .dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
-  .dot.connecting { background: var(--amber); animation: pulse 1s infinite; }
-  .dot.error { background: var(--red); }
+.dc-top{display:flex;align-items:center;justify-content:space-between;}
+.dc-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);}
+.dc-name{font-family:var(--mono);font-size:.78rem;color:var(--text);}
+.dc-bar{height:2px;background:var(--border);border-radius:1px;transition:background .4s;}
+.dc-status{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:.75rem;}
 
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s;}
+.dot.live      {background:var(--green);box-shadow:0 0 6px var(--green);}
+.dot.connecting{background:var(--amber);animation:pulse 1s infinite;}
+.dot.error     {background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 
-  .btn {
-    font-family: var(--mono);
-    font-size: .75rem;
-    letter-spacing: .08em;
-    border: 1px solid currentColor;
-    border-radius: 4px;
-    padding: 7px 14px;
-    cursor: pointer;
-    background: transparent;
-    transition: background .15s, color .15s;
-    text-transform: uppercase;
-  }
-  .btn:disabled { opacity: .3; cursor: not-allowed; }
-  .btn-connect { color: var(--accent); }
-  .btn-connect:not(:disabled):hover { background: var(--accent); color: var(--bg); }
-  .btn-disconnect { color: var(--red); }
-  .btn-disconnect:not(:disabled):hover { background: var(--red); color: var(--bg); }
+.dc-btns{display:flex;gap:6px;flex-wrap:wrap;}
+.btn{
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;
+  border:1px solid currentColor;border-radius:4px;padding:5px 12px;
+  cursor:pointer;background:transparent;transition:background .15s,color .15s;text-transform:uppercase;
+}
+.btn:disabled{opacity:.25;cursor:not-allowed;}
+.btn-scan{color:var(--accent);}
+.btn-scan:not(:disabled):hover{background:var(--accent);color:var(--bg);}
+.btn-forget{color:var(--muted);}
+.btn-forget:not(:disabled):hover{color:var(--red);border-color:var(--red);}
 
-  /* ── Live metrics ── */
-  .metrics {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-  @media (max-width: 520px) { .metrics { grid-template-columns: repeat(3, 1fr); gap: 8px; } }
+/* ── Metrics ── */
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
 
-  .metric-card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 18px 12px 14px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-  }
-  .metric-card::after {
-    content: '';
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 2px;
-    background: var(--accent);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform .4s ease;
-  }
-  .metric-card.active::after { transform: scaleX(1); }
+.metric-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:6px;
+  padding:16px 10px 12px;text-align:center;position:relative;overflow:hidden;transition:border-color .4s;
+}
+.metric-card.live{border-color:var(--green);}
+.mbar{position:absolute;bottom:0;left:0;right:0;height:2px;transform:scaleX(0);transform-origin:left;transition:transform .5s ease;}
+.metric-card.live .mbar{transform:scaleX(1);}
+.mbar-pwr{background:var(--accent);}
+.mbar-cad{background:var(--green);}
+.mbar-hr {background:var(--red);}
 
-  .metric-label {
-    font-size: .65rem;
-    text-transform: uppercase;
-    letter-spacing: .14em;
-    color: var(--muted);
-    margin-bottom: 8px;
-  }
-  .metric-value {
-    font-family: var(--mono);
-    font-size: 2.4rem;
-    line-height: 1;
-    color: var(--accent);
-    transition: color .2s;
-  }
-  .metric-value.hr  { color: var(--red); }
-  .metric-value.cad { color: var(--green); }
-  .metric-unit {
-    font-size: .65rem;
-    color: var(--muted);
-    margin-top: 4px;
-    letter-spacing: .1em;
-  }
+.metric-label{font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-bottom:6px;}
+.metric-value{font-family:var(--mono);font-size:2.6rem;line-height:1;transition:color .3s;}
+.metric-value.pwr{color:var(--accent);}
+.metric-value.cad{color:var(--green);}
+.metric-value.hr {color:var(--red);}
+.metric-value.dim{color:var(--muted);}
+.metric-unit{font-size:.6rem;color:var(--muted);margin-top:3px;letter-spacing:.1em;}
 
-  /* ── Recording controls ── */
-  .controls {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 18px 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-  }
+/* ── Recording bar ── */
+.rec-bar{
+  background:var(--panel);border:1px solid var(--border);border-radius:6px;
+  padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap;
+}
+.btn-start-rec{
+  font-family:var(--mono);font-size:.85rem;letter-spacing:.08em;text-transform:uppercase;
+  border:none;border-radius:4px;padding:10px 28px;cursor:pointer;
+  background:var(--green);color:var(--bg);font-weight:700;
+  transition:opacity .2s,transform .1s,background .3s;
+}
+.btn-start-rec:disabled{opacity:.25;cursor:not-allowed;}
+.btn-start-rec:not(:disabled):hover{filter:brightness(1.15);}
+.btn-start-rec:active{transform:scale(.97);}
+.btn-start-rec.recording{background:var(--red);color:#fff;}
 
-  .btn-record {
-    font-family: var(--mono);
-    font-size: .8rem;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    border: none;
-    border-radius: 4px;
-    padding: 10px 24px;
-    cursor: pointer;
-    transition: opacity .15s, transform .1s;
-  }
-  .btn-record:active { transform: scale(.97); }
-  .btn-record:disabled { opacity: .3; cursor: not-allowed; }
-  .btn-start { background: var(--green); color: var(--bg); font-weight: 700; }
-  .btn-stop  { background: var(--red);   color: #fff;      font-weight: 700; }
+.rec-info{font-family:var(--mono);font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:8px;}
+.rec-blink{width:7px;height:7px;border-radius:50%;background:var(--red);display:none;animation:pulse .7s infinite;}
+.is-recording .rec-blink{display:inline-block;}
+.is-recording .rec-info{color:var(--red);}
+.btn-dl{margin-left:auto;color:var(--amber);border-color:var(--amber);}
+.btn-dl:not(:disabled):hover{background:var(--amber);color:var(--bg);}
 
-  .rec-info {
-    font-family: var(--mono);
-    font-size: .8rem;
-    color: var(--muted);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .rec-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--red);
-    display: none;
-    animation: pulse .8s infinite;
-  }
-  .recording .rec-dot { display: inline-block; }
-  .recording .rec-info { color: var(--red); }
+/* ── Graph sections ── */
+.section-title{font-size:.65rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-bottom:8px;padding-left:2px;}
+.graph-section{margin-bottom:16px;}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:600px){.charts-grid{grid-template-columns:1fr;}}
 
-  .btn-download {
-    margin-left: auto;
-    color: var(--amber);
-    border-color: var(--amber);
-  }
-  .btn-download:not(:disabled):hover { background: var(--amber); color: var(--bg); }
+.chart-wrap{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:12px;}
+.chart-top{font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;}
+.chart-top span{color:var(--text);font-family:var(--mono);}
+.chart-wrap canvas{display:block;width:100%;height:110px;}
 
-  /* ── Log ── */
-  .log-wrap {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    overflow: hidden;
-  }
-  .log-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border);
-  }
-  .log-header span {
-    font-size: .65rem;
-    text-transform: uppercase;
-    letter-spacing: .14em;
-    color: var(--muted);
-  }
-  .btn-clear { color: var(--muted); border-color: var(--muted); padding: 4px 10px; font-size: .65rem; }
-  .btn-clear:hover { color: var(--text); border-color: var(--text); }
+/* ── Stats ── */
+.stats-section{margin-bottom:16px;}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:600px){.stats-grid{grid-template-columns:1fr;}}
 
-  #log {
-    font-family: var(--mono);
-    font-size: .72rem;
-    line-height: 1.7;
-    color: #7a8a9a;
-    padding: 12px 16px;
-    height: 160px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column-reverse;
-  }
-  #log .info  { color: #7a8a9a; }
-  #log .ok    { color: var(--green); }
-  #log .warn  { color: var(--amber); }
-  #log .err   { color: var(--red); }
-  #log .data  { color: var(--accent); }
+.stats-card{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:12px 14px;}
+.stats-card h3{font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:10px;}
+.stats-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;}
+.stats-key{font-size:.7rem;color:var(--muted);}
+.stats-val{font-family:var(--mono);font-size:.85rem;color:var(--text);}
+.stats-val.np{color:var(--purple);}
 
-  /* ── Footer ── */
-  footer {
-    margin-top: 28px;
-    font-size: .65rem;
-    color: var(--muted);
-    letter-spacing: .1em;
-    text-align: center;
-  }
+/* ── Log ── */
+.log-wrap{background:var(--panel);border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+.log-header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--border);}
+.log-header span{font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);}
+.btn-clear{color:var(--muted);border-color:var(--muted);padding:3px 9px;font-size:.6rem;}
+.btn-clear:hover{color:var(--text);border-color:var(--text);}
+#log{font-family:var(--mono);font-size:.68rem;line-height:1.7;color:#7a8a9a;padding:10px 14px;height:130px;overflow-y:auto;display:flex;flex-direction:column-reverse;}
+#log .info{color:#7a8a9a;}#log .ok{color:var(--green);}#log .warn{color:var(--amber);}#log .err{color:var(--red);}#log .data{color:var(--accent);}
+
+footer{margin-top:24px;font-size:.6rem;color:var(--muted);letter-spacing:.1em;text-align:center;}
 </style>
 </head>
 <body>
 <div class="container">
 
-  <header>
-    <h1>ERG_CONTROLLER</h1>
-    <span>Phase 1 — BLE Recorder</span>
-  </header>
+<header>
+  <h1>ERG_CONTROLLER</h1>
+  <span>Phase 1 — BLE Recorder</span>
+</header>
 
-  <!-- Device connections -->
-  <div class="devices">
-
-    <div class="device-card" id="card-trainer">
-      <h3>Trainer</h3>
-      <div class="device-status">
-        <div class="dot" id="dot-trainer"></div>
-        <span id="label-trainer">Not connected</span>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-connect" id="btn-connect-trainer" onclick="connectTrainer()">Connect</button>
-        <button class="btn btn-disconnect" id="btn-disconnect-trainer" onclick="disconnectTrainer()" disabled>Disconnect</button>
-      </div>
+<!-- Devices -->
+<div class="devices">
+  <div class="device-card" id="card-trainer">
+    <div class="dc-top">
+      <span class="dc-label">Trainer</span>
+      <span class="dc-name" id="name-trainer">—</span>
     </div>
-
-    <div class="device-card" id="card-hr">
-      <h3>Heart Rate Strap</h3>
-      <div class="device-status">
-        <div class="dot" id="dot-hr"></div>
-        <span id="label-hr">Not connected</span>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-connect" id="btn-connect-hr" onclick="connectHR()">Connect</button>
-        <button class="btn btn-disconnect" id="btn-disconnect-hr" onclick="disconnectHR()" disabled>Disconnect</button>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- Live metrics -->
-  <div class="metrics">
-    <div class="metric-card" id="mc-power">
-      <div class="metric-label">Power</div>
-      <div class="metric-value" id="val-power">—</div>
-      <div class="metric-unit">watts</div>
-    </div>
-    <div class="metric-card" id="mc-cadence">
-      <div class="metric-label">Cadence</div>
-      <div class="metric-value cad" id="val-cadence">—</div>
-      <div class="metric-unit">rpm</div>
-    </div>
-    <div class="metric-card" id="mc-hr">
-      <div class="metric-label">Heart Rate</div>
-      <div class="metric-value hr" id="val-hr">—</div>
-      <div class="metric-unit">bpm</div>
+    <div class="dc-bar"></div>
+    <div class="dc-status"><div class="dot" id="dot-trainer"></div><span id="lbl-trainer">Initialising…</span></div>
+    <div class="dc-btns">
+      <button class="btn btn-scan"   id="btn-scan-trainer" onclick="manualConnect('trainer')">Scan</button>
+      <button class="btn btn-forget" id="btn-forget-trainer" onclick="forgetDevice('trainer')" disabled>Forget</button>
     </div>
   </div>
-
-  <!-- Recording controls -->
-  <div class="controls" id="controls-bar">
-    <button class="btn-record btn-start" id="btn-start" onclick="startRecording()">⬤ Start</button>
-    <button class="btn-record btn-stop"  id="btn-stop"  onclick="stopRecording()" disabled>■ Stop</button>
-    <div class="rec-info" id="rec-info">
-      <div class="rec-dot"></div>
-      <span id="rec-label">Not recording</span>
+  <div class="device-card" id="card-hr">
+    <div class="dc-top">
+      <span class="dc-label">Heart Rate</span>
+      <span class="dc-name" id="name-hr">—</span>
     </div>
-    <button class="btn btn-download" id="btn-download" onclick="downloadFIT()" disabled>↓ Download .fit</button>
-  </div>
-
-  <!-- Event log -->
-  <div class="log-wrap">
-    <div class="log-header">
-      <span>Event Log</span>
-      <button class="btn btn-clear" onclick="clearLog()">Clear</button>
+    <div class="dc-bar"></div>
+    <div class="dc-status"><div class="dot" id="dot-hr"></div><span id="lbl-hr">Initialising…</span></div>
+    <div class="dc-btns">
+      <button class="btn btn-scan"   id="btn-scan-hr" onclick="manualConnect('hr')">Scan</button>
+      <button class="btn btn-forget" id="btn-forget-hr" onclick="forgetDevice('hr')" disabled>Forget</button>
     </div>
-    <div id="log"></div>
   </div>
+</div>
 
-  <footer>gafferlloyd/erg_controller &nbsp;·&nbsp; Web Bluetooth API &nbsp;·&nbsp; Chrome required</footer>
+<!-- Metrics -->
+<div class="metrics">
+  <div class="metric-card" id="mc-pwr">
+    <div class="metric-label">Power</div>
+    <div class="metric-value pwr dim" id="val-pwr">—</div>
+    <div class="metric-unit">watts</div>
+    <div class="mbar mbar-pwr"></div>
+  </div>
+  <div class="metric-card" id="mc-cad">
+    <div class="metric-label">Cadence</div>
+    <div class="metric-value cad dim" id="val-cad">—</div>
+    <div class="metric-unit">rpm</div>
+    <div class="mbar mbar-cad"></div>
+  </div>
+  <div class="metric-card" id="mc-hr">
+    <div class="metric-label">Heart Rate</div>
+    <div class="metric-value hr dim" id="val-hr">—</div>
+    <div class="metric-unit">bpm</div>
+    <div class="mbar mbar-hr"></div>
+  </div>
+</div>
 
+<!-- Recording bar -->
+<div class="rec-bar" id="rec-bar">
+  <button class="btn-start-rec" id="btn-rec" onclick="toggleRecording()" disabled>⬤ Start Recording</button>
+  <div class="rec-info" id="rec-info">
+    <div class="rec-blink"></div>
+    <span id="rec-label">Connect a device to begin</span>
+  </div>
+  <button class="btn btn-dl" id="btn-dl" onclick="downloadFIT()" disabled>↓ Download .fit</button>
+</div>
+
+<!-- Full session graphs -->
+<div class="graph-section" id="section-full" style="display:none">
+  <div class="section-title">Full Session</div>
+  <div class="charts-grid">
+    <div class="chart-wrap">
+      <div class="chart-top">Power <span id="cur-pwr-full">—</span></div>
+      <canvas id="chart-pwr-full"></canvas>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-top">Cadence <span id="cur-cad-full">—</span></div>
+      <canvas id="chart-cad-full"></canvas>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-top">Heart Rate <span id="cur-hr-full">—</span></div>
+      <canvas id="chart-hr-full"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- 2-minute graphs -->
+<div class="graph-section" id="section-2m" style="display:none">
+  <div class="section-title">Last 2 Minutes</div>
+  <div class="charts-grid">
+    <div class="chart-wrap">
+      <div class="chart-top">Power <span id="cur-pwr-2m">—</span></div>
+      <canvas id="chart-pwr-2m"></canvas>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-top">Cadence <span id="cur-cad-2m">—</span></div>
+      <canvas id="chart-cad-2m"></canvas>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-top">Heart Rate <span id="cur-hr-2m">—</span></div>
+      <canvas id="chart-hr-2m"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-section" id="section-stats" style="display:none">
+  <div class="section-title">Statistics</div>
+  <div class="stats-grid">
+    <div class="stats-card">
+      <h3>Full Session</h3>
+      <div class="stats-row"><span class="stats-key">Avg Power</span><span class="stats-val" id="s-avg-pwr">—</span></div>
+      <div class="stats-row"><span class="stats-key">Max Power</span><span class="stats-val" id="s-max-pwr">—</span></div>
+      <div class="stats-row"><span class="stats-key">Min Power</span><span class="stats-val" id="s-min-pwr">—</span></div>
+      <div class="stats-row"><span class="stats-key">Normalised Power</span><span class="stats-val np" id="s-np">—</span></div>
+      <div class="stats-row"><span class="stats-key">Avg Cadence</span><span class="stats-val" id="s-avg-cad">—</span></div>
+      <div class="stats-row"><span class="stats-key">Avg HR</span><span class="stats-val" id="s-avg-hr">—</span></div>
+      <div class="stats-row"><span class="stats-key">Max HR</span><span class="stats-val" id="s-max-hr">—</span></div>
+    </div>
+    <div class="stats-card">
+      <h3>Last 2 Minutes</h3>
+      <div class="stats-row"><span class="stats-key">Avg Power</span><span class="stats-val" id="s2-avg-pwr">—</span></div>
+      <div class="stats-row"><span class="stats-key">Max Power</span><span class="stats-val" id="s2-max-pwr">—</span></div>
+      <div class="stats-row"><span class="stats-key">Min Power</span><span class="stats-val" id="s2-min-pwr">—</span></div>
+      <div class="stats-row"><span class="stats-key">Normalised Power</span><span class="stats-val np" id="s2-np">—</span></div>
+      <div class="stats-row"><span class="stats-key">Avg Cadence</span><span class="stats-val" id="s2-avg-cad">—</span></div>
+      <div class="stats-row"><span class="stats-key">Avg HR</span><span class="stats-val" id="s2-avg-hr">—</span></div>
+      <div class="stats-row"><span class="stats-key">Max HR</span><span class="stats-val" id="s2-max-hr">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Log -->
+<div class="log-wrap">
+  <div class="log-header">
+    <span>Event Log</span>
+    <button class="btn btn-clear" onclick="clearLog()">Clear</button>
+  </div>
+  <div id="log"></div>
+</div>
+
+<footer>gafferlloyd/erg_controller &nbsp;·&nbsp; Web Bluetooth API &nbsp;·&nbsp; Chrome required</footer>
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════
+'use strict';
+
+// ═══════════════════════════════════════════════
 //  GATT UUIDs
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 const UUID = {
-  // Cycling Power Service
-  CPS_SERVICE:          0x1818,
-  CPS_MEASUREMENT:      0x2A63,
-
-  // Fitness Machine Service (FTMS) — KICKR may expose this too
-  FTMS_SERVICE:         0x1826,
-  FTMS_INDOOR_BIKE:     0x2AD2,
-
-  // Heart Rate Service
-  HR_SERVICE:           0x180D,
-  HR_MEASUREMENT:       0x2A37,
+  CPS_SERVICE:0x1818, CPS_MEASUREMENT:0x2A63,
+  FTMS_SERVICE:0x1826, FTMS_INDOOR_BIKE:0x2AD2,
+  HR_SERVICE:0x180D, HR_MEASUREMENT:0x2A37,
 };
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 //  State
-// ═══════════════════════════════════════════════════════
-let trainerDevice = null, trainerServer = null;
-let hrDevice = null, hrServer = null;
-let recording = false;
-let records = [];          // [{t, power, cadence, hr}]
-let recStart = null;
-let recTimer = null;
+// ═══════════════════════════════════════════════
+let trainerDevice=null, hrDevice=null;
+let trainerLive=false, hrLive=false;
+let recording=false, recStart=null, recTimer=null, graphTimer=null;
+let records=[], graphData=[];
+let lastPower=null, lastCadence=null, lastHR=null;
+let prevCrankRevs=null, prevCrankTime=null, cpsRawLogged=0;
 
-// Last known values (so we always have something to stamp into each record)
-let lastPower = null, lastCadence = null, lastHR = null;
-
-// Cadence calculation from CPS (needs previous crank event data)
-let prevCrankRevs = null, prevCrankTime = null;
-
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 //  Logging
-// ═══════════════════════════════════════════════════════
-function log(msg, cls = 'info') {
-  const el = document.getElementById('log');
-  const line = document.createElement('div');
-  const now = new Date();
-  const ts = now.toTimeString().slice(0,8);
-  line.className = cls;
-  line.textContent = `[${ts}] ${msg}`;
-  el.prepend(line);
+// ═══════════════════════════════════════════════
+function log(msg,cls='info'){
+  const el=document.getElementById('log');
+  const d=document.createElement('div');
+  d.className=cls;
+  d.textContent=`[${new Date().toTimeString().slice(0,8)}] ${msg}`;
+  el.prepend(d);
 }
-function clearLog() { document.getElementById('log').innerHTML = ''; }
+function clearLog(){document.getElementById('log').innerHTML='';}
 
-// ═══════════════════════════════════════════════════════
-//  Device status helpers
-// ═══════════════════════════════════════════════════════
-function setDeviceStatus(id, state, label) {
-  const dot   = document.getElementById(`dot-${id}`);
-  const lbl   = document.getElementById(`label-${id}`);
-  const btnC  = document.getElementById(`btn-connect-${id}`);
-  const btnD  = document.getElementById(`btn-disconnect-${id}`);
-  dot.className = 'dot ' + state;
-  lbl.textContent = label;
-  btnC.disabled = (state === 'connected' || state === 'connecting');
-  btnD.disabled = (state !== 'connected');
+// ═══════════════════════════════════════════════
+//  Device UI
+// ═══════════════════════════════════════════════
+function setDevUI(id, dotCls, label, name, live){
+  document.getElementById(`dot-${id}`).className=`dot ${dotCls}`;
+  document.getElementById(`lbl-${id}`).textContent=label;
+  if(name) document.getElementById(`name-${id}`).textContent=name;
+  document.getElementById(`card-${id}`).classList.toggle('live',live);
+  document.getElementById(`btn-forget-${id}`).disabled=!live;
 }
 
-// ═══════════════════════════════════════════════════════
-//  Trainer — connect / disconnect
-// ═══════════════════════════════════════════════════════
-async function connectTrainer() {
-  if (!navigator.bluetooth) {
-    log('Web Bluetooth not available. Use Chrome on Windows/Android.', 'err');
+function updateStartBtn(){
+  const can=trainerLive||hrLive;
+  const btn=document.getElementById('btn-rec');
+  btn.disabled=(!can&&!recording);
+  if(!recording){
+    document.getElementById('rec-label').textContent=can?'Ready — press to record':'Connect a device to begin';
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  localStorage — remember device names
+// ═══════════════════════════════════════════════
+const saveDevice  =(role,name)=>localStorage.setItem(`ble_${role}`,name);
+const forgetSaved =(role)=>localStorage.removeItem(`ble_${role}`);
+const savedName   =(role)=>localStorage.getItem(`ble_${role}`);
+
+// ═══════════════════════════════════════════════
+//  Auto-connect on load
+// ═══════════════════════════════════════════════
+async function autoConnect(){
+  if(!navigator.bluetooth){
+    log('Web Bluetooth unavailable — use Chrome','err');
+    setDevUI('trainer','error','Unavailable','',false);
+    setDevUI('hr','error','Unavailable','',false);
     return;
   }
-  try {
-    setDeviceStatus('trainer', 'connecting', 'Scanning…');
-    log('Requesting trainer device…');
+  log('Checking for previously paired devices…');
 
-    trainerDevice = await navigator.bluetooth.requestDevice({
-      filters: [
-        { services: [UUID.CPS_SERVICE] },
-        { services: [UUID.FTMS_SERVICE] },
-        { namePrefix: 'KICKR' },
-        { namePrefix: 'Wahoo' },
-      ],
-      optionalServices: [UUID.CPS_SERVICE, UUID.FTMS_SERVICE],
-    });
+  let knownDevices=[];
+  try{ knownDevices=await navigator.bluetooth.getDevices(); }
+  catch(e){ log('getDevices() unsupported — use Scan','warn'); }
 
-    trainerDevice.addEventListener('gattserverdisconnected', onTrainerDisconnected);
-    log(`Found: ${trainerDevice.name}`, 'ok');
+  const tn=savedName('trainer'), hn=savedName('hr');
 
-    trainerServer = await trainerDevice.gatt.connect();
-    log('GATT connected', 'ok');
+  // Trainer
+  const td=knownDevices.find(d=>d.name===tn);
+  if(td){
+    log(`Reconnecting trainer: ${tn}`);
+    setDevUI('trainer','connecting','Connecting…',tn,false);
+    connectTrainer(td);
+  } else {
+    setDevUI('trainer','',tn?`Not in range — click Scan`:'Click Scan to pair first',tn||'',false);
+  }
 
-    // Try CPS first, fall back to FTMS
-    let subscribed = false;
+  // HR
+  const hd=knownDevices.find(d=>d.name===hn);
+  if(hd){
+    log(`Reconnecting HR: ${hn}`);
+    setDevUI('hr','connecting','Connecting…',hn,false);
+    connectHR(hd);
+  } else {
+    setDevUI('hr','',hn?`Not in range — click Scan`:'Click Scan to pair first',hn||'',false);
+  }
 
-    try {
-      const svc = await trainerServer.getPrimaryService(UUID.CPS_SERVICE);
-      const chr = await svc.getCharacteristic(UUID.CPS_MEASUREMENT);
-      chr.addEventListener('characteristicvaluechanged', onCPSMeasurement);
-      await chr.startNotifications();
-      log('Subscribed: Cycling Power Service', 'ok');
-      subscribed = true;
-    } catch (e) {
-      log('CPS not found, trying FTMS…', 'warn');
-    }
+  updateStartBtn();
+}
 
-    if (!subscribed) {
-      try {
-        const svc = await trainerServer.getPrimaryService(UUID.FTMS_SERVICE);
-        const chr = await svc.getCharacteristic(UUID.FTMS_INDOOR_BIKE);
-        chr.addEventListener('characteristicvaluechanged', onFTMSIndoorBike);
-        await chr.startNotifications();
-        log('Subscribed: FTMS Indoor Bike Data', 'ok');
-        subscribed = true;
-      } catch (e) {
-        log('FTMS not found either. Check device.', 'err');
-      }
-    }
-
-    if (subscribed) {
-      setDeviceStatus('trainer', 'connected', trainerDevice.name || 'Trainer');
-      document.getElementById('mc-power').classList.add('active');
-      document.getElementById('mc-cadence').classList.add('active');
+// ═══════════════════════════════════════════════
+//  Manual scan
+// ═══════════════════════════════════════════════
+async function manualConnect(role){
+  if(!navigator.bluetooth) return;
+  try{
+    if(role==='trainer'){
+      setDevUI('trainer','connecting','Scanning…','',false);
+      const dev=await navigator.bluetooth.requestDevice({
+        filters:[
+          {services:[UUID.CPS_SERVICE]},{services:[UUID.FTMS_SERVICE]},
+          {namePrefix:'KICKR'},{namePrefix:'Wahoo'},
+        ],
+        optionalServices:[UUID.CPS_SERVICE,UUID.FTMS_SERVICE],
+      });
+      saveDevice('trainer',dev.name);
+      connectTrainer(dev);
     } else {
-      setDeviceStatus('trainer', 'error', 'No power service');
+      setDevUI('hr','connecting','Scanning…','',false);
+      const dev=await navigator.bluetooth.requestDevice({
+        filters:[{services:[UUID.HR_SERVICE]}],
+        optionalServices:[UUID.HR_SERVICE],
+      });
+      saveDevice('hr',dev.name);
+      connectHR(dev);
+    }
+  } catch(e){
+    log(`Scan cancelled: ${e.message}`,'warn');
+    const n=savedName(role)||'';
+    setDevUI(role,'',n?'Not in range — click Scan':'Click Scan to pair first',n,false);
+    updateStartBtn();
+  }
+}
+
+function forgetDevice(role){
+  forgetSaved(role);
+  if(role==='trainer'){
+    try{if(trainerDevice?.gatt?.connected)trainerDevice.gatt.disconnect();}catch(_){}
+    trainerDevice=null;trainerLive=false;
+    setDevUI('trainer','','Click Scan to pair first','',false);
+    document.getElementById('mc-pwr').classList.remove('live');
+    document.getElementById('mc-cad').classList.remove('live');
+    document.getElementById('val-pwr').textContent='—';
+    document.getElementById('val-cad').textContent='—';
+  } else {
+    try{if(hrDevice?.gatt?.connected)hrDevice.gatt.disconnect();}catch(_){}
+    hrDevice=null;hrLive=false;
+    setDevUI('hr','','Click Scan to pair first','',false);
+    document.getElementById('mc-hr').classList.remove('live');
+    document.getElementById('val-hr').textContent='—';
+  }
+  updateStartBtn();
+  log(`Forgot ${role}`,'warn');
+}
+
+// ═══════════════════════════════════════════════
+//  Trainer connect (with retry)
+// ═══════════════════════════════════════════════
+async function connectTrainer(dev, attempt=1){
+  trainerDevice=dev;
+  // register disconnect handler once
+  if(attempt===1){
+    dev.addEventListener('gattserverdisconnected',()=>{
+      trainerLive=false;
+      setDevUI('trainer','connecting','Disconnected — retrying…',dev.name,false);
+      document.getElementById('mc-pwr').classList.remove('live');
+      document.getElementById('mc-cad').classList.remove('live');
+      updateStartBtn();
+      log('Trainer disconnected — reconnecting…','warn');
+      setTimeout(()=>connectTrainer(dev),2500);
+    });
+  }
+  try{
+    const server=await dev.gatt.connect();
+    log(`Trainer GATT connected (attempt ${attempt})`,'ok');
+    cpsRawLogged=0;
+    let subscribed=false;
+
+    try{
+      const svc=await server.getPrimaryService(UUID.CPS_SERVICE);
+      const chr=await svc.getCharacteristic(UUID.CPS_MEASUREMENT);
+      chr.addEventListener('characteristicvaluechanged',onCPS);
+      await chr.startNotifications();
+      log('Subscribed: Cycling Power Service','ok');
+      subscribed=true;
+    }catch(_){log('CPS not found, trying FTMS…','warn');}
+
+    if(!subscribed){
+      try{
+        const svc=await server.getPrimaryService(UUID.FTMS_SERVICE);
+        const chr=await svc.getCharacteristic(UUID.FTMS_INDOOR_BIKE);
+        chr.addEventListener('characteristicvaluechanged',onFTMS);
+        await chr.startNotifications();
+        log('Subscribed: FTMS Indoor Bike','ok');
+        subscribed=true;
+      }catch(_){log('FTMS not found','err');}
     }
 
-  } catch (e) {
-    log(`Trainer connect failed: ${e.message}`, 'err');
-    setDeviceStatus('trainer', '', 'Not connected');
+    if(subscribed){
+      trainerLive=true;
+      setDevUI('trainer','live','Live',dev.name,true);
+    } else {
+      setDevUI('trainer','error','No power service found',dev.name,false);
+    }
+  }catch(e){
+    log(`Trainer connect failed (attempt ${attempt}): ${e.message}`,'err');
+    if(attempt<3) setTimeout(()=>connectTrainer(dev,attempt+1),1500);
+    else setDevUI('trainer','error','Failed — click Scan',dev.name,false);
   }
+  updateStartBtn();
 }
 
-function onTrainerDisconnected() {
-  log('Trainer disconnected', 'warn');
-  setDeviceStatus('trainer', '', 'Not connected');
-  document.getElementById('mc-power').classList.remove('active');
-  document.getElementById('mc-cadence').classList.remove('active');
-  document.getElementById('val-power').textContent = '—';
-  document.getElementById('val-cadence').textContent = '—';
-}
-
-async function disconnectTrainer() {
-  if (trainerDevice && trainerDevice.gatt.connected) {
-    await trainerDevice.gatt.disconnect();
+// ═══════════════════════════════════════════════
+//  HR connect (with retry)
+// ═══════════════════════════════════════════════
+async function connectHR(dev, attempt=1){
+  hrDevice=dev;
+  if(attempt===1){
+    dev.addEventListener('gattserverdisconnected',()=>{
+      hrLive=false;
+      setDevUI('hr','connecting','Disconnected — retrying…',dev.name,false);
+      document.getElementById('mc-hr').classList.remove('live');
+      updateStartBtn();
+      log('HR strap disconnected — reconnecting…','warn');
+      setTimeout(()=>connectHR(dev),2500);
+    });
   }
-  trainerDevice = null; trainerServer = null;
+  try{
+    const server=await dev.gatt.connect();
+    const svc=await server.getPrimaryService(UUID.HR_SERVICE);
+    const chr=await svc.getCharacteristic(UUID.HR_MEASUREMENT);
+    chr.addEventListener('characteristicvaluechanged',onHR);
+    await chr.startNotifications();
+    hrLive=true;
+    setDevUI('hr','live','Live',dev.name,true);
+    log(`HR strap connected (attempt ${attempt})`,'ok');
+  }catch(e){
+    log(`HR connect failed (attempt ${attempt}): ${e.message}`,'err');
+    if(attempt<3) setTimeout(()=>connectHR(dev,attempt+1),1500);
+    else setDevUI('hr','error','Failed — click Scan',dev.name,false);
+  }
+  updateStartBtn();
 }
 
-// ═══════════════════════════════════════════════════════
-//  Trainer — data parsers
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+//  Data parsers
+// ═══════════════════════════════════════════════
+function onCPS(event){
+  const data=event.target.value;
+  const flags=data.getUint16(0,true);
+  const power=data.getInt16(2,true);
 
-// CPS Measurement (0x2A63)
-// Byte 0-1: flags, Byte 2-3: instantaneous power (int16, watts)
-// Optional fields follow depending on flags bits.
-//
-// Flag bits relevant here:
-//   bit 0  = Pedal Power Balance present      (1 byte)
-//   bit 1  = Pedal Power Balance Reference    (no extra bytes, modifier of bit 0)
-//   bit 2  = Accumulated Torque present       (2 bytes)
-//   bit 3  = Accumulated Torque Source        (no extra bytes)
-//   bit 4  = Wheel Revolution Data present    (4+2 = 6 bytes)
-//   bit 5  = Crank Revolution Data present    (2+2 = 4 bytes)  ← cadence lives here
-//
-// NOTE: Some trainers (including KICKR) always append Crank Revolution Data
-// regardless of the flag — we log raw bytes so we can verify.
-
-let cpsRawLogged = 0; // only log raw bytes for first 5 packets
-
-function onCPSMeasurement(event) {
-  const data = event.target.value; // DataView
-  const flags = data.getUint16(0, true);
-  const power = data.getInt16(2, true);
-
-  // Log raw bytes for first few packets so we can diagnose cadence offset
-  if (cpsRawLogged < 5) {
-    const raw = Array.from(new Uint8Array(data.buffer))
-      .map(b => b.toString(16).padStart(2,'0')).join(' ');
-    log(`CPS raw [${data.byteLength}B] flags=0x${flags.toString(16).padStart(4,'0')}: ${raw}`, 'warn');
+  if(cpsRawLogged<3){
+    const raw=Array.from(new Uint8Array(data.buffer)).map(b=>b.toString(16).padStart(2,'0')).join(' ');
+    log(`CPS raw [${data.byteLength}B] flags=0x${flags.toString(16).padStart(4,'0')}: ${raw}`,'warn');
     cpsRawLogged++;
   }
 
-  lastPower = power;
-  document.getElementById('val-power').textContent = power;
+  lastPower=power;
+  setMetric('pwr',power,'W');
+  document.getElementById('mc-pwr').classList.add('live');
 
-  // Walk through optional fields to reach crank revolution data
-  let offset = 4; // start after flags (2) + power (2)
+  let offset=4;
+  if(flags&0x01) offset+=1;
+  if(flags&0x04) offset+=2;
+  if(flags&0x10) offset+=6;
 
-  // bit 0: Pedal Power Balance (1 byte)
-  if (flags & 0x01) offset += 1;
-  // bit 2: Accumulated Torque (2 bytes)
-  if (flags & 0x04) offset += 2;
-  // bit 4: Wheel Revolution Data (cumulative revs uint32 + last event time uint16 = 6 bytes)
-  if (flags & 0x10) offset += 6;
-
-  // bit 5: Crank Revolution Data (cumulative crank revs uint16 + last crank event time uint16)
-  const crankFlagSet = !!(flags & 0x20);
-
-  // Also attempt to read crank data if the packet is long enough,
-  // even if the flag isn't set (some KICKR firmware omits the flag but sends the data)
-  const crankDataAvailable = crankFlagSet || (data.byteLength >= offset + 4);
-
-  if (crankDataAvailable && data.byteLength >= offset + 4) {
-    const crankRevs = data.getUint16(offset,     true);
-    const crankTime = data.getUint16(offset + 2, true); // units: 1/1024 s
-
-    if (!crankFlagSet && cpsRawLogged <= 5) {
-      log(`Crank flag NOT set but packet long enough — reading offset ${offset}`, 'warn');
-    }
-
-    if (prevCrankRevs !== null && prevCrankTime !== null) {
-      let deltaRevs = crankRevs - prevCrankRevs;
-      let deltaTime = crankTime - prevCrankTime;
-      // Handle 16-bit rollover
-      if (deltaRevs < 0) deltaRevs += 65536;
-      if (deltaTime < 0) deltaTime += 65536;
-
-      if (deltaRevs > 0 && deltaTime > 0) {
-        const cadence = Math.round((deltaRevs / deltaTime) * 1024 * 60);
-        if (cadence > 0 && cadence < 250) {
-          lastCadence = cadence;
-          document.getElementById('val-cadence').textContent = cadence;
-        }
-      } else if (deltaTime > 2048) {
-        // ~2 s since last crank event → rider has stopped pedalling
-        lastCadence = 0;
-        document.getElementById('val-cadence').textContent = '0';
+  if((flags&0x20)||(data.byteLength>=offset+4)){
+    if(data.byteLength>=offset+4){
+      const cR=data.getUint16(offset,true);
+      const cT=data.getUint16(offset+2,true);
+      if(prevCrankRevs!==null){
+        let dR=cR-prevCrankRevs; if(dR<0)dR+=65536;
+        let dT=cT-prevCrankTime; if(dT<0)dT+=65536;
+        if(dR>0&&dT>0){
+          const cad=Math.round((dR/dT)*1024*60);
+          if(cad>0&&cad<250){lastCadence=cad;setMetric('cad',cad,'rpm');document.getElementById('mc-cad').classList.add('live');}
+        } else if(dT>2048){lastCadence=0;setMetric('cad',0,'rpm');}
       }
-    }
-    prevCrankRevs = crankRevs;
-    prevCrankTime = crankTime;
-  } else {
-    if (cpsRawLogged <= 5) {
-      log(`No crank data: flag=${crankFlagSet}, byteLen=${data.byteLength}, needed offset+4=${offset+4}`, 'warn');
+      prevCrankRevs=cR;prevCrankTime=cT;
     }
   }
-
   stampRecord();
-  log(`Power: ${power}W  Cadence: ${lastCadence ?? '—'}rpm`, 'data');
 }
 
-// FTMS Indoor Bike Data (0x2AD2)
-// Flags in bytes 0-1 determine which fields follow
-function onFTMSIndoorBike(event) {
-  const d = event.target.value;
-  const flags = d.getUint16(0, true);
-  let offset = 2;
-
-  // Bit 0: More Data (0 = instantaneous speed present)
-  if (!(flags & 0x01)) offset += 2; // speed (uint16, km/h * 100)
-
-  // Bit 1: Average Speed
-  if (flags & 0x02) offset += 2;
-
-  // Bit 2: Instantaneous Cadence
-  if (flags & 0x04) {
-    const cad = Math.round(d.getUint16(offset, true) * 0.5);
-    offset += 2;
-    lastCadence = cad;
-    document.getElementById('val-cadence').textContent = cad;
-  }
-
-  // Bit 3: Average Cadence
-  if (flags & 0x08) offset += 2;
-
-  // Bit 4: Total Distance
-  if (flags & 0x10) offset += 3;
-
-  // Bit 5: Resistance Level
-  if (flags & 0x20) offset += 2;
-
-  // Bit 6: Instantaneous Power
-  if (flags & 0x40) {
-    const power = d.getInt16(offset, true);
-    offset += 2;
-    lastPower = power;
-    document.getElementById('val-power').textContent = power;
-  }
-
+function onFTMS(event){
+  const d=event.target.value;
+  const flags=d.getUint16(0,true);
+  let o=2;
+  if(!(flags&0x01))o+=2;
+  if(flags&0x02)o+=2;
+  if(flags&0x04){lastCadence=Math.round(d.getUint16(o,true)*.5);o+=2;setMetric('cad',lastCadence,'rpm');document.getElementById('mc-cad').classList.add('live');}
+  if(flags&0x08)o+=2;
+  if(flags&0x10)o+=3;
+  if(flags&0x20)o+=2;
+  if(flags&0x40){lastPower=d.getInt16(o,true);setMetric('pwr',lastPower,'W');document.getElementById('mc-pwr').classList.add('live');}
   stampRecord();
-  log(`FTMS — Power: ${lastPower ?? '—'}W  Cadence: ${lastCadence ?? '—'}rpm`, 'data');
 }
 
-// ═══════════════════════════════════════════════════════
-//  HR Strap — connect / disconnect
-// ═══════════════════════════════════════════════════════
-async function connectHR() {
-  if (!navigator.bluetooth) {
-    log('Web Bluetooth not available.', 'err');
-    return;
-  }
-  try {
-    setDeviceStatus('hr', 'connecting', 'Scanning…');
-    log('Requesting HR device…');
-
-    hrDevice = await navigator.bluetooth.requestDevice({
-      filters: [{ services: [UUID.HR_SERVICE] }],
-      optionalServices: [UUID.HR_SERVICE],
-    });
-
-    hrDevice.addEventListener('gattserverdisconnected', onHRDisconnected);
-    log(`Found: ${hrDevice.name}`, 'ok');
-
-    hrServer = await hrDevice.gatt.connect();
-    const svc = await hrServer.getPrimaryService(UUID.HR_SERVICE);
-    const chr = await svc.getCharacteristic(UUID.HR_MEASUREMENT);
-    chr.addEventListener('characteristicvaluechanged', onHRMeasurement);
-    await chr.startNotifications();
-
-    log('Subscribed: Heart Rate Measurement', 'ok');
-    setDeviceStatus('hr', 'connected', hrDevice.name || 'HR Strap');
-    document.getElementById('mc-hr').classList.add('active');
-
-  } catch (e) {
-    log(`HR connect failed: ${e.message}`, 'err');
-    setDeviceStatus('hr', '', 'Not connected');
-  }
-}
-
-function onHRDisconnected() {
-  log('HR strap disconnected', 'warn');
-  setDeviceStatus('hr', '', 'Not connected');
-  document.getElementById('mc-hr').classList.remove('active');
-  document.getElementById('val-hr').textContent = '—';
-}
-
-async function disconnectHR() {
-  if (hrDevice && hrDevice.gatt.connected) {
-    await hrDevice.gatt.disconnect();
-  }
-  hrDevice = null; hrServer = null;
-}
-
-// HR Measurement (0x2A37)
-// Byte 0: flags. Bit 0: 0=uint8 HR, 1=uint16 HR
-function onHRMeasurement(event) {
-  const d = event.target.value;
-  const flags = d.getUint8(0);
-  const hr = (flags & 0x01) ? d.getUint16(1, true) : d.getUint8(1);
-  lastHR = hr;
-  document.getElementById('val-hr').textContent = hr;
+function onHR(event){
+  const d=event.target.value;
+  const flags=d.getUint8(0);
+  lastHR=(flags&0x01)?d.getUint16(1,true):d.getUint8(1);
+  setMetric('hr',lastHR,'bpm');
+  document.getElementById('mc-hr').classList.add('live');
   stampRecord();
-  log(`HR: ${hr} bpm`, 'data');
 }
 
-// ═══════════════════════════════════════════════════════
+function setMetric(id,val,unit){
+  const el=document.getElementById(`val-${id}`);
+  el.textContent=val;
+  el.classList.remove('dim');
+}
+
+// ═══════════════════════════════════════════════
 //  Recording
-// ═══════════════════════════════════════════════════════
-function stampRecord() {
-  if (!recording) return;
-  records.push({
-    t:       Date.now(),
-    power:   lastPower,
-    cadence: lastCadence,
-    hr:      lastHR,
+// ═══════════════════════════════════════════════
+function stampRecord(){
+  if(!recording)return;
+  records.push({t:Date.now(),power:lastPower,cadence:lastCadence,hr:lastHR});
+}
+
+function toggleRecording(){
+  if(!recording)startRecording(); else stopRecording();
+}
+
+function startRecording(){
+  records=[];graphData=[];
+  recStart=Date.now();recording=true;
+  prevCrankRevs=null;prevCrankTime=null;
+
+  const btn=document.getElementById('btn-rec');
+  btn.textContent='■ Stop Recording';
+  btn.classList.add('recording');
+  document.getElementById('btn-dl').disabled=true;
+  document.getElementById('rec-bar').classList.add('is-recording');
+  document.getElementById('section-full').style.display='';
+  document.getElementById('section-2m').style.display='';
+  document.getElementById('section-stats').style.display='';
+
+  graphTimer=setInterval(sampleGraph,1000);
+  recTimer=setInterval(()=>{
+    const el=Math.floor((Date.now()-recStart)/1000);
+    const h=String(Math.floor(el/3600)).padStart(2,'0');
+    const m=String(Math.floor((el%3600)/60)).padStart(2,'0');
+    const s=String(el%60).padStart(2,'0');
+    document.getElementById('rec-label').textContent=`Recording  ${h}:${m}:${s}  ·  ${records.length} samples`;
+  },1000);
+
+  log('Recording started','ok');
+}
+
+function stopRecording(){
+  recording=false;
+  clearInterval(recTimer);clearInterval(graphTimer);
+  const btn=document.getElementById('btn-rec');
+  btn.textContent='⬤ Start Recording';
+  btn.classList.remove('recording');
+  document.getElementById('btn-dl').disabled=(records.length===0);
+  document.getElementById('rec-bar').classList.remove('is-recording');
+  document.getElementById('rec-label').textContent=`Stopped — ${records.length} samples`;
+  renderGraphs();renderStats();
+  log(`Recording stopped. ${records.length} samples.`,'ok');
+}
+
+// ═══════════════════════════════════════════════
+//  Graphing
+// ═══════════════════════════════════════════════
+function sampleGraph(){
+  graphData.push({t:Date.now(),power:lastPower,cadence:lastCadence,hr:lastHR});
+  renderGraphs();renderStats();
+}
+
+function drawChart(canvasId, points, color, unit, curId){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas)return;
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.parentElement.clientWidth-24;
+  const H=110;
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+
+  const valid=points.filter(p=>p.v!=null);
+  if(valid.length<2){
+    ctx.fillStyle='#4a5568';ctx.font=`11px monospace`;ctx.textAlign='center';
+    ctx.fillText('No data yet',W/2,H/2);return;
+  }
+
+  const vals=valid.map(p=>p.v);
+  const lo=Math.min(...vals), hi=Math.max(...vals);
+  const range=hi-lo||1;
+  const pl=4,pr=4,pt=6,pb=6;
+  const cW=W-pl-pr, cH=H-pt-pb;
+
+  // Grid
+  ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const y=pt+(cH/4)*i+.5;ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();}
+
+  // Area fill
+  ctx.beginPath();ctx.fillStyle=color+'1a';
+  points.forEach((p,i)=>{
+    const x=pl+(i/(points.length-1))*cW;
+    const y=p.v==null?pt+cH:pt+cH-((p.v-lo)/range)*cH;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
   });
+  ctx.lineTo(W-pr,pt+cH);ctx.lineTo(pl,pt+cH);ctx.closePath();ctx.fill();
+
+  // Line
+  ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.lineJoin='round';
+  let started=false;
+  points.forEach((p,i)=>{
+    if(p.v==null){started=false;return;}
+    const x=pl+(i/(points.length-1))*cW;
+    const y=pt+cH-((p.v-lo)/range)*cH;
+    if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // Range labels
+  ctx.fillStyle='#4a5568';ctx.font=`9px monospace`;ctx.textAlign='left';
+  ctx.fillText(Math.round(hi),pl+2,pt+10);
+  ctx.fillText(Math.round(lo),pl+2,pt+cH-2);
+
+  // Current value
+  if(curId){
+    const last=valid[valid.length-1];
+    document.getElementById(curId).textContent=`${Math.round(last.v)} ${unit}`;
+  }
 }
 
-function startRecording() {
-  records = [];
-  recStart = Date.now();
-  recording = true;
-  lastPower = null; lastCadence = null; lastHR = null;
+function renderGraphs(){
+  if(!graphData.length)return;
+  const full={
+    pwr:graphData.map(d=>({v:d.power})),
+    cad:graphData.map(d=>({v:d.cadence})),
+    hr :graphData.map(d=>({v:d.hr})),
+  };
+  drawChart('chart-pwr-full',full.pwr,'#00e5ff','W',  'cur-pwr-full');
+  drawChart('chart-cad-full',full.cad,'#00ff88','rpm','cur-cad-full');
+  drawChart('chart-hr-full', full.hr, '#ff3c5a','bpm','cur-hr-full');
 
-  document.getElementById('btn-start').disabled = true;
-  document.getElementById('btn-stop').disabled = false;
-  document.getElementById('btn-download').disabled = true;
-  document.getElementById('controls-bar').classList.add('recording');
-
-  recTimer = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - recStart) / 1000);
-    const h = String(Math.floor(elapsed / 3600)).padStart(2,'0');
-    const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
-    const s = String(elapsed % 60).padStart(2,'0');
-    document.getElementById('rec-label').textContent = `Recording  ${h}:${m}:${s}  (${records.length} samples)`;
-  }, 1000);
-
-  log('Recording started', 'ok');
+  const cut=Date.now()-120000;
+  const sl=graphData.filter(d=>d.t>=cut);
+  if(sl.length>1){
+    drawChart('chart-pwr-2m',sl.map(d=>({v:d.power})),  '#00e5ff','W',  'cur-pwr-2m');
+    drawChart('chart-cad-2m',sl.map(d=>({v:d.cadence})),'#00ff88','rpm','cur-cad-2m');
+    drawChart('chart-hr-2m', sl.map(d=>({v:d.hr})),     '#ff3c5a','bpm','cur-hr-2m');
+  }
 }
 
-function stopRecording() {
-  recording = false;
-  clearInterval(recTimer);
+// ═══════════════════════════════════════════════
+//  Stats & Normalised Power
+// ═══════════════════════════════════════════════
 
-  document.getElementById('btn-start').disabled = false;
-  document.getElementById('btn-stop').disabled = true;
-  document.getElementById('btn-download').disabled = (records.length === 0);
-  document.getElementById('controls-bar').classList.remove('recording');
-  document.getElementById('rec-label').textContent = `Stopped — ${records.length} samples recorded`;
-
-  log(`Recording stopped. ${records.length} samples. Click Download to export .fit`, 'ok');
+// NP = 4th-root of mean 4th-power of 30s rolling-average power (~1Hz samples)
+function normPower(data){
+  const p=data.map(d=>d.power??0);
+  if(p.length<30)return null;
+  const rolled=[];
+  for(let i=29;i<p.length;i++){
+    const w=p.slice(i-29,i+1);
+    rolled.push(w.reduce((a,b)=>a+b,0)/30);
+  }
+  const m4=rolled.reduce((a,v)=>a+Math.pow(v,4),0)/rolled.length;
+  return Math.round(Math.pow(m4,.25));
 }
 
-// ═══════════════════════════════════════════════════════
-//  FIT File Generator (minimal binary encoder)
-// ═══════════════════════════════════════════════════════
-
-// FIT epoch: seconds since 31 Dec 1989 00:00:00 UTC
-const FIT_EPOCH_OFFSET = 631065600; // unix seconds
-
-function fitTimestamp(unixMs) {
-  return Math.round(unixMs / 1000) - FIT_EPOCH_OFFSET;
+function computeStats(data){
+  const vp=data.filter(d=>d.power!=null).map(d=>d.power);
+  const vc=data.filter(d=>d.cadence!=null&&d.cadence>0).map(d=>d.cadence);
+  const vh=data.filter(d=>d.hr!=null).map(d=>d.hr);
+  const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):null;
+  const mx =a=>a.length?Math.round(Math.max(...a)):null;
+  const mn =a=>a.length?Math.round(Math.min(...a)):null;
+  return{avgPwr:avg(vp),maxPwr:mx(vp),minPwr:mn(vp),np:normPower(data),avgCad:avg(vc),avgHR:avg(vh),maxHR:mx(vh)};
 }
 
-function writeFIT(records, startMs) {
-  // We'll collect all message bytes first, then prepend the file header
+function setStat(id,v,u=''){
+  document.getElementById(id).textContent=v!=null?`${v}${u}`:'—';
+}
 
-  const buf = [];
+function renderStats(){
+  if(!graphData.length)return;
+  const f=computeStats(graphData);
+  setStat('s-avg-pwr',f.avgPwr,' W');setStat('s-max-pwr',f.maxPwr,' W');setStat('s-min-pwr',f.minPwr,' W');
+  setStat('s-np',f.np,' W');setStat('s-avg-cad',f.avgCad,' rpm');setStat('s-avg-hr',f.avgHR,' bpm');setStat('s-max-hr',f.maxHR,' bpm');
 
-  // Helper writers
-  function u8(v)  { buf.push(v & 0xFF); }
-  function u16(v) { buf.push(v & 0xFF, (v >> 8) & 0xFF); }
-  function u32(v) { buf.push(v & 0xFF, (v >> 8) & 0xFF, (v >> 16) & 0xFF, (v >> 24) & 0xFF); }
-  function s16(v) { u16(v < 0 ? v + 65536 : v); }
+  const cut=Date.now()-120000;
+  const t=computeStats(graphData.filter(d=>d.t>=cut));
+  setStat('s2-avg-pwr',t.avgPwr,' W');setStat('s2-max-pwr',t.maxPwr,' W');setStat('s2-min-pwr',t.minPwr,' W');
+  setStat('s2-np',t.np,' W');setStat('s2-avg-cad',t.avgCad,' rpm');setStat('s2-avg-hr',t.avgHR,' bpm');setStat('s2-max-hr',t.maxHR,' bpm');
+}
 
-  // ── Definition message helper ──
-  // localMsgNum: 0-15
-  // fields: [{defNum, size, baseType}]
-  function defMsg(localMsgNum, globalMsgNum, fields) {
-    // Normal header | definition
-    u8(0x40 | localMsgNum);
-    u8(0);             // reserved
-    u8(0);             // little endian architecture
-    u16(globalMsgNum);
-    u8(fields.length);
-    for (const f of fields) {
-      u8(f.def);
-      u8(f.size);
-      u8(f.type);
-    }
+// ═══════════════════════════════════════════════
+//  FIT file writer
+// ═══════════════════════════════════════════════
+const FIT_EPOCH=631065600;
+const fitTs=ms=>Math.round(ms/1000)-FIT_EPOCH;
+
+function writeFIT(records,startMs){
+  const buf=[];
+  const u8 =v=>buf.push(v&0xFF);
+  const u16=v=>buf.push(v&0xFF,(v>>8)&0xFF);
+  const u32=v=>buf.push(v&0xFF,(v>>8)&0xFF,(v>>16)&0xFF,(v>>24)&0xFF);
+  const T_ENUM=0x00,T_UINT8=0x02,T_UINT16=0x84,T_UINT32=0x86;
+
+  const defMsg=(local,global,fields)=>{
+    u8(0x40|local);u8(0);u8(0);u16(global);u8(fields.length);
+    fields.forEach(f=>{u8(f.def);u8(f.size);u8(f.type);});
+  };
+
+  defMsg(0,0,[{def:0,size:1,type:T_ENUM},{def:1,size:2,type:T_UINT16},{def:2,size:2,type:T_UINT16},{def:4,size:4,type:T_UINT32}]);
+  u8(0x00);u8(4);u16(255);u16(0);u32(fitTs(startMs));
+
+  defMsg(1,20,[{def:253,size:4,type:T_UINT32},{def:7,size:2,type:T_UINT16},{def:4,size:1,type:T_UINT8},{def:3,size:1,type:T_UINT8}]);
+  for(const r of records){
+    u8(0x01);u32(fitTs(r.t));
+    u16(r.power!=null?Math.round(r.power):0xFFFF);
+    u8(r.cadence!=null?Math.round(r.cadence):0xFF);
+    u8(r.hr!=null?Math.round(r.hr):0xFF);
   }
 
-  // Base types
-  const T_ENUM  = 0x00; // 1 byte
-  const T_UINT8 = 0x02; // 1 byte
-  const T_UINT16= 0x84; // 2 bytes
-  const T_UINT32= 0x86; // 4 bytes
-  const T_SINT16= 0x83; // 2 bytes
+  const elapsed=Math.round((records[records.length-1].t-startMs)/1000);
+  const vp=records.filter(r=>r.power!=null).map(r=>r.power);
+  const vh=records.filter(r=>r.hr!=null).map(r=>r.hr);
+  const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):0;
+  const mx =a=>a.length?Math.round(Math.max(...a)):0;
 
-  // ── file_id (global msg 0) — local 0 ──
-  defMsg(0, 0, [
-    { def: 0, size: 1, type: T_ENUM   }, // type
-    { def: 1, size: 2, type: T_UINT16 }, // manufacturer
-    { def: 2, size: 2, type: T_UINT16 }, // product
-    { def: 4, size: 4, type: T_UINT32 }, // time_created
+  defMsg(2,18,[
+    {def:253,size:4,type:T_UINT32},{def:2,size:4,type:T_UINT32},
+    {def:7,size:4,type:T_UINT32},{def:8,size:4,type:T_UINT32},
+    {def:20,size:2,type:T_UINT16},{def:21,size:2,type:T_UINT16},
+    {def:16,size:1,type:T_UINT8},{def:17,size:1,type:T_UINT8},
+    {def:5,size:1,type:T_ENUM},{def:6,size:1,type:T_ENUM},
   ]);
-  u8(0x00);           // data msg local 0
-  u8(4);              // type=activity
-  u16(255);           // manufacturer=development
-  u16(0);             // product
-  u32(fitTimestamp(startMs)); // time_created
+  u8(0x02);u32(fitTs(records[records.length-1].t));u32(fitTs(startMs));
+  u32(elapsed*1000);u32(elapsed*1000);u16(avg(vp));u16(mx(vp));u8(avg(vh));u8(mx(vh));u8(2);u8(6);
 
-  // ── record (global msg 20) — local 1 ──
-  defMsg(1, 20, [
-    { def: 253, size: 4, type: T_UINT32 }, // timestamp
-    { def: 7,   size: 2, type: T_UINT16 }, // power (W, scale 1)
-    { def: 4,   size: 1, type: T_UINT8  }, // cadence (rpm)
-    { def: 3,   size: 1, type: T_UINT8  }, // heart_rate (bpm)
+  defMsg(3,34,[
+    {def:253,size:4,type:T_UINT32},{def:1,size:4,type:T_UINT32},
+    {def:2,size:2,type:T_UINT16},{def:3,size:1,type:T_ENUM},
+    {def:4,size:1,type:T_ENUM},{def:5,size:1,type:T_ENUM},
   ]);
+  u8(0x03);u32(fitTs(records[records.length-1].t));u32(elapsed*1000);u16(1);u8(0);u8(26);u8(1);
 
-  for (const r of records) {
-    u8(0x01); // data msg local 1
-    u32(fitTimestamp(r.t));
-    u16(r.power   != null ? Math.round(r.power)   : 0xFFFF); // invalid = 0xFFFF
-    u8( r.cadence != null ? Math.round(r.cadence) : 0xFF  );
-    u8( r.hr      != null ? Math.round(r.hr)      : 0xFF  );
-  }
-
-  // ── session (global msg 18) — local 2 ──
-  const totalElapsed = Math.round((records[records.length-1].t - startMs) / 1000);
-  const validPowers  = records.filter(r => r.power   != null).map(r => r.power);
-  const validHRs     = records.filter(r => r.hr      != null).map(r => r.hr);
-  const avgPower  = validPowers.length ? Math.round(validPowers.reduce((a,b)=>a+b,0)/validPowers.length) : 0;
-  const maxPower  = validPowers.length ? Math.round(Math.max(...validPowers)) : 0;
-  const avgHR     = validHRs.length   ? Math.round(validHRs.reduce((a,b)=>a+b,0)/validHRs.length) : 0;
-  const maxHR     = validHRs.length   ? Math.round(Math.max(...validHRs)) : 0;
-
-  defMsg(2, 18, [
-    { def: 253, size: 4, type: T_UINT32 }, // timestamp
-    { def: 2,   size: 4, type: T_UINT32 }, // start_time
-    { def: 7,   size: 4, type: T_UINT32 }, // total_elapsed_time (s * 1000)
-    { def: 8,   size: 4, type: T_UINT32 }, // total_timer_time   (s * 1000)
-    { def: 20,  size: 2, type: T_UINT16 }, // avg_power
-    { def: 21,  size: 2, type: T_UINT16 }, // max_power
-    { def: 16,  size: 1, type: T_UINT8  }, // avg_heart_rate
-    { def: 17,  size: 1, type: T_UINT8  }, // max_heart_rate
-    { def: 5,   size: 1, type: T_ENUM   }, // sport (2=cycling)
-    { def: 6,   size: 1, type: T_ENUM   }, // sub_sport
-  ]);
-  u8(0x02);
-  u32(fitTimestamp(records[records.length-1].t));
-  u32(fitTimestamp(startMs));
-  u32(totalElapsed * 1000);
-  u32(totalElapsed * 1000);
-  u16(avgPower);
-  u16(maxPower);
-  u8(avgHR);
-  u8(maxHR);
-  u8(2);   // sport=cycling
-  u8(6);   // sub_sport=indoor_cycling
-
-  // ── activity (global msg 34) — local 3 ──
-  defMsg(3, 34, [
-    { def: 253, size: 4, type: T_UINT32 }, // timestamp
-    { def: 1,   size: 4, type: T_UINT32 }, // total_timer_time (ms)
-    { def: 2,   size: 2, type: T_UINT16 }, // num_sessions
-    { def: 3,   size: 1, type: T_ENUM   }, // type (0=manual)
-    { def: 4,   size: 1, type: T_ENUM   }, // event (26=activity)
-    { def: 5,   size: 1, type: T_ENUM   }, // event_type (1=stop)
-  ]);
-  u8(0x03);
-  u32(fitTimestamp(records[records.length-1].t));
-  u32(totalElapsed * 1000);
-  u16(1);  // 1 session
-  u8(0);   // manual
-  u8(26);  // activity
-  u8(1);   // stop
-
-  // ── File header (14 bytes) ──
-  // First 12 bytes, then 2-byte header CRC computed over those 12
-  const dataSize = buf.length;
-  const headerBody = [
-    14,                           // header size
-    0x20,                         // protocol version 2.0
-    0x54, 0x08,                   // profile version 2132 little-endian (2132 = 0x0854)
-    (dataSize)       & 0xFF,
-    (dataSize >> 8)  & 0xFF,
-    (dataSize >> 16) & 0xFF,
-    (dataSize >> 24) & 0xFF,
-    0x2E, 0x46, 0x49, 0x54,       // '.FIT'
-  ];
-  // Header CRC covers the first 12 bytes of the header only
-  const headerCRC = computeFitCRC(headerBody);
-  const header = [
-    ...headerBody,
-    headerCRC & 0xFF,
-    (headerCRC >> 8) & 0xFF,
-  ];
-
-  // ── File CRC covers header + all data bytes ──
-  const allBytes = [...header, ...buf];
-  const fileCRC = computeFitCRC(allBytes);
-  allBytes.push(fileCRC & 0xFF, (fileCRC >> 8) & 0xFF);
-
-  return new Uint8Array(allBytes);
+  const ds=buf.length;
+  const hb=[14,0x20,0x54,0x08,ds&0xFF,(ds>>8)&0xFF,(ds>>16)&0xFF,(ds>>24)&0xFF,0x2E,0x46,0x49,0x54];
+  const hcrc=crc16(hb);
+  const header=[...hb,hcrc&0xFF,(hcrc>>8)&0xFF];
+  const all=[...header,...buf];
+  const fcrc=crc16(all);
+  all.push(fcrc&0xFF,(fcrc>>8)&0xFF);
+  return new Uint8Array(all);
 }
 
-function computeFitCRC(bytes) {
-  const CRC_TABLE = [
-    0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401,
-    0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400,
-  ];
-  let crc = 0;
-  for (const byte of bytes) {
-    let tmp = CRC_TABLE[crc & 0xF];
-    crc = (crc >> 4) & 0x0FFF;
-    crc = crc ^ tmp ^ CRC_TABLE[byte & 0xF];
-    tmp = CRC_TABLE[crc & 0xF];
-    crc = (crc >> 4) & 0x0FFF;
-    crc = crc ^ tmp ^ CRC_TABLE[(byte >> 4) & 0xF];
+function crc16(bytes){
+  const T=[0x0000,0xCC01,0xD801,0x1400,0xF001,0x3C00,0x2800,0xE401,
+            0xA001,0x6C00,0x7800,0xB401,0x5000,0x9C01,0x8801,0x4400];
+  let c=0;
+  for(const b of bytes){
+    let t=T[c&0xF];c=(c>>4)&0x0FFF;c=c^t^T[b&0xF];
+    t=T[c&0xF];c=(c>>4)&0x0FFF;c=c^t^T[(b>>4)&0xF];
   }
-  return crc;
+  return c;
 }
 
-function downloadFIT() {
-  if (records.length === 0) { log('No data to export', 'warn'); return; }
-
-  const fitData = writeFIT(records, recStart);
-  const blob = new Blob([fitData], { type: 'application/octet-stream' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  const dateStr = new Date(recStart).toISOString().slice(0,19).replace(/[T:]/g,'-');
-  a.href     = url;
-  a.download = `erg_${dateStr}.fit`;
-  a.click();
+function downloadFIT(){
+  if(!records.length){log('No data to export','warn');return;}
+  const data=writeFIT(records,recStart);
+  const url=URL.createObjectURL(new Blob([data],{type:'application/octet-stream'}));
+  const a=document.createElement('a');
+  const ds=new Date(recStart).toISOString().slice(0,19).replace(/[T:]/g,'-');
+  a.href=url;a.download=`erg_${ds}.fit`;a.click();
   URL.revokeObjectURL(url);
-  log(`Downloaded: erg_${dateStr}.fit  (${fitData.length} bytes, ${records.length} records)`, 'ok');
+  log(`Downloaded erg_${ds}.fit — ${data.length} bytes, ${records.length} records`,'ok');
 }
 
-// ═══════════════════════════════════════════════════════
-//  Init check
-// ═══════════════════════════════════════════════════════
-window.addEventListener('load', () => {
-  if (!navigator.bluetooth) {
-    log('⚠ Web Bluetooth not available in this browser. Open in Chrome on Windows or Android.', 'err');
-  } else {
-    log('Web Bluetooth available. Ready to connect.', 'ok');
-  }
-});
+// ═══════════════════════════════════════════════
+//  Boot
+// ═══════════════════════════════════════════════
+window.addEventListener('load',autoConnect);
 </script>
 </body>
 </html>
