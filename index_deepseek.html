@@ -214,6 +214,120 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
 .mbar-cad { background: var(--green); }
 .mbar-hr { background: var(--red); }
 
+/* ERG Mode Control Panel */
+.erg-panel {
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.erg-panel::before {
+  content: 'ERG MODE ACTIVE';
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  opacity: 0.6;
+}
+
+.erg-controls {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.target-power {
+  text-align: center;
+  min-width: 180px;
+}
+
+.target-power .label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.target-value {
+  font-family: var(--mono);
+  font-size: 4rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.target-unit {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.power-slider {
+  flex: 1;
+  min-width: 200px;
+}
+
+.power-slider input {
+  width: 100%;
+  height: 8px;
+  -webkit-appearance: none;
+  background: var(--border);
+  border-radius: 4px;
+  outline: none;
+}
+
+.power-slider input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+}
+
+.power-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-erg {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.btn-erg:hover {
+  background: var(--accent);
+  color: var(--bg);
+  transform: translateY(-1px);
+}
+
+.btn-erg.primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.btn-erg.primary:hover {
+  filter: brightness(1.1);
+}
+
 /* Recording bar - more compact */
 .recording-bar {
   background: var(--panel);
@@ -292,14 +406,15 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
 .btn-fit { color: var(--amber); border-color: var(--amber); }
 .btn-fit:hover { background: var(--amber); color: var(--bg); }
 
-/* Graph sections */
+/* Graph sections - REDUCED SIZE (50% of original) */
 .section-title {
-  font-size: 0.7rem;
+  font-size: 1.0rem;  /* DOUBLED from 0.5rem equivalent */
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--muted);
   margin-bottom: 12px;
   padding-left: 4px;
+  font-weight: 600;
 }
 
 .graphs-2col {
@@ -309,29 +424,29 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
   margin-bottom: 20px;
 }
 
-/* Full session graphs - square and compact */
+/* Full session graphs - square and compact (REDUCED 50%) */
 .full-session-graphs {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .graph-card-square {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px;
+  border-radius: 8px;
+  padding: 6px;
   aspect-ratio: 1 / 1;
   display: flex;
   flex-direction: column;
 }
 
 .graph-header {
-  font-size: 0.65rem;
+  font-size: 0.6rem;  /* DOUBLED from 0.3rem equivalent */
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--muted);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   display: flex;
   justify-content: space-between;
   flex-shrink: 0;
@@ -369,6 +484,7 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
 
 .two-minute-card .graph-header {
   margin-bottom: 8px;
+  font-size: 0.6rem;
 }
 
 .two-minute-card canvas {
@@ -377,7 +493,7 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
   display: block;
 }
 
-/* Stats section */
+/* Stats section - DOUBLED FONT SIZE */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -393,7 +509,7 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
 }
 
 .stats-panel h3 {
-  font-size: 0.65rem;
+  font-size: 1.0rem;  /* DOUBLED */
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--muted);
@@ -404,8 +520,8 @@ header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 6px;
-  font-size: 0.75rem;
+  margin-bottom: 8px;
+  font-size: 1.0rem;  /* DOUBLED from 0.75rem */
 }
 
 .stats-key { color: var(--muted); }
@@ -483,7 +599,7 @@ footer {
 
 <header>
   <h1>ERG_CONTROLLER</h1>
-  <span>BLE Recorder — CSV + FIT</span>
+  <span>BLE Recorder — ERG Mode + CSV/FIT</span>
 </header>
 
 <div class="main-dashboard">
@@ -538,6 +654,29 @@ footer {
       </div>
     </div>
 
+    <!-- ERG Mode Control Panel -->
+    <div class="erg-panel">
+      <div class="erg-controls">
+        <div class="target-power">
+          <div class="label">Target Power</div>
+          <div class="target-value" id="target-power-display">50</div>
+          <div class="target-unit">watts</div>
+        </div>
+        
+        <div class="power-slider">
+          <input type="range" id="power-slider" min="0" max="800" step="5" value="50">
+        </div>
+        
+        <div class="power-buttons">
+          <button class="btn-erg" onclick="adjustPower(-10)">-10W</button>
+          <button class="btn-erg" onclick="adjustPower(10)">+10W</button>
+          <button class="btn-erg" onclick="adjustPowerPercent(-10)">-10%</button>
+          <button class="btn-erg" onclick="adjustPowerPercent(10)">+10%</button>
+          <button class="btn-erg primary" onclick="setErgPower()">APPLY</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Recording controls -->
     <div class="recording-bar" id="rec-bar">
       <button class="btn-rec" id="btn-rec" onclick="toggleRecording()" disabled>⬤ Start</button>
@@ -554,7 +693,7 @@ footer {
 
     <!-- Graphs: Full session (square) + Last 2min (scrollable) -->
     <div class="graphs-2col" id="graphs-container" style="display:none">
-      <!-- Full Session - Square compact graphs -->
+      <!-- Full Session - Square compact graphs (REDUCED 50%) -->
       <div>
         <div class="section-title">FULL SESSION</div>
         <div class="full-session-graphs">
@@ -595,7 +734,7 @@ footer {
       </div>
     </div>
 
-    <!-- Stats -->
+    <!-- Stats (DOUBLED FONT SIZE) -->
     <div class="stats-grid" id="stats-container" style="display:none">
       <div class="stats-panel">
         <h3>FULL SESSION</h3>
@@ -630,7 +769,7 @@ footer {
   </div>
 </div>
 
-<footer>gafferlloyd/erg_controller · Web Bluetooth API · Chrome required · CSV + FIT export</footer>
+<footer>gafferlloyd/erg_controller · ERG Mode Active · Keyboard: ↑↓ (±10W) · Shift+↑↓ (±10%)</footer>
 </div>
 
 <script>
@@ -642,6 +781,7 @@ footer {
 const UUID = {
   CPS_SERVICE:0x1818, CPS_MEASUREMENT:0x2A63,
   FTMS_SERVICE:0x1826, FTMS_INDOOR_BIKE:0x2AD2,
+  FTMS_CONTROL:0x2AD9,
   HR_SERVICE:0x180D, HR_MEASUREMENT:0x2A37,
 };
 
@@ -655,6 +795,8 @@ let recStart=null, recTimer=null, graphTimer=null, fullGraphTimer=null;
 let records=[], graphData=[];
 let lastPower=null, lastCadence=null, lastHR=null;
 let prevCrankRevs=null, prevCrankTime=null, cpsRawLogged=0;
+let currentTargetPower=50;
+let ftmsControlPoint=null;
 
 // ═══════════════════════════════════════════════
 //  Logging
@@ -667,6 +809,95 @@ function log(msg,cls='info'){
   el.prepend(d);
 }
 function clearLog(){document.getElementById('log').innerHTML='';}
+
+// ═══════════════════════════════════════════════
+//  ERG Mode Control
+// ═══════════════════════════════════════════════
+async function setErgPower(targetWatts=currentTargetPower){
+  if (!trainerDevice || !trainerLive) {
+    log('No trainer connected for ERG control', 'warn');
+    return false;
+  }
+  
+  try {
+    const server = await trainerDevice.gatt.connect();
+    let ftmsService;
+    try {
+      ftmsService = await server.getPrimaryService(UUID.FTMS_SERVICE);
+    } catch(e) {
+      log('FTMS Service not found - trainer may not support ERG mode', 'err');
+      return false;
+    }
+    
+    try {
+      ftmsControlPoint = await ftmsService.getCharacteristic(UUID.FTMS_CONTROL);
+    } catch(e) {
+      log('Control point not found - trainer may not support ERG mode', 'err');
+      return false;
+    }
+    
+    // Command: Set Target Power (Indoor Bike Data)
+    // Format: [command=0x01, reserved=0x00, power LSB, power MSB]
+    const command = new Uint8Array([
+      0x01,  // Set Target Power command
+      0x00,  // Reserved
+      targetWatts & 0xFF,
+      (targetWatts >> 8) & 0xFF
+    ]);
+    
+    await ftmsControlPoint.writeValue(command);
+    log(`ERG mode set to ${targetWatts}W`, 'ok');
+    document.getElementById('target-power-display').textContent = targetWatts;
+    document.getElementById('power-slider').value = targetWatts;
+    currentTargetPower = targetWatts;
+    return true;
+  } catch(e) {
+    log(`Failed to set ERG power: ${e.message}`, 'err');
+    return false;
+  }
+}
+
+function adjustPower(delta){
+  let newPower = currentTargetPower + delta;
+  newPower = Math.max(0, Math.min(800, newPower));
+  currentTargetPower = newPower;
+  document.getElementById('target-power-display').textContent = currentTargetPower;
+  document.getElementById('power-slider').value = currentTargetPower;
+  setErgPower(currentTargetPower);
+}
+
+function adjustPowerPercent(percent){
+  let newPower = Math.round(currentTargetPower * (1 + percent/100));
+  newPower = Math.max(0, Math.min(800, newPower));
+  currentTargetPower = newPower;
+  document.getElementById('target-power-display').textContent = currentTargetPower;
+  document.getElementById('power-slider').value = currentTargetPower;
+  setErgPower(currentTargetPower);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  
+  switch(e.key) {
+    case 'ArrowUp':
+      e.preventDefault();
+      if (e.shiftKey) adjustPowerPercent(10);
+      else adjustPower(10);
+      break;
+    case 'ArrowDown':
+      e.preventDefault();
+      if (e.shiftKey) adjustPowerPercent(-10);
+      else adjustPower(-10);
+      break;
+  }
+});
+
+// Slider event
+document.getElementById('power-slider').addEventListener('input', (e) => {
+  currentTargetPower = parseInt(e.target.value);
+  document.getElementById('target-power-display').textContent = currentTargetPower;
+});
 
 // ═══════════════════════════════════════════════
 //  Device UI (compact pills)
@@ -778,7 +1009,7 @@ async function manualConnect(role){
           {services:[UUID.CPS_SERVICE]},{services:[UUID.FTMS_SERVICE]},
           {namePrefix:'KICKR'},{namePrefix:'Wahoo'},
         ],
-        optionalServices:[UUID.CPS_SERVICE,UUID.FTMS_SERVICE],
+        optionalServices:[UUID.CPS_SERVICE,UUID.FTMS_SERVICE,UUID.FTMS_CONTROL],
       });
       saveDevice('trainer',dev.name);
       setDevUI('trainer', false, dev.name);
@@ -866,12 +1097,22 @@ async function connectTrainer(dev, attempt=1){
         await chr.startNotifications();
         log('Subscribed: FTMS Indoor Bike','ok');
         subscribed=true;
-      }catch(_){log('FTMS not found','err');}
+        
+        // Try to get control point for ERG mode
+        try{
+          ftmsControlPoint = await svc.getCharacteristic(UUID.FTMS_CONTROL);
+          log('FTMS Control Point available - ERG mode ready','ok');
+        } catch(e) {
+          log('FTMS Control Point not found - ERG mode unavailable','warn');
+        }
+      } catch(_){log('FTMS not found','err');}
     }
 
     if(subscribed){
       trainerLive=true;
       setDevUI('trainer', true, dev.name);
+      // Set initial ERG power
+      setTimeout(() => setErgPower(50), 1000);
     } else {
       setDevUI('trainer', false, dev.name);
     }
