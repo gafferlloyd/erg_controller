@@ -1171,7 +1171,7 @@ function computeStats(data){
   return{
     avgPwr,maxPwr:mx(vp),minPwr:mn(vp),np:normPower(data),
     avgCad:avg(vc),avgHR,maxHR:mx(vh),
-    efficiency: avgPwr && avgHR ? Math.round(avgPwr/avgHR) : null,
+    efficiency: np && avgHR ? (np / avgHR).toFixed(2) : null,
   };
 }
 function setStat(id,v,u=''){document.getElementById(id).textContent=v!=null?`${v}${u}`:'—';}
