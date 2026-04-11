@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERG Controller</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap');
+
+:root {
+  --bg:      #0a0c10;
+  --panel:   #111418;
+  --border:  #1e2530;
+  --accent:  #00e5ff;
+  --green:   #00ff88;
+  --red:     #ff3c5a;
+  --amber:   #ffb300;
+  --purple:  #b070ff;
+  --text:    #d0dae8;
+  --muted:   #4a5568;
+  --mono:    'Share Tech Mono', monospace;
+  --sans:    'Barlow', sans-serif;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+body {
+  background:var(--bg);color:var(--text);font-family:var(--sans);font-weight:300;
+  min-height:100vh;padding:16px;
+}
+body::before {
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(0,229,255,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,255,.025) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;z-index:0;
+}
+
+.container{position:relative;z-index:1;max-width:1600px;margin:0 auto;}
+
+/* ── Header ── */
+header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:12px;}
+header h1{font-family:var(--mono);font-size:1.2rem;color:var(--accent);letter-spacing:.08em;}
+header span{font-size:.65rem;color:var(--muted);letter-spacing:.1em;}
+
+/* ── Main Layout: Left (compact devices) + Right (data) ── */
+.main-dashboard {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* LEFT SIDEBAR - Compact device status */
+.device-sidebar {
+  width: 140px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.device-pill {
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:40px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.2s;
+  cursor: pointer;
+  position: relative;
+}
+
+.device-pill.live {
+  border-color: var(--green);
+  background: rgba(0,255,136,0.05);
+}
+
+.device-pill .device-icon {
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.device-pill .device-name {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.device-pill .device-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+}
+
+.device-pill.live .device-status-dot {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: pulse 1.5s infinite;
+}
+
+.device-pill .device-actions {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  gap: 6px;
+  z-index: 10;
+  margin-top: 4px;
+}
+
+.device-pill:hover .device-actions {
+  display: flex;
+  flex-direction: column;
+}
+
+.btn-mini {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  background: transparent;
+  transition: all 0.15s;
+}
+
+.btn-scan-mini { color: var(--accent); }
+.btn-scan-mini:hover { background: var(--accent); color: var(--bg); }
+.btn-forget-mini { color: var(--muted); }
+.btn-forget-mini:hover { color: var(--red); border-color: var(--red); }
+
+/* RIGHT CONTENT - Data area */
+.data-area {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Metrics row - compact but prominent */
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.metric-tile {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 12px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+
+.metric-tile.live { border-color: var(--green); }
+
+.metric-tile .metric-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.metric-tile .metric-value {
+  font-family: var(--mono);
+  font-size: 3rem;
+  font-weight: 600;
+  line-height: 1;
+  transition: color 0.3s;
+}
+
+.metric-tile .metric-value.pwr { color: var(--accent); }
+.metric-tile .metric-value.cad { color: var(--green); }
+.metric-tile .metric-value.hr { color: var(--red); }
+.metric-tile .metric-value.dim { color: var(--muted); }
+
+.metric-tile .metric-unit {
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 4px;
+  letter-spacing: 0.1em;
+}
+
+.metric-tile .mbar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.5s ease;
+}
+
+.metric-tile.live .mbar { transform: scaleX(1); }
+.mbar-pwr { background: var(--accent); }
+.mbar-cad { background: var(--green); }
+.mbar-hr { background: var(--red); }
+
+/* Recording bar - more compact */
+.recording-bar {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.btn-rec {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 40px;
+  padding: 8px 20px;
+  cursor: pointer;
+  background: var(--green);
+  color: var(--bg);
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.btn-rec:disabled { opacity: 0.25; cursor: not-allowed; }
+.btn-rec:not(:disabled):hover { filter: brightness(1.15); transform: translateY(-1px); }
+.btn-rec.recording { background: var(--red); color: #fff; }
+
+.rec-status {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rec-blink {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  display: none;
+  animation: pulse 0.7s infinite;
+}
+
+.is-recording .rec-blink { display: inline-block; }
+.is-recording .rec-status { color: var(--red); }
+
+.btn-icon {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  padding: 6px 14px;
+  border-radius: 40px;
+  border: 1px solid currentColor;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-csv { color: var(--green); border-color: var(--green); }
+.btn-csv:hover { background: var(--green); color: var(--bg); }
+.btn-fit { color: var(--amber); border-color: var(--amber); }
+.btn-fit:hover { background: var(--amber); color: var(--bg); }
+
+/* Graph sections */
+.section-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  margin-bottom: 12px;
+  padding-left: 4px;
+}
+
+.graphs-2col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.graph-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.graph-header {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.graph-header span { color: var(--text); font-family: var(--mono); font-weight: 600; }
+
+.graph-card canvas {
+  display: block;
+  width: 100%;
+  height: 140px;
+}
+
+/* Stats section */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stats-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.stats-panel h3 {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+  font-size: 0.75rem;
+}
+
+.stats-key { color: var(--muted); }
+.stats-val { font-family: var(--mono); color: var(--text); font-weight: 500; }
+.stats-val.np { color: var(--purple); font-weight: 700; }
+
+/* Log - smaller, less prominent */
+.log-section {
+  margin-top: 16px;
+}
+
+.log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px 8px 0 0;
+}
+
+.log-header span {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.log-content {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  line-height: 1.6;
+  color: #7a8a9a;
+  padding: 8px 12px;
+  height: 80px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.log-content div { padding: 1px 0; }
+.log-content .info { color: #7a8a9a; }
+.log-content .ok { color: var(--green); }
+.log-content .warn { color: var(--amber); }
+.log-content .err { color: var(--red); }
+.log-content .data { color: var(--accent); }
+
+footer {
+  margin-top: 20px;
+  font-size: 0.55rem;
+  color: var(--muted);
+  text-align: center;
+  letter-spacing: 0.1em;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@media (max-width: 900px) {
+  .main-dashboard { flex-direction: column; }
+  .device-sidebar { width: 100%; flex-direction: row; justify-content: center; }
+  .graphs-2col { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>ERG_CONTROLLER</h1>
+  <span>BLE Recorder — CSV + FIT</span>
+</header>
+
+<div class="main-dashboard">
+  <!-- LEFT: Compact device pills -->
+  <div class="device-sidebar">
+    <div class="device-pill" id="pill-trainer">
+      <div class="device-icon">
+        <span>🚴</span>
+        <span class="device-name" id="trainer-name">—</span>
+      </div>
+      <div class="device-status-dot" id="trainer-dot"></div>
+      <div class="device-actions">
+        <button class="btn-mini btn-scan-mini" onclick="manualConnect('trainer')">Scan</button>
+        <button class="btn-mini btn-forget-mini" onclick="forgetDevice('trainer')">Forget</button>
+      </div>
+    </div>
+
+    <div class="device-pill" id="pill-hr">
+      <div class="device-icon">
+        <span>❤️</span>
+        <span class="device-name" id="hr-name">—</span>
+      </div>
+      <div class="device-status-dot" id="hr-dot"></div>
+      <div class="device-actions">
+        <button class="btn-mini btn-scan-mini" onclick="manualConnect('hr')">Scan</button>
+        <button class="btn-mini btn-forget-mini" onclick="forgetDevice('hr')">Forget</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Main data area -->
+  <div class="data-area">
+    <!-- Big metrics -->
+    <div class="metrics-row">
+      <div class="metric-tile" id="tile-pwr">
+        <div class="metric-label">POWER</div>
+        <div class="metric-value pwr dim" id="val-pwr">—</div>
+        <div class="metric-unit">watts</div>
+        <div class="mbar mbar-pwr"></div>
+      </div>
+      <div class="metric-tile" id="tile-cad">
+        <div class="metric-label">CADENCE</div>
+        <div class="metric-value cad dim" id="val-cad">—</div>
+        <div class="metric-unit">rpm</div>
+        <div class="mbar mbar-cad"></div>
+      </div>
+      <div class="metric-tile" id="tile-hr">
+        <div class="metric-label">HEART RATE</div>
+        <div class="metric-value hr dim" id="val-hr">—</div>
+        <div class="metric-unit">bpm</div>
+        <div class="mbar mbar-hr"></div>
+      </div>
+    </div>
+
+    <!-- Recording controls -->
+    <div class="recording-bar" id="rec-bar">
+      <button class="btn-rec" id="btn-rec" onclick="toggleRecording()" disabled>⬤ Start</button>
+      <div class="rec-status">
+        <div class="rec-blink"></div>
+        <span id="rec-label">Connect device to begin</span>
+      </div>
+      <div style="margin-left: auto; display: flex; gap: 8px;">
+        <button class="btn-icon btn-csv" id="btn-csv" onclick="downloadCSV()" disabled>📄 CSV</button>
+        <button class="btn-icon btn-fit" id="btn-fit" onclick="downloadFIT()" disabled>💾 FIT</button>
+      </div>
+    </div>
+
+    <!-- Graphs: Full session & Last 2min side by side -->
+    <div class="graphs-2col" id="graphs-container" style="display:none">
+      <!-- Full Session -->
+      <div>
+        <div class="section-title">FULL SESSION</div>
+        <div class="graph-card">
+          <div class="graph-header">Power <span id="cur-pwr-full">—</span></div>
+          <canvas id="chart-pwr-full"></canvas>
+        </div>
+        <div class="graph-card" style="margin-top:12px">
+          <div class="graph-header">Cadence <span id="cur-cad-full">—</span></div>
+          <canvas id="chart-cad-full"></canvas>
+        </div>
+        <div class="graph-card" style="margin-top:12px">
+          <div class="graph-header">Heart Rate <span id="cur-hr-full">—</span></div>
+          <canvas id="chart-hr-full"></canvas>
+        </div>
+      </div>
+
+      <!-- Last 2 Minutes -->
+      <div>
+        <div class="section-title">LAST 2 MINUTES</div>
+        <div class="graph-card">
+          <div class="graph-header">Power <span id="cur-pwr-2m">—</span></div>
+          <canvas id="chart-pwr-2m"></canvas>
+        </div>
+        <div class="graph-card" style="margin-top:12px">
+          <div class="graph-header">Cadence <span id="cur-cad-2m">—</span></div>
+          <canvas id="chart-cad-2m"></canvas>
+        </div>
+        <div class="graph-card" style="margin-top:12px">
+          <div class="graph-header">Heart Rate <span id="cur-hr-2m">—</span></div>
+          <canvas id="chart-hr-2m"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" id="stats-container" style="display:none">
+      <div class="stats-panel">
+        <h3>FULL SESSION</h3>
+        <div class="stats-row"><span class="stats-key">Avg Power</span><span class="stats-val" id="s-avg-pwr">—</span></div>
+        <div class="stats-row"><span class="stats-key">Max Power</span><span class="stats-val" id="s-max-pwr">—</span></div>
+        <div class="stats-row"><span class="stats-key">Min Power</span><span class="stats-val" id="s-min-pwr">—</span></div>
+        <div class="stats-row"><span class="stats-key">Normalised Power</span><span class="stats-val np" id="s-np">—</span></div>
+        <div class="stats-row"><span class="stats-key">Avg Cadence</span><span class="stats-val" id="s-avg-cad">—</span></div>
+        <div class="stats-row"><span class="stats-key">Avg HR</span><span class="stats-val" id="s-avg-hr">—</span></div>
+        <div class="stats-row"><span class="stats-key">Max HR</span><span class="stats-val" id="s-max-hr">—</span></div>
+      </div>
+      <div class="stats-panel">
+        <h3>LAST 2 MINUTES</h3>
+        <div class="stats-row"><span class="stats-key">Avg Power</span><span class="stats-val" id="s2-avg-pwr">—</span></div>
+        <div class="stats-row"><span class="stats-key">Max Power</span><span class="stats-val" id="s2-max-pwr">—</span></div>
+        <div class="stats-row"><span class="stats-key">Min Power</span><span class="stats-val" id="s2-min-pwr">—</span></div>
+        <div class="stats-row"><span class="stats-key">Normalised Power</span><span class="stats-val np" id="s2-np">—</span></div>
+        <div class="stats-row"><span class="stats-key">Avg Cadence</span><span class="stats-val" id="s2-avg-cad">—</span></div>
+        <div class="stats-row"><span class="stats-key">Avg HR</span><span class="stats-val" id="s2-avg-hr">—</span></div>
+        <div class="stats-row"><span class="stats-key">Max HR</span><span class="stats-val" id="s2-max-hr">—</span></div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="log-section">
+      <div class="log-header">
+        <span>Event Log</span>
+        <button class="btn-mini" onclick="clearLog()" style="color:var(--muted); border-color:var(--muted);">Clear</button>
+      </div>
+      <div id="log" class="log-content"></div>
+    </div>
+  </div>
+</div>
+
+<footer>gafferlloyd/erg_controller · Web Bluetooth API · Chrome required · CSV export included</footer>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════
+//  GATT UUIDs
+// ═══════════════════════════════════════════════
+const UUID = {
+  CPS_SERVICE:0x1818, CPS_MEASUREMENT:0x2A63,
+  FTMS_SERVICE:0x1826, FTMS_INDOOR_BIKE:0x2AD2,
+  HR_SERVICE:0x180D, HR_MEASUREMENT:0x2A37,
+};
+
+// ═══════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════
+let trainerDevice=null, hrDevice=null;
+let trainerLive=false, hrLive=false;
+let recording=false, recStart=null, recTimer=null, graphTimer=null;
+let records=[], graphData=[];
+let lastPower=null, lastCadence=null, lastHR=null;
+let prevCrankRevs=null, prevCrankTime=null, cpsRawLogged=0;
+
+// ═══════════════════════════════════════════════
+//  Logging
+// ═══════════════════════════════════════════════
+function log(msg,cls='info'){
+  const el=document.getElementById('log');
+  const d=document.createElement('div');
+  d.className=cls;
+  d.textContent=`[${new Date().toTimeString().slice(0,8)}] ${msg}`;
+  el.prepend(d);
+}
+function clearLog(){document.getElementById('log').innerHTML='';}
+
+// ═══════════════════════════════════════════════
+//  Device UI (compact pills)
+// ═══════════════════════════════════════════════
+function setDevUI(role, live, name){
+  const pill = document.getElementById(`pill-${role}`);
+  const nameEl = document.getElementById(`${role}-name`);
+  const dotEl = document.getElementById(`${role}-dot`);
+  
+  if(live){
+    pill.classList.add('live');
+    dotEl.style.background = 'var(--green)';
+  } else {
+    pill.classList.remove('live');
+    dotEl.style.background = 'var(--muted)';
+  }
+  
+  if(name) nameEl.textContent = name;
+  else if(!name && !live) nameEl.textContent = '—';
+  
+  // Update metric tiles based on data availability
+  if(role === 'trainer'){
+    document.getElementById('tile-pwr').classList.toggle('live', trainerLive && lastPower !== null);
+    document.getElementById('tile-cad').classList.toggle('live', trainerLive && lastCadence !== null);
+  } else if(role === 'hr'){
+    document.getElementById('tile-hr').classList.toggle('live', hrLive && lastHR !== null);
+  }
+}
+
+function updateStartBtn(){
+  const can = trainerLive || hrLive;
+  const btn = document.getElementById('btn-rec');
+  btn.disabled = (!can && !recording);
+  const csvBtn = document.getElementById('btn-csv');
+  const fitBtn = document.getElementById('btn-fit');
+  if(!recording){
+    document.getElementById('rec-label').textContent = can ? 'Ready — press to record' : 'Connect a device to begin';
+    if(records.length > 0){
+      csvBtn.disabled = false;
+      fitBtn.disabled = false;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  localStorage — remember device names
+// ═══════════════════════════════════════════════
+const saveDevice  =(role,name)=>localStorage.setItem(`ble_${role}`,name);
+const forgetSaved =(role)=>localStorage.removeItem(`ble_${role}`);
+const savedName   =(role)=>localStorage.getItem(`ble_${role}`);
+
+// ═══════════════════════════════════════════════
+//  Auto-connect on load
+// ═══════════════════════════════════════════════
+async function autoConnect(){
+  if(!navigator.bluetooth){
+    log('Web Bluetooth unavailable — use Chrome','err');
+    setDevUI('trainer', false, '');
+    setDevUI('hr', false, '');
+    return;
+  }
+  log('Checking for previously paired devices…');
+
+  let knownDevices=[];
+  try{ knownDevices=await navigator.bluetooth.getDevices(); }
+  catch(e){ log('getDevices() unsupported — use Scan','warn'); }
+
+  const tn=savedName('trainer'), hn=savedName('hr');
+
+  if(tn){
+    const td=knownDevices.find(d=>d.name===tn);
+    if(td){
+      log(`Reconnecting trainer: ${tn}`);
+      setDevUI('trainer', false, tn);
+      connectTrainer(td);
+    } else {
+      setDevUI('trainer', false, tn);
+    }
+  } else {
+    setDevUI('trainer', false, '');
+  }
+
+  if(hn){
+    const hd=knownDevices.find(d=>d.name===hn);
+    if(hd){
+      log(`Reconnecting HR: ${hn}`);
+      setDevUI('hr', false, hn);
+      connectHR(hd);
+    } else {
+      setDevUI('hr', false, hn);
+    }
+  } else {
+    setDevUI('hr', false, '');
+  }
+
+  updateStartBtn();
+}
+
+// ═══════════════════════════════════════════════
+//  Manual scan
+// ═══════════════════════════════════════════════
+async function manualConnect(role){
+  if(!navigator.bluetooth) return;
+  try{
+    if(role==='trainer'){
+      setDevUI('trainer', false, 'scanning...');
+      const dev=await navigator.bluetooth.requestDevice({
+        filters:[
+          {services:[UUID.CPS_SERVICE]},{services:[UUID.FTMS_SERVICE]},
+          {namePrefix:'KICKR'},{namePrefix:'Wahoo'},
+        ],
+        optionalServices:[UUID.CPS_SERVICE,UUID.FTMS_SERVICE],
+      });
+      saveDevice('trainer',dev.name);
+      setDevUI('trainer', false, dev.name);
+      connectTrainer(dev);
+    } else {
+      setDevUI('hr', false, 'scanning...');
+      const dev=await navigator.bluetooth.requestDevice({
+        filters:[{services:[UUID.HR_SERVICE]}],
+        optionalServices:[UUID.HR_SERVICE],
+      });
+      saveDevice('hr',dev.name);
+      setDevUI('hr', false, dev.name);
+      connectHR(dev);
+    }
+  } catch(e){
+    log(`Scan cancelled: ${e.message}`,'warn');
+    const n=savedName(role)||'';
+    setDevUI(role, false, n);
+    updateStartBtn();
+  }
+}
+
+function forgetDevice(role){
+  forgetSaved(role);
+  if(role==='trainer'){
+    try{if(trainerDevice?.gatt?.connected)trainerDevice.gatt.disconnect();}catch(_){}
+    trainerDevice=null;trainerLive=false;
+    setDevUI('trainer', false, '');
+    lastPower=null; lastCadence=null;
+    document.getElementById('val-pwr').textContent='—';
+    document.getElementById('val-cad').textContent='—';
+    document.getElementById('val-pwr').classList.add('dim');
+    document.getElementById('val-cad').classList.add('dim');
+    document.getElementById('tile-pwr').classList.remove('live');
+    document.getElementById('tile-cad').classList.remove('live');
+  } else {
+    try{if(hrDevice?.gatt?.connected)hrDevice.gatt.disconnect();}catch(_){}
+    hrDevice=null;hrLive=false;
+    setDevUI('hr', false, '');
+    lastHR=null;
+    document.getElementById('val-hr').textContent='—';
+    document.getElementById('val-hr').classList.add('dim');
+    document.getElementById('tile-hr').classList.remove('live');
+  }
+  updateStartBtn();
+  log(`Forgot ${role}`,'warn');
+}
+
+// ═══════════════════════════════════════════════
+//  Trainer connect (with retry)
+// ═══════════════════════════════════════════════
+async function connectTrainer(dev, attempt=1){
+  trainerDevice=dev;
+  if(attempt===1){
+    dev.addEventListener('gattserverdisconnected',()=>{
+      trainerLive=false;
+      setDevUI('trainer', false, dev.name);
+      document.getElementById('tile-pwr').classList.remove('live');
+      document.getElementById('tile-cad').classList.remove('live');
+      updateStartBtn();
+      log('Trainer disconnected — reconnecting…','warn');
+      setTimeout(()=>connectTrainer(dev),2500);
+    });
+  }
+  try{
+    const server=await dev.gatt.connect();
+    log(`Trainer GATT connected (attempt ${attempt})`,'ok');
+    cpsRawLogged=0;
+    let subscribed=false;
+
+    try{
+      const svc=await server.getPrimaryService(UUID.CPS_SERVICE);
+      const chr=await svc.getCharacteristic(UUID.CPS_MEASUREMENT);
+      chr.addEventListener('characteristicvaluechanged',onCPS);
+      await chr.startNotifications();
+      log('Subscribed: Cycling Power Service','ok');
+      subscribed=true;
+    }catch(_){log('CPS not found, trying FTMS…','warn');}
+
+    if(!subscribed){
+      try{
+        const svc=await server.getPrimaryService(UUID.FTMS_SERVICE);
+        const chr=await svc.getCharacteristic(UUID.FTMS_INDOOR_BIKE);
+        chr.addEventListener('characteristicvaluechanged',onFTMS);
+        await chr.startNotifications();
+        log('Subscribed: FTMS Indoor Bike','ok');
+        subscribed=true;
+      }catch(_){log('FTMS not found','err');}
+    }
+
+    if(subscribed){
+      trainerLive=true;
+      setDevUI('trainer', true, dev.name);
+    } else {
+      setDevUI('trainer', false, dev.name);
+    }
+  }catch(e){
+    log(`Trainer connect failed (attempt ${attempt}): ${e.message}`,'err');
+    if(attempt<3) setTimeout(()=>connectTrainer(dev,attempt+1),1500);
+    else setDevUI('trainer', false, dev.name);
+  }
+  updateStartBtn();
+}
+
+// ═══════════════════════════════════════════════
+//  HR connect (with retry)
+// ═══════════════════════════════════════════════
+async function connectHR(dev, attempt=1){
+  hrDevice=dev;
+  if(attempt===1){
+    dev.addEventListener('gattserverdisconnected',()=>{
+      hrLive=false;
+      setDevUI('hr', false, dev.name);
+      document.getElementById('tile-hr').classList.remove('live');
+      updateStartBtn();
+      log('HR strap disconnected — reconnecting…','warn');
+      setTimeout(()=>connectHR(dev),2500);
+    });
+  }
+  try{
+    const server=await dev.gatt.connect();
+    const svc=await server.getPrimaryService(UUID.HR_SERVICE);
+    const chr=await svc.getCharacteristic(UUID.HR_MEASUREMENT);
+    chr.addEventListener('characteristicvaluechanged',onHR);
+    await chr.startNotifications();
+    hrLive=true;
+    setDevUI('hr', true, dev.name);
+    log(`HR strap connected (attempt ${attempt})`,'ok');
+  }catch(e){
+    log(`HR connect failed (attempt ${attempt}): ${e.message}`,'err');
+    if(attempt<3) setTimeout(()=>connectHR(dev,attempt+1),1500);
+    else setDevUI('hr', false, dev.name);
+  }
+  updateStartBtn();
+}
+
+// ═══════════════════════════════════════════════
+//  Data parsers
+// ═══════════════════════════════════════════════
+function onCPS(event){
+  const data=event.target.value;
+  const flags=data.getUint16(0,true);
+  const power=data.getInt16(2,true);
+
+  if(cpsRawLogged<3){
+    const raw=Array.from(new Uint8Array(data.buffer)).map(b=>b.toString(16).padStart(2,'0')).join(' ');
+    log(`CPS raw [${data.byteLength}B] flags=0x${flags.toString(16).padStart(4,'0')}: ${raw}`,'warn');
+    cpsRawLogged++;
+  }
+
+  lastPower=power;
+  document.getElementById('val-pwr').textContent=power;
+  document.getElementById('val-pwr').classList.remove('dim');
+  document.getElementById('tile-pwr').classList.add('live');
+
+  let offset=4;
+  if(flags&0x01) offset+=1;
+  if(flags&0x04) offset+=2;
+  if(flags&0x10) offset+=6;
+
+  if((flags&0x20)||(data.byteLength>=offset+4)){
+    if(data.byteLength>=offset+4){
+      const cR=data.getUint16(offset,true);
+      const cT=data.getUint16(offset+2,true);
+      if(prevCrankRevs!==null){
+        let dR=cR-prevCrankRevs; if(dR<0)dR+=65536;
+        let dT=cT-prevCrankTime; if(dT<0)dT+=65536;
+        if(dR>0&&dT>0){
+          const cad=Math.round((dR/dT)*1024*60);
+          if(cad>0&&cad<250){
+            lastCadence=cad;
+            document.getElementById('val-cad').textContent=cad;
+            document.getElementById('val-cad').classList.remove('dim');
+            document.getElementById('tile-cad').classList.add('live');
+          }
+        } else if(dT>2048){
+          lastCadence=0;
+          document.getElementById('val-cad').textContent=0;
+        }
+      }
+      prevCrankRevs=cR;prevCrankTime=cT;
+    }
+  }
+  stampRecord();
+}
+
+function onFTMS(event){
+  const d=event.target.value;
+  const flags=d.getUint16(0,true);
+  let o=2;
+  if(!(flags&0x01))o+=2;
+  if(flags&0x02)o+=2;
+  if(flags&0x04){
+    lastCadence=Math.round(d.getUint16(o,true)*.5);
+    document.getElementById('val-cad').textContent=lastCadence;
+    document.getElementById('val-cad').classList.remove('dim');
+    document.getElementById('tile-cad').classList.add('live');
+    o+=2;
+  }
+  if(flags&0x08)o+=2;
+  if(flags&0x10)o+=3;
+  if(flags&0x20)o+=2;
+  if(flags&0x40){
+    lastPower=d.getInt16(o,true);
+    document.getElementById('val-pwr').textContent=lastPower;
+    document.getElementById('val-pwr').classList.remove('dim');
+    document.getElementById('tile-pwr').classList.add('live');
+  }
+  stampRecord();
+}
+
+function onHR(event){
+  const d=event.target.value;
+  const flags=d.getUint8(0);
+  lastHR=(flags&0x01)?d.getUint16(1,true):d.getUint8(1);
+  document.getElementById('val-hr').textContent=lastHR;
+  document.getElementById('val-hr').classList.remove('dim');
+  document.getElementById('tile-hr').classList.add('live');
+  stampRecord();
+}
+
+// ═══════════════════════════════════════════════
+//  Recording
+// ═══════════════════════════════════════════════
+function stampRecord(){
+  if(!recording)return;
+  records.push({t:Date.now(),power:lastPower,cadence:lastCadence,hr:lastHR});
+}
+
+function toggleRecording(){
+  if(!recording)startRecording(); else stopRecording();
+}
+
+function startRecording(){
+  records=[];graphData=[];
+  recStart=Date.now();recording=true;
+  prevCrankRevs=null;prevCrankTime=null;
+
+  const btn=document.getElementById('btn-rec');
+  btn.textContent='■ Stop';
+  btn.classList.add('recording');
+  document.getElementById('btn-csv').disabled=true;
+  document.getElementById('btn-fit').disabled=true;
+  document.getElementById('rec-bar').classList.add('is-recording');
+  document.getElementById('graphs-container').style.display='';
+  document.getElementById('stats-container').style.display='';
+
+  graphTimer=setInterval(sampleGraph,1000);
+  recTimer=setInterval(()=>{
+    const el=Math.floor((Date.now()-recStart)/1000);
+    const h=String(Math.floor(el/3600)).padStart(2,'0');
+    const m=String(Math.floor((el%3600)/60)).padStart(2,'0');
+    const s=String(el%60).padStart(2,'0');
+    document.getElementById('rec-label').textContent=`Recording  ${h}:${m}:${s}  ·  ${records.length} samples`;
+  },1000);
+
+  log('Recording started','ok');
+}
+
+function stopRecording(){
+  recording=false;
+  clearInterval(recTimer);clearInterval(graphTimer);
+  const btn=document.getElementById('btn-rec');
+  btn.textContent='⬤ Start';
+  btn.classList.remove('recording');
+  document.getElementById('btn-csv').disabled=(records.length===0);
+  document.getElementById('btn-fit').disabled=(records.length===0);
+  document.getElementById('rec-bar').classList.remove('is-recording');
+  document.getElementById('rec-label').textContent=`Stopped — ${records.length} samples`;
+  renderGraphs();renderStats();
+  log(`Recording stopped. ${records.length} samples.`,'ok');
+}
+
+// ═══════════════════════════════════════════════
+//  Graphing
+// ═══════════════════════════════════════════════
+function sampleGraph(){
+  graphData.push({t:Date.now(),power:lastPower,cadence:lastCadence,hr:lastHR});
+  renderGraphs();renderStats();
+}
+
+function drawChart(canvasId, points, color, unit, curId){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas)return;
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.parentElement.clientWidth-24;
+  const H=140;
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+
+  const valid=points.filter(p=>p.v!=null);
+  if(valid.length<2){
+    ctx.fillStyle='#4a5568';ctx.font=`11px monospace`;ctx.textAlign='center';
+    ctx.fillText('No data yet',W/2,H/2);return;
+  }
+
+  const vals=valid.map(p=>p.v);
+  const lo=Math.min(...vals), hi=Math.max(...vals);
+  const range=hi-lo||1;
+  const pl=4,pr=4,pt=6,pb=6;
+  const cW=W-pl-pr, cH=H-pt-pb;
+
+  // Grid
+  ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const y=pt+(cH/4)*i+.5;ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();}
+
+  // Area fill
+  ctx.beginPath();ctx.fillStyle=color+'1a';
+  points.forEach((p,i)=>{
+    const x=pl+(i/(points.length-1))*cW;
+    const y=p.v==null?pt+cH:pt+cH-((p.v-lo)/range)*cH;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.lineTo(W-pr,pt+cH);ctx.lineTo(pl,pt+cH);ctx.closePath();ctx.fill();
+
+  // Line
+  ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.lineJoin='round';
+  let started=false;
+  points.forEach((p,i)=>{
+    if(p.v==null){started=false;return;}
+    const x=pl+(i/(points.length-1))*cW;
+    const y=pt+cH-((p.v-lo)/range)*cH;
+    if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // Range labels
+  ctx.fillStyle='#4a5568';ctx.font=`9px monospace`;ctx.textAlign='left';
+  ctx.fillText(Math.round(hi),pl+2,pt+10);
+  ctx.fillText(Math.round(lo),pl+2,pt+cH-2);
+
+  // Current value
+  if(curId){
+    const last=valid[valid.length-1];
+    document.getElementById(curId).textContent=`${Math.round(last.v)} ${unit}`;
+  }
+}
+
+function renderGraphs(){
+  if(!graphData.length)return;
+  const full={
+    pwr:graphData.map(d=>({v:d.power})),
+    cad:graphData.map(d=>({v:d.cadence})),
+    hr :graphData.map(d=>({v:d.hr})),
+  };
+  drawChart('chart-pwr-full',full.pwr,'#00e5ff','W',  'cur-pwr-full');
+  drawChart('chart-cad-full',full.cad,'#00ff88','rpm','cur-cad-full');
+  drawChart('chart-hr-full', full.hr, '#ff3c5a','bpm','cur-hr-full');
+
+  const cut=Date.now()-120000;
+  const sl=graphData.filter(d=>d.t>=cut);
+  if(sl.length>1){
+    drawChart('chart-pwr-2m',sl.map(d=>({v:d.power})),  '#00e5ff','W',  'cur-pwr-2m');
+    drawChart('chart-cad-2m',sl.map(d=>({v:d.cadence})),'#00ff88','rpm','cur-cad-2m');
+    drawChart('chart-hr-2m', sl.map(d=>({v:d.hr})),     '#ff3c5a','bpm','cur-hr-2m');
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  Stats & Normalised Power
+// ═══════════════════════════════════════════════
+function normPower(data){
+  const p=data.map(d=>d.power??0);
+  if(p.length<30)return null;
+  const rolled=[];
+  for(let i=29;i<p.length;i++){
+    const w=p.slice(i-29,i+1);
+    rolled.push(w.reduce((a,b)=>a+b,0)/30);
+  }
+  const m4=rolled.reduce((a,v)=>a+Math.pow(v,4),0)/rolled.length;
+  return Math.round(Math.pow(m4,.25));
+}
+
+function computeStats(data){
+  const vp=data.filter(d=>d.power!=null).map(d=>d.power);
+  const vc=data.filter(d=>d.cadence!=null&&d.cadence>0).map(d=>d.cadence);
+  const vh=data.filter(d=>d.hr!=null).map(d=>d.hr);
+  const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):null;
+  const mx =a=>a.length?Math.round(Math.max(...a)):null;
+  const mn =a=>a.length?Math.round(Math.min(...a)):null;
+  return{avgPwr:avg(vp),maxPwr:mx(vp),minPwr:mn(vp),np:normPower(data),avgCad:avg(vc),avgHR:avg(vh),maxHR:mx(vh)};
+}
+
+function setStat(id,v,u=''){
+  document.getElementById(id).textContent=v!=null?`${v}${u}`:'—';
+}
+
+function renderStats(){
+  if(!graphData.length)return;
+  const f=computeStats(graphData);
+  setStat('s-avg-pwr',f.avgPwr,' W');setStat('s-max-pwr',f.maxPwr,' W');setStat('s-min-pwr',f.minPwr,' W');
+  setStat('s-np',f.np,' W');setStat('s-avg-cad',f.avgCad,' rpm');setStat('s-avg-hr',f.avgHR,' bpm');setStat('s-max-hr',f.maxHR,' bpm');
+
+  const cut=Date.now()-120000;
+  const t=computeStats(graphData.filter(d=>d.t>=cut));
+  setStat('s2-avg-pwr',t.avgPwr,' W');setStat('s2-max-pwr',t.maxPwr,' W');setStat('s2-min-pwr',t.minPwr,' W');
+  setStat('s2-np',t.np,' W');setStat('s2-avg-cad',t.avgCad,' rpm');setStat('s2-avg-hr',t.avgHR,' bpm');setStat('s2-max-hr',t.maxHR,' bpm');
+}
+
+// ═══════════════════════════════════════════════
+//  CSV Export (NEW)
+// ═══════════════════════════════════════════════
+function downloadCSV(){
+  if(!records.length){
+    log('No data to export','warn');
+    return;
+  }
+  
+  // CSV headers
+  const headers = ['Timestamp (ISO)', 'Timestamp (ms)', 'Power (W)', 'Cadence (rpm)', 'Heart Rate (bpm)'];
+  const rows = records.map(r => [
+    new Date(r.t).toISOString(),
+    r.t,
+    r.power !== null ? r.power : '',
+    r.cadence !== null ? r.cadence : '',
+    r.hr !== null ? r.hr : ''
+  ]);
+  
+  const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+  
+  // Add BOM for UTF-8 encoding
+  const blob = new Blob(['\uFEFF' + csvContent], {type: 'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = new Date(recStart || Date.now()).toISOString().slice(0,19).replace(/[T:]/g, '-');
+  a.href = url;
+  a.download = `erg_data_${dateStr}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  log(`CSV exported: ${records.length} records`,'ok');
+}
+
+// ═══════════════════════════════════════════════
+//  FIT file writer
+// ═══════════════════════════════════════════════
+const FIT_EPOCH=631065600;
+const fitTs=ms=>Math.round(ms/1000)-FIT_EPOCH;
+
+function writeFIT(records,startMs){
+  const buf=[];
+  const u8 =v=>buf.push(v&0xFF);
+  const u16=v=>buf.push(v&0xFF,(v>>8)&0xFF);
+  const u32=v=>buf.push(v&0xFF,(v>>8)&0xFF,(v>>16)&0xFF,(v>>24)&0xFF);
+  const T_ENUM=0x00,T_UINT8=0x02,T_UINT16=0x84,T_UINT32=0x86;
+
+  const defMsg=(local,global,fields)=>{
+    u8(0x40|local);u8(0);u8(0);u16(global);u8(fields.length);
+    fields.forEach(f=>{u8(f.def);u8(f.size);u8(f.type);});
+  };
+
+  defMsg(0,0,[{def:0,size:1,type:T_ENUM},{def:1,size:2,type:T_UINT16},{def:2,size:2,type:T_UINT16},{def:4,size:4,type:T_UINT32}]);
+  u8(0x00);u8(4);u16(255);u16(0);u32(fitTs(startMs));
+
+  defMsg(1,20,[{def:253,size:4,type:T_UINT32},{def:7,size:2,type:T_UINT16},{def:4,size:1,type:T_UINT8},{def:3,size:1,type:T_UINT8}]);
+  for(const r of records){
+    u8(0x01);u32(fitTs(r.t));
+    u16(r.power!=null?Math.round(r.power):0xFFFF);
+    u8(r.cadence!=null?Math.round(r.cadence):0xFF);
+    u8(r.hr!=null?Math.round(r.hr):0xFF);
+  }
+
+  const elapsed=Math.round((records[records.length-1].t-startMs)/1000);
+  const vp=records.filter(r=>r.power!=null).map(r=>r.power);
+  const vh=records.filter(r=>r.hr!=null).map(r=>r.hr);
+  const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):0;
+  const mx =a=>a.length?Math.round(Math.max(...a)):0;
+
+  defMsg(2,18,[
+    {def:253,size:4,type:T_UINT32},{def:2,size:4,type:T_UINT32},
+    {def:7,size:4,type:T_UINT32},{def:8,size:4,type:T_UINT32},
+    {def:20,size:2,type:T_UINT16},{def:21,size:2,type:T_UINT16},
+    {def:16,size:1,type:T_UINT8},{def:17,size:1,type:T_UINT8},
+    {def:5,size:1,type:T_ENUM},{def:6,size:1,type:T_ENUM},
+  ]);
+  u8(0x02);u32(fitTs(records[records.length-1].t));u32(fitTs(startMs));
+  u32(elapsed*1000);u32(elapsed*1000);u16(avg(vp));u16(mx(vp));u8(avg(vh));u8(mx(vh));u8(2);u8(6);
+
+  defMsg(3,34,[
+    {def:253,size:4,type:T_UINT32},{def:1,size:4,type:T_UINT32},
+    {def:2,size:2,type:T_UINT16},{def:3,size:1,type:T_ENUM},
+    {def:4,size:1,type:T_ENUM},{def:5,size:1,type:T_ENUM},
+  ]);
+  u8(0x03);u32(fitTs(records[records.length-1].t));u32(elapsed*1000);u16(1);u8(0);u8(26);u8(1);
+
+  const ds=buf.length;
+  const hb=[14,0x20,0x54,0x08,ds&0xFF,(ds>>8)&0xFF,(ds>>16)&0xFF,(ds>>24)&0xFF,0x2E,0x46,0x49,0x54];
+  const hcrc=crc16(hb);
+  const header=[...hb,hcrc&0xFF,(hcrc>>8)&0xFF];
+  const all=[...header,...buf];
+  const fcrc=crc16(all);
+  all.push(fcrc&0xFF,(fcrc>>8)&0xFF);
+  return new Uint8Array(all);
+}
+
+function crc16(bytes){
+  const T=[0x0000,0xCC01,0xD801,0x1400,0xF001,0x3C00,0x2800,0xE401,
+            0xA001,0x6C00,0x7800,0xB401,0x5000,0x9C01,0x8801,0x4400];
+  let c=0;
+  for(const b of bytes){
+    let t=T[c&0xF];c=(c>>4)&0x0FFF;c=c^t^T[b&0xF];
+    t=T[c&0xF];c=(c>>4)&0x0FFF;c=c^t^T[(b>>4)&0xF];
+  }
+  return c;
+}
+
+function downloadFIT(){
+  if(!records.length){log('No data to export','warn');return;}
+  const data=writeFIT(records,recStart);
+  const url=URL.createObjectURL(new Blob([data],{type:'application/octet-stream'}));
+  const a=document.createElement('a');
+  const ds=new Date(recStart).toISOString().slice(0,19).replace(/[T:]/g,'-');
+  a.href=url;a.download=`erg_${ds}.fit`;a.click();
+  URL.revokeObjectURL(url);
+  log(`Downloaded erg_${ds}.fit — ${data.length} bytes, ${records.length} records`,'ok');
+}
+
+// ═══════════════════════════════════════════════
+//  Boot
+// ═══════════════════════════════════════════════
+window.addEventListener('load',autoConnect);
+</script>
+</body>
+</html>
