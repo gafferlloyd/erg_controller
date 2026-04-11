@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERG Controller</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg:       #0a0c10;
+    --panel:    #111418;
+    --border:   #1e2530;
+    --accent:   #00e5ff;
+    --green:    #00ff88;
+    --red:      #ff3c5a;
+    --amber:    #ffb300;
+    --text:     #d0dae8;
+    --muted:    #4a5568;
+    --mono:     'Share Tech Mono', monospace;
+    --sans:     'Barlow', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 300;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+
+  /* subtle grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { position: relative; z-index: 1; width: 100%; max-width: 860px; }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+  }
+  header h1 {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    color: var(--accent);
+    letter-spacing: .08em;
+  }
+  header span {
+    font-size: .75rem;
+    color: var(--muted);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+
+  /* ── Device row ── */
+  .devices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 520px) { .devices { grid-template-columns: 1fr; } }
+
+  .device-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .device-card h3 {
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    color: var(--muted);
+  }
+  .device-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: .8rem;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    transition: background .3s;
+  }
+  .dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot.connecting { background: var(--amber); animation: pulse 1s infinite; }
+  .dot.error { background: var(--red); }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .btn {
+    font-family: var(--mono);
+    font-size: .75rem;
+    letter-spacing: .08em;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    padding: 7px 14px;
+    cursor: pointer;
+    background: transparent;
+    transition: background .15s, color .15s;
+    text-transform: uppercase;
+  }
+  .btn:disabled { opacity: .3; cursor: not-allowed; }
+  .btn-connect { color: var(--accent); }
+  .btn-connect:not(:disabled):hover { background: var(--accent); color: var(--bg); }
+  .btn-disconnect { color: var(--red); }
+  .btn-disconnect:not(:disabled):hover { background: var(--red); color: var(--bg); }
+
+  /* ── Live metrics ── */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 520px) { .metrics { grid-template-columns: repeat(3, 1fr); gap: 8px; } }
+
+  .metric-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 18px 12px 14px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform .4s ease;
+  }
+  .metric-card.active::after { transform: scaleX(1); }
+
+  .metric-label {
+    font-size: .65rem;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .metric-value {
+    font-family: var(--mono);
+    font-size: 2.4rem;
+    line-height: 1;
+    color: var(--accent);
+    transition: color .2s;
+  }
+  .metric-value.hr  { color: var(--red); }
+  .metric-value.cad { color: var(--green); }
+  .metric-unit {
+    font-size: .65rem;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: .1em;
+  }
+
+  /* ── Recording controls ── */
+  .controls {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .btn-record {
+    font-family: var(--mono);
+    font-size: .8rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 24px;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+  }
+  .btn-record:active { transform: scale(.97); }
+  .btn-record:disabled { opacity: .3; cursor: not-allowed; }
+  .btn-start { background: var(--green); color: var(--bg); font-weight: 700; }
+  .btn-stop  { background: var(--red);   color: #fff;      font-weight: 700; }
+
+  .rec-info {
+    font-family: var(--mono);
+    font-size: .8rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .rec-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--red);
+    display: none;
+    animation: pulse .8s infinite;
+  }
+  .recording .rec-dot { display: inline-block; }
+  .recording .rec-info { color: var(--red); }
+
+  .btn-download {
+    margin-left: auto;
+    color: var(--amber);
+    border-color: var(--amber);
+  }
+  .btn-download:not(:disabled):hover { background: var(--amber); color: var(--bg); }
+
+  /* ── Log ── */
+  .log-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .log-header span {
+    font-size: .65rem;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    color: var(--muted);
+  }
+  .btn-clear { color: var(--muted); border-color: var(--muted); padding: 4px 10px; font-size: .65rem; }
+  .btn-clear:hover { color: var(--text); border-color: var(--text); }
+
+  #log {
+    font-family: var(--mono);
+    font-size: .72rem;
+    line-height: 1.7;
+    color: #7a8a9a;
+    padding: 12px 16px;
+    height: 160px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column-reverse;
+  }
+  #log .info  { color: #7a8a9a; }
+  #log .ok    { color: var(--green); }
+  #log .warn  { color: var(--amber); }
+  #log .err   { color: var(--red); }
+  #log .data  { color: var(--accent); }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 28px;
+    font-size: .65rem;
+    color: var(--muted);
+    letter-spacing: .1em;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>ERG_CONTROLLER</h1>
+    <span>Phase 1 — BLE Recorder</span>
+  </header>
+
+  <!-- Device connections -->
+  <div class="devices">
+
+    <div class="device-card" id="card-trainer">
+      <h3>Trainer</h3>
+      <div class="device-status">
+        <div class="dot" id="dot-trainer"></div>
+        <span id="label-trainer">Not connected</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-connect" id="btn-connect-trainer" onclick="connectTrainer()">Connect</button>
+        <button class="btn btn-disconnect" id="btn-disconnect-trainer" onclick="disconnectTrainer()" disabled>Disconnect</button>
+      </div>
+    </div>
+
+    <div class="device-card" id="card-hr">
+      <h3>Heart Rate Strap</h3>
+      <div class="device-status">
+        <div class="dot" id="dot-hr"></div>
+        <span id="label-hr">Not connected</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-connect" id="btn-connect-hr" onclick="connectHR()">Connect</button>
+        <button class="btn btn-disconnect" id="btn-disconnect-hr" onclick="disconnectHR()" disabled>Disconnect</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Live metrics -->
+  <div class="metrics">
+    <div class="metric-card" id="mc-power">
+      <div class="metric-label">Power</div>
+      <div class="metric-value" id="val-power">—</div>
+      <div class="metric-unit">watts</div>
+    </div>
+    <div class="metric-card" id="mc-cadence">
+      <div class="metric-label">Cadence</div>
+      <div class="metric-value cad" id="val-cadence">—</div>
+      <div class="metric-unit">rpm</div>
+    </div>
+    <div class="metric-card" id="mc-hr">
+      <div class="metric-label">Heart Rate</div>
+      <div class="metric-value hr" id="val-hr">—</div>
+      <div class="metric-unit">bpm</div>
+    </div>
+  </div>
+
+  <!-- Recording controls -->
+  <div class="controls" id="controls-bar">
+    <button class="btn-record btn-start" id="btn-start" onclick="startRecording()">⬤ Start</button>
+    <button class="btn-record btn-stop"  id="btn-stop"  onclick="stopRecording()" disabled>■ Stop</button>
+    <div class="rec-info" id="rec-info">
+      <div class="rec-dot"></div>
+      <span id="rec-label">Not recording</span>
+    </div>
+    <button class="btn btn-download" id="btn-download" onclick="downloadFIT()" disabled>↓ Download .fit</button>
+  </div>
+
+  <!-- Event log -->
+  <div class="log-wrap">
+    <div class="log-header">
+      <span>Event Log</span>
+      <button class="btn btn-clear" onclick="clearLog()">Clear</button>
+    </div>
+    <div id="log"></div>
+  </div>
+
+  <footer>gafferlloyd/erg_controller &nbsp;·&nbsp; Web Bluetooth API &nbsp;·&nbsp; Chrome required</footer>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  GATT UUIDs
+// ═══════════════════════════════════════════════════════
+const UUID = {
+  // Cycling Power Service
+  CPS_SERVICE:          0x1818,
+  CPS_MEASUREMENT:      0x2A63,
+
+  // Fitness Machine Service (FTMS) — KICKR may expose this too
+  FTMS_SERVICE:         0x1826,
+  FTMS_INDOOR_BIKE:     0x2AD2,
+
+  // Heart Rate Service
+  HR_SERVICE:           0x180D,
+  HR_MEASUREMENT:       0x2A37,
+};
+
+// ═══════════════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════════════
+let trainerDevice = null, trainerServer = null;
+let hrDevice = null, hrServer = null;
+let recording = false;
+let records = [];          // [{t, power, cadence, hr}]
+let recStart = null;
+let recTimer = null;
+
+// Last known values (so we always have something to stamp into each record)
+let lastPower = null, lastCadence = null, lastHR = null;
+
+// Cadence calculation from CPS (needs previous crank event data)
+let prevCrankRevs = null, prevCrankTime = null;
+
+// ═══════════════════════════════════════════════════════
+//  Logging
+// ═══════════════════════════════════════════════════════
+function log(msg, cls = 'info') {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  const now = new Date();
+  const ts = now.toTimeString().slice(0,8);
+  line.className = cls;
+  line.textContent = `[${ts}] ${msg}`;
+  el.prepend(line);
+}
+function clearLog() { document.getElementById('log').innerHTML = ''; }
+
+// ═══════════════════════════════════════════════════════
+//  Device status helpers
+// ═══════════════════════════════════════════════════════
+function setDeviceStatus(id, state, label) {
+  const dot   = document.getElementById(`dot-${id}`);
+  const lbl   = document.getElementById(`label-${id}`);
+  const btnC  = document.getElementById(`btn-connect-${id}`);
+  const btnD  = document.getElementById(`btn-disconnect-${id}`);
+  dot.className = 'dot ' + state;
+  lbl.textContent = label;
+  btnC.disabled = (state === 'connected' || state === 'connecting');
+  btnD.disabled = (state !== 'connected');
+}
+
+// ═══════════════════════════════════════════════════════
+//  Trainer — connect / disconnect
+// ═══════════════════════════════════════════════════════
+async function connectTrainer() {
+  if (!navigator.bluetooth) {
+    log('Web Bluetooth not available. Use Chrome on Windows/Android.', 'err');
+    return;
+  }
+  try {
+    setDeviceStatus('trainer', 'connecting', 'Scanning…');
+    log('Requesting trainer device…');
+
+    trainerDevice = await navigator.bluetooth.requestDevice({
+      filters: [
+        { services: [UUID.CPS_SERVICE] },
+        { services: [UUID.FTMS_SERVICE] },
+        { namePrefix: 'KICKR' },
+        { namePrefix: 'Wahoo' },
+      ],
+      optionalServices: [UUID.CPS_SERVICE, UUID.FTMS_SERVICE],
+    });
+
+    trainerDevice.addEventListener('gattserverdisconnected', onTrainerDisconnected);
+    log(`Found: ${trainerDevice.name}`, 'ok');
+
+    trainerServer = await trainerDevice.gatt.connect();
+    log('GATT connected', 'ok');
+
+    // Try CPS first, fall back to FTMS
+    let subscribed = false;
+
+    try {
+      const svc = await trainerServer.getPrimaryService(UUID.CPS_SERVICE);
+      const chr = await svc.getCharacteristic(UUID.CPS_MEASUREMENT);
+      chr.addEventListener('characteristicvaluechanged', onCPSMeasurement);
+      await chr.startNotifications();
+      log('Subscribed: Cycling Power Service', 'ok');
+      subscribed = true;
+    } catch (e) {
+      log('CPS not found, trying FTMS…', 'warn');
+    }
+
+    if (!subscribed) {
+      try {
+        const svc = await trainerServer.getPrimaryService(UUID.FTMS_SERVICE);
+        const chr = await svc.getCharacteristic(UUID.FTMS_INDOOR_BIKE);
+        chr.addEventListener('characteristicvaluechanged', onFTMSIndoorBike);
+        await chr.startNotifications();
+        log('Subscribed: FTMS Indoor Bike Data', 'ok');
+        subscribed = true;
+      } catch (e) {
+        log('FTMS not found either. Check device.', 'err');
+      }
+    }
+
+    if (subscribed) {
+      setDeviceStatus('trainer', 'connected', trainerDevice.name || 'Trainer');
+      document.getElementById('mc-power').classList.add('active');
+      document.getElementById('mc-cadence').classList.add('active');
+    } else {
+      setDeviceStatus('trainer', 'error', 'No power service');
+    }
+
+  } catch (e) {
+    log(`Trainer connect failed: ${e.message}`, 'err');
+    setDeviceStatus('trainer', '', 'Not connected');
+  }
+}
+
+function onTrainerDisconnected() {
+  log('Trainer disconnected', 'warn');
+  setDeviceStatus('trainer', '', 'Not connected');
+  document.getElementById('mc-power').classList.remove('active');
+  document.getElementById('mc-cadence').classList.remove('active');
+  document.getElementById('val-power').textContent = '—';
+  document.getElementById('val-cadence').textContent = '—';
+}
+
+async function disconnectTrainer() {
+  if (trainerDevice && trainerDevice.gatt.connected) {
+    await trainerDevice.gatt.disconnect();
+  }
+  trainerDevice = null; trainerServer = null;
+}
+
+// ═══════════════════════════════════════════════════════
+//  Trainer — data parsers
+// ═══════════════════════════════════════════════════════
+
+// CPS Measurement (0x2A63)
+// Byte 0-1: flags, Byte 2-3: instantaneous power (int16, watts)
+// Crank revolutions in flags bit 4 → bytes vary
+function onCPSMeasurement(event) {
+  const data = event.target.value; // DataView
+  const flags = data.getUint16(0, true);
+
+  const power = data.getInt16(2, true);
+  lastPower = power;
+  document.getElementById('val-power').textContent = power;
+
+  // Crank Revolution Data present? (bit 4 of flags)
+  if (flags & 0x10) {
+    // offset: 4 bytes for power already + wheel data if present (bit 0,1 = wheel rev)
+    // Wheel revolution data = 6 bytes if bits 0+1 set
+    let offset = 4;
+    if (flags & 0x01) offset += 6; // skip wheel rev data if present
+
+    const crankRevs = data.getUint16(offset, true);
+    const crankTime = data.getUint16(offset + 2, true); // 1/1024 sec units
+
+    if (prevCrankRevs !== null && prevCrankTime !== null) {
+      let deltaRevs = crankRevs - prevCrankRevs;
+      let deltaTime = crankTime - prevCrankTime;
+      if (deltaRevs < 0) deltaRevs += 65536;
+      if (deltaTime < 0) deltaTime += 65536;
+      if (deltaTime > 0 && deltaRevs > 0) {
+        const cadence = Math.round((deltaRevs / deltaTime) * 1024 * 60);
+        if (cadence > 0 && cadence < 250) {
+          lastCadence = cadence;
+          document.getElementById('val-cadence').textContent = cadence;
+        }
+      } else if (deltaTime > 2048) { // ~2s of no crank events
+        lastCadence = 0;
+        document.getElementById('val-cadence').textContent = '0';
+      }
+    }
+    prevCrankRevs = crankRevs;
+    prevCrankTime = crankTime;
+  }
+
+  stampRecord();
+  log(`Power: ${power}W  Cadence: ${lastCadence ?? '—'}rpm`, 'data');
+}
+
+// FTMS Indoor Bike Data (0x2AD2)
+// Flags in bytes 0-1 determine which fields follow
+function onFTMSIndoorBike(event) {
+  const d = event.target.value;
+  const flags = d.getUint16(0, true);
+  let offset = 2;
+
+  // Bit 0: More Data (0 = instantaneous speed present)
+  if (!(flags & 0x01)) offset += 2; // speed (uint16, km/h * 100)
+
+  // Bit 1: Average Speed
+  if (flags & 0x02) offset += 2;
+
+  // Bit 2: Instantaneous Cadence
+  if (flags & 0x04) {
+    const cad = Math.round(d.getUint16(offset, true) * 0.5);
+    offset += 2;
+    lastCadence = cad;
+    document.getElementById('val-cadence').textContent = cad;
+  }
+
+  // Bit 3: Average Cadence
+  if (flags & 0x08) offset += 2;
+
+  // Bit 4: Total Distance
+  if (flags & 0x10) offset += 3;
+
+  // Bit 5: Resistance Level
+  if (flags & 0x20) offset += 2;
+
+  // Bit 6: Instantaneous Power
+  if (flags & 0x40) {
+    const power = d.getInt16(offset, true);
+    offset += 2;
+    lastPower = power;
+    document.getElementById('val-power').textContent = power;
+  }
+
+  stampRecord();
+  log(`FTMS — Power: ${lastPower ?? '—'}W  Cadence: ${lastCadence ?? '—'}rpm`, 'data');
+}
+
+// ═══════════════════════════════════════════════════════
+//  HR Strap — connect / disconnect
+// ═══════════════════════════════════════════════════════
+async function connectHR() {
+  if (!navigator.bluetooth) {
+    log('Web Bluetooth not available.', 'err');
+    return;
+  }
+  try {
+    setDeviceStatus('hr', 'connecting', 'Scanning…');
+    log('Requesting HR device…');
+
+    hrDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [UUID.HR_SERVICE] }],
+      optionalServices: [UUID.HR_SERVICE],
+    });
+
+    hrDevice.addEventListener('gattserverdisconnected', onHRDisconnected);
+    log(`Found: ${hrDevice.name}`, 'ok');
+
+    hrServer = await hrDevice.gatt.connect();
+    const svc = await hrServer.getPrimaryService(UUID.HR_SERVICE);
+    const chr = await svc.getCharacteristic(UUID.HR_MEASUREMENT);
+    chr.addEventListener('characteristicvaluechanged', onHRMeasurement);
+    await chr.startNotifications();
+
+    log('Subscribed: Heart Rate Measurement', 'ok');
+    setDeviceStatus('hr', 'connected', hrDevice.name || 'HR Strap');
+    document.getElementById('mc-hr').classList.add('active');
+
+  } catch (e) {
+    log(`HR connect failed: ${e.message}`, 'err');
+    setDeviceStatus('hr', '', 'Not connected');
+  }
+}
+
+function onHRDisconnected() {
+  log('HR strap disconnected', 'warn');
+  setDeviceStatus('hr', '', 'Not connected');
+  document.getElementById('mc-hr').classList.remove('active');
+  document.getElementById('val-hr').textContent = '—';
+}
+
+async function disconnectHR() {
+  if (hrDevice && hrDevice.gatt.connected) {
+    await hrDevice.gatt.disconnect();
+  }
+  hrDevice = null; hrServer = null;
+}
+
+// HR Measurement (0x2A37)
+// Byte 0: flags. Bit 0: 0=uint8 HR, 1=uint16 HR
+function onHRMeasurement(event) {
+  const d = event.target.value;
+  const flags = d.getUint8(0);
+  const hr = (flags & 0x01) ? d.getUint16(1, true) : d.getUint8(1);
+  lastHR = hr;
+  document.getElementById('val-hr').textContent = hr;
+  stampRecord();
+  log(`HR: ${hr} bpm`, 'data');
+}
+
+// ═══════════════════════════════════════════════════════
+//  Recording
+// ═══════════════════════════════════════════════════════
+function stampRecord() {
+  if (!recording) return;
+  records.push({
+    t:       Date.now(),
+    power:   lastPower,
+    cadence: lastCadence,
+    hr:      lastHR,
+  });
+}
+
+function startRecording() {
+  records = [];
+  recStart = Date.now();
+  recording = true;
+  lastPower = null; lastCadence = null; lastHR = null;
+
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-stop').disabled = false;
+  document.getElementById('btn-download').disabled = true;
+  document.getElementById('controls-bar').classList.add('recording');
+
+  recTimer = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - recStart) / 1000);
+    const h = String(Math.floor(elapsed / 3600)).padStart(2,'0');
+    const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
+    const s = String(elapsed % 60).padStart(2,'0');
+    document.getElementById('rec-label').textContent = `Recording  ${h}:${m}:${s}  (${records.length} samples)`;
+  }, 1000);
+
+  log('Recording started', 'ok');
+}
+
+function stopRecording() {
+  recording = false;
+  clearInterval(recTimer);
+
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').disabled = true;
+  document.getElementById('btn-download').disabled = (records.length === 0);
+  document.getElementById('controls-bar').classList.remove('recording');
+  document.getElementById('rec-label').textContent = `Stopped — ${records.length} samples recorded`;
+
+  log(`Recording stopped. ${records.length} samples. Click Download to export .fit`, 'ok');
+}
+
+// ═══════════════════════════════════════════════════════
+//  FIT File Generator (minimal binary encoder)
+// ═══════════════════════════════════════════════════════
+
+// FIT epoch: seconds since 31 Dec 1989 00:00:00 UTC
+const FIT_EPOCH_OFFSET = 631065600; // unix seconds
+
+function fitTimestamp(unixMs) {
+  return Math.round(unixMs / 1000) - FIT_EPOCH_OFFSET;
+}
+
+function writeFIT(records, startMs) {
+  // We'll collect all message bytes first, then prepend the file header
+
+  const buf = [];
+
+  // Helper writers
+  function u8(v)  { buf.push(v & 0xFF); }
+  function u16(v) { buf.push(v & 0xFF, (v >> 8) & 0xFF); }
+  function u32(v) { buf.push(v & 0xFF, (v >> 8) & 0xFF, (v >> 16) & 0xFF, (v >> 24) & 0xFF); }
+  function s16(v) { u16(v < 0 ? v + 65536 : v); }
+
+  // ── Definition message helper ──
+  // localMsgNum: 0-15
+  // fields: [{defNum, size, baseType}]
+  function defMsg(localMsgNum, globalMsgNum, fields) {
+    // Normal header | definition
+    u8(0x40 | localMsgNum);
+    u8(0);             // reserved
+    u8(0);             // little endian architecture
+    u16(globalMsgNum);
+    u8(fields.length);
+    for (const f of fields) {
+      u8(f.def);
+      u8(f.size);
+      u8(f.type);
+    }
+  }
+
+  // Base types
+  const T_ENUM  = 0x00; // 1 byte
+  const T_UINT8 = 0x02; // 1 byte
+  const T_UINT16= 0x84; // 2 bytes
+  const T_UINT32= 0x86; // 4 bytes
+  const T_SINT16= 0x83; // 2 bytes
+
+  // ── file_id (global msg 0) — local 0 ──
+  defMsg(0, 0, [
+    { def: 0, size: 1, type: T_ENUM   }, // type
+    { def: 1, size: 2, type: T_UINT16 }, // manufacturer
+    { def: 2, size: 2, type: T_UINT16 }, // product
+    { def: 4, size: 4, type: T_UINT32 }, // time_created
+  ]);
+  u8(0x00);           // data msg local 0
+  u8(4);              // type=activity
+  u16(255);           // manufacturer=development
+  u16(0);             // product
+  u32(fitTimestamp(startMs)); // time_created
+
+  // ── record (global msg 20) — local 1 ──
+  defMsg(1, 20, [
+    { def: 253, size: 4, type: T_UINT32 }, // timestamp
+    { def: 7,   size: 2, type: T_UINT16 }, // power (W, scale 1)
+    { def: 4,   size: 1, type: T_UINT8  }, // cadence (rpm)
+    { def: 3,   size: 1, type: T_UINT8  }, // heart_rate (bpm)
+  ]);
+
+  for (const r of records) {
+    u8(0x01); // data msg local 1
+    u32(fitTimestamp(r.t));
+    u16(r.power   != null ? Math.round(r.power)   : 0xFFFF); // invalid = 0xFFFF
+    u8( r.cadence != null ? Math.round(r.cadence) : 0xFF  );
+    u8( r.hr      != null ? Math.round(r.hr)      : 0xFF  );
+  }
+
+  // ── session (global msg 18) — local 2 ──
+  const totalElapsed = Math.round((records[records.length-1].t - startMs) / 1000);
+  const validPowers  = records.filter(r => r.power   != null).map(r => r.power);
+  const validHRs     = records.filter(r => r.hr      != null).map(r => r.hr);
+  const avgPower  = validPowers.length ? Math.round(validPowers.reduce((a,b)=>a+b,0)/validPowers.length) : 0;
+  const maxPower  = validPowers.length ? Math.round(Math.max(...validPowers)) : 0;
+  const avgHR     = validHRs.length   ? Math.round(validHRs.reduce((a,b)=>a+b,0)/validHRs.length) : 0;
+  const maxHR     = validHRs.length   ? Math.round(Math.max(...validHRs)) : 0;
+
+  defMsg(2, 18, [
+    { def: 253, size: 4, type: T_UINT32 }, // timestamp
+    { def: 2,   size: 4, type: T_UINT32 }, // start_time
+    { def: 7,   size: 4, type: T_UINT32 }, // total_elapsed_time (s * 1000)
+    { def: 8,   size: 4, type: T_UINT32 }, // total_timer_time   (s * 1000)
+    { def: 20,  size: 2, type: T_UINT16 }, // avg_power
+    { def: 21,  size: 2, type: T_UINT16 }, // max_power
+    { def: 16,  size: 1, type: T_UINT8  }, // avg_heart_rate
+    { def: 17,  size: 1, type: T_UINT8  }, // max_heart_rate
+    { def: 5,   size: 1, type: T_ENUM   }, // sport (2=cycling)
+    { def: 6,   size: 1, type: T_ENUM   }, // sub_sport
+  ]);
+  u8(0x02);
+  u32(fitTimestamp(records[records.length-1].t));
+  u32(fitTimestamp(startMs));
+  u32(totalElapsed * 1000);
+  u32(totalElapsed * 1000);
+  u16(avgPower);
+  u16(maxPower);
+  u8(avgHR);
+  u8(maxHR);
+  u8(2);   // sport=cycling
+  u8(6);   // sub_sport=indoor_cycling
+
+  // ── activity (global msg 34) — local 3 ──
+  defMsg(3, 34, [
+    { def: 253, size: 4, type: T_UINT32 }, // timestamp
+    { def: 1,   size: 4, type: T_UINT32 }, // total_timer_time (ms)
+    { def: 2,   size: 2, type: T_UINT16 }, // num_sessions
+    { def: 3,   size: 1, type: T_ENUM   }, // type (0=manual)
+    { def: 4,   size: 1, type: T_ENUM   }, // event (26=activity)
+    { def: 5,   size: 1, type: T_ENUM   }, // event_type (1=stop)
+  ]);
+  u8(0x03);
+  u32(fitTimestamp(records[records.length-1].t));
+  u32(totalElapsed * 1000);
+  u16(1);  // 1 session
+  u8(0);   // manual
+  u8(26);  // activity
+  u8(1);   // stop
+
+  // ── File header (14 bytes) ──
+  const dataSize = buf.length;
+  const header = [];
+  function hu8(v)  { header.push(v & 0xFF); }
+  function hu16(v) { header.push(v & 0xFF, (v >> 8) & 0xFF); }
+  function hu32(v) { header.push(v & 0xFF, (v >> 8) & 0xFF, (v >> 16) & 0xFF, (v >> 24) & 0xFF); }
+
+  hu8(14);          // header size
+  hu8(0x20);        // protocol version 2.0
+  hu16(2132);       // profile version 21.32
+  hu32(dataSize);   // data size (bytes)
+  // '.FIT' as ASCII
+  hu8(0x2E); hu8(0x46); hu8(0x49); hu8(0x54);
+  // Header CRC (2 bytes) — optional, set to 0
+  hu16(0);
+
+  // ── CRC over data ──
+  const allBytes = [...header, ...buf];
+  const crc = computeFitCRC(buf);
+  allBytes.push(crc & 0xFF, (crc >> 8) & 0xFF);
+
+  return new Uint8Array(allBytes);
+}
+
+function computeFitCRC(bytes) {
+  const CRC_TABLE = [
+    0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401,
+    0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400,
+  ];
+  let crc = 0;
+  for (const byte of bytes) {
+    let tmp = CRC_TABLE[crc & 0xF];
+    crc = (crc >> 4) & 0x0FFF;
+    crc = crc ^ tmp ^ CRC_TABLE[byte & 0xF];
+    tmp = CRC_TABLE[crc & 0xF];
+    crc = (crc >> 4) & 0x0FFF;
+    crc = crc ^ tmp ^ CRC_TABLE[(byte >> 4) & 0xF];
+  }
+  return crc;
+}
+
+function downloadFIT() {
+  if (records.length === 0) { log('No data to export', 'warn'); return; }
+
+  const fitData = writeFIT(records, recStart);
+  const blob = new Blob([fitData], { type: 'application/octet-stream' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const dateStr = new Date(recStart).toISOString().slice(0,19).replace(/[T:]/g,'-');
+  a.href     = url;
+  a.download = `erg_${dateStr}.fit`;
+  a.click();
+  URL.revokeObjectURL(url);
+  log(`Downloaded: erg_${dateStr}.fit  (${fitData.length} bytes, ${records.length} records)`, 'ok');
+}
+
+// ═══════════════════════════════════════════════════════
+//  Init check
+// ═══════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  if (!navigator.bluetooth) {
+    log('⚠ Web Bluetooth not available in this browser. Open in Chrome on Windows or Android.', 'err');
+  } else {
+    log('Web Bluetooth available. Ready to connect.', 'ok');
+  }
+});
+</script>
+</body>
+</html>
