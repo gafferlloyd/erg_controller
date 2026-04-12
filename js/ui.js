@@ -34,6 +34,9 @@ function updateServoBtn() {
   btn.textContent = servoActive ? 'STOP SERVO' : 'START SERVO';
   btn.classList.toggle('on', servoActive);
 
+  // Keep pause button state consistent
+  updatePauseBtn();
+
   const ergStart = document.getElementById('btn-start-power-erg');
   if (ergStart) ergStart.disabled = !trainerLive;
 }
@@ -106,6 +109,7 @@ function onSessionStopped() {
   stopChartLoop();
   drawOverview();
   drawRolling();
+  drawPowerCurve();
   updateSessionMetrics();
 }
 
@@ -128,8 +132,9 @@ function onSampleTaken() {
   const target = (servoActive || ergActive) ? ergSetpoint : null;
   pushChartPoint(s.hr, s.power, np, s.cadence, target);
 
-  // Refresh metrics every 5 samples
-  if (samples.length % 5 === 0) updateSessionMetrics();
+  // Refresh metrics every 5 samples; power curve every 30 s
+  if (samples.length % 5  === 0) updateSessionMetrics();
+  if (samples.length % 30 === 0) drawPowerCurve();
 }
 
 // ── Metrics panel ─────────────────────────────────────────────────────────────
@@ -210,13 +215,35 @@ function updateWorkoutBarDone() {
 // ── Workout file + mode button wiring ────────────────────────────────────────
 
 function wireWorkoutButtons() {
-  const fileInput = document.getElementById('workout-file');
-  const btnStart  = document.getElementById('btn-start-workout');
-  const btnStop   = document.getElementById('btn-stop-workout');
+  const fileInput  = document.getElementById('workout-file');
+  const btnStart   = document.getElementById('btn-start-workout');
+  const btnPause   = document.getElementById('btn-pause-workout');
+  const btnStop    = document.getElementById('btn-stop-workout');
 
   if (fileInput) fileInput.addEventListener('change', () => loadWorkoutFile(fileInput));
   if (btnStart)  btnStart.addEventListener('click',   startWorkout);
+  if (btnPause)  btnPause.addEventListener('click',   toggleWorkoutPause);
   if (btnStop)   btnStop.addEventListener('click',    stopWorkout);
+}
+
+// ── Drag-and-drop workout import ──────────────────────────────────────────────
+
+function wireDragDrop() {
+  const zone = document.getElementById('workout-bar');
+  if (!zone) return;
+
+  zone.addEventListener('dragenter', e => { e.preventDefault(); });
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', e => {
+    // Only remove if leaving the zone itself, not a child element
+    if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+  });
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleWorkoutFile(file);
+  });
 }
 
 // ── Power ERG setpoint display sync ──────────────────────────────────────────
@@ -244,6 +271,8 @@ function wireButtons() {
   bindClick('btn-connect-trainer', () => connectDevice('trainer'));
   bindClick('btn-connect-hr',      () => connectDevice('hr'));
   bindClick('btn-servo',           toggleServo);
+  bindClick('btn-pause-servo',     toggleServoPause);
+  bindClick('btn-pause-workout',   toggleWorkoutPause);
   bindClick('btn-warmup',          toggleWarmup);
   bindClick('btn-start-power-erg', startPowerErg);
   bindClick('btn-stop-power-erg',  stopPowerErg);
@@ -293,6 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
   wireButtons();
   wireSliders();
   wireWorkoutButtons();
+  wireDragDrop();
   wireErgSetpoint();
   wireTargetHR();
   wireResize();

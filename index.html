@@ -51,6 +51,7 @@
     <input type="file" id="workout-file" accept=".zwo,.txt,.csv">
     <label for="workout-file" class="btn-file-label">Load Workout</label>
     <button id="btn-start-workout" disabled>&#9654; Start</button>
+    <button id="btn-pause-workout" disabled>&#9208; Pause</button>
     <button id="btn-stop-workout">&#9632; Stop</button>
   </div>
 </div>
@@ -166,6 +167,7 @@
   <div class="panel-section">
     <span class="panel-head">Control</span>
     <button id="btn-servo" disabled>START SERVO</button>
+    <button id="btn-pause-servo" disabled>PAUSE</button>
     <button id="btn-warmup">START WARM-UP</button>
     <span id="wu-remaining" style="color:var(--muted)">—</span>
     <input type="number" id="wu-dur" value="3" min="1" max="60" step="1" style="width:44px">
@@ -213,6 +215,14 @@
     <button id="btn-save-profile">Save</button>
     <span id="prof-status" style="color:var(--muted);font-size:11px"></span>
   </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     POWER CURVE (shown once session has data)
+     ══════════════════════════════════════════════════ -->
+<div class="power-curve-panel" id="power-curve-panel">
+  <div class="metric-head">Power Curve &nbsp;<span style="color:var(--blue2)">&#9644; MMP</span> &nbsp;<span style="color:var(--orange)">&#8943; NP (t&gt;2min)</span></div>
+  <canvas id="power-curve-canvas"></canvas>
 </div>
 
 <!-- ══════════════════════════════════════════════════

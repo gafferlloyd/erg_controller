@@ -302,6 +302,128 @@ function drawRolling() {
   });
 }
 
+// ── Power curve chart ─────────────────────────────────────────────────────────
+// Log-scale x-axis (duration), linear y-axis (watts).
+// mmpData / npData: [{dur, power}] from session.js calcMMP / calcNPCurve.
+
+function drawPowerCurve() {
+  const c = getCtx('power-curve-canvas');
+  if (!c) return;
+  const { ctx, w, h } = c;
+  fillBg(ctx, w, h);
+
+  const mmpData = calcMMP(samples);
+  const npData  = calcNPCurve(samples);
+
+  if (!mmpData.length) {
+    ctx.fillStyle = C.label;
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('No data yet', w / 2, h / 2);
+    return;
+  }
+
+  const PAD = { top: 12, right: 8, bottom: 22, left: 36 };
+  const cw  = w - PAD.left - PAD.right;
+  const ch  = h - PAD.top  - PAD.bottom;
+
+  // X: log scale over duration range
+  const durMin = MMP_DURATIONS[0];
+  const durMax = mmpData[mmpData.length - 1].dur;
+  const logMin = Math.log10(durMin);
+  const logMax = Math.log10(durMax);
+
+  function xOf(dur) {
+    return PAD.left + (Math.log10(dur) - logMin) / (logMax - logMin) * cw;
+  }
+
+  // Y: linear power range
+  const allPowers = [...mmpData.map(d => d.power), ...npData.map(d => d.power)];
+  const pMax = Math.max(...allPowers);
+  const pMin = Math.max(0, Math.min(...allPowers) - 20);
+
+  function yOf(p) {
+    return PAD.top + ch - (p - pMin) / (pMax - pMin || 1) * ch;
+  }
+
+  // Y-axis grid lines
+  const pTicks = niceTicks(pMin, pMax, 4);
+  ctx.strokeStyle = C.grid;
+  ctx.lineWidth   = 0.5;
+  ctx.fillStyle   = C.label;
+  ctx.font        = '9px monospace';
+  ctx.textAlign   = 'right';
+  for (const t of pTicks) {
+    const y = yOf(t);
+    ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(w - PAD.right, y); ctx.stroke();
+    ctx.fillText(`${t}`, PAD.left - 2, y + 3);
+  }
+
+  // X-axis duration labels
+  const xLabels = [
+    [1, '1s'], [5, '5s'], [10, '10s'], [30, '30s'],
+    [60, '1m'], [120, '2m'], [300, '5m'], [600, '10m'],
+    [1200, '20m'], [2400, '40m'], [3600, '1h'],
+  ];
+  ctx.fillStyle = C.label;
+  ctx.textAlign = 'center';
+  ctx.font      = '9px monospace';
+  for (const [dur, lbl] of xLabels) {
+    if (dur < durMin || dur > durMax) continue;
+    const x = xOf(dur);
+    ctx.beginPath(); ctx.moveTo(x, PAD.top); ctx.lineTo(x, PAD.top + ch); ctx.stroke();
+    ctx.fillText(lbl, x, h - 4);
+  }
+
+  // MMP line
+  ctx.strokeStyle = C.power;
+  ctx.lineWidth   = 2;
+  ctx.lineJoin    = 'round';
+  ctx.beginPath();
+  mmpData.forEach((d, i) => {
+    const x = xOf(d.dur);
+    const y = yOf(d.power);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // NP line (dashed, orange)
+  if (npData.length >= 2) {
+    ctx.strokeStyle = C.np;
+    ctx.lineWidth   = 1.5;
+    ctx.setLineDash([5, 3]);
+    ctx.beginPath();
+    npData.forEach((d, i) => {
+      const x = xOf(d.dur);
+      const y = yOf(d.power);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // FTP reference line
+  if (profile.ftp) {
+    const y = yOf(profile.ftp);
+    if (y >= PAD.top && y <= PAD.top + ch) {
+      ctx.strokeStyle = 'rgba(255,235,59,0.4)';
+      ctx.lineWidth   = 1;
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(w - PAD.right, y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(255,235,59,0.6)';
+      ctx.textAlign = 'left';
+      ctx.fillText('FTP', PAD.left + 2, y - 2);
+    }
+  }
+
+  // Legend
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = C.power; ctx.fillText('MMP', PAD.left + 2, PAD.top + 10);
+  ctx.fillStyle = C.np;    ctx.fillText('NP',  PAD.left + 2, PAD.top + 20);
+}
+
 // ── Utility: nice tick values ─────────────────────────────────────────────────
 
 function niceTicks(lo, hi, n) {

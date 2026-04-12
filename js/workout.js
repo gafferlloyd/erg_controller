@@ -168,6 +168,28 @@ class WorkoutPlayer {
     workoutTargetHR = null;
   }
 
+  pause() {
+    if (!this.timer || this.done) return;
+    clearInterval(this.timer);
+    this.timer = null;
+    // Hand ERG back to the rider via servo pause
+    if (servoActive && !servoPaused) pauseServo();
+    log('Workout paused', 'warn');
+    updateWorkoutPauseBtn();
+  }
+
+  resume() {
+    if (this.timer || this.done) return;
+    this.timer = setInterval(() => this._tick(), 1000);
+    // Re-apply current segment target and re-take servo control
+    this._applyTarget();
+    if (servoActive && servoPaused) resumeServo();
+    log('Workout resumed', 'ok');
+    updateWorkoutPauseBtn();
+  }
+
+  get isPaused() { return !this.timer && !this.done; }
+
   _tick() {
     this.segElapsed++;
     this.totalElapsed++;
@@ -214,8 +236,8 @@ class WorkoutPlayer {
 
 // ── File loading ──────────────────────────────────────────────────────────────
 
-function loadWorkoutFile(input) {
-  const file = input.files[0];
+// Accept a raw File object — used by both the file input and drag-and-drop.
+function handleWorkoutFile(file) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
@@ -237,11 +259,16 @@ function loadWorkoutFile(input) {
   reader.readAsText(file);
 }
 
+function loadWorkoutFile(input) {
+  handleWorkoutFile(input.files[0]);
+}
+
 function startWorkout() {
   if (!workoutSegments.length) return;
   if (workoutPlayer) workoutPlayer.stop();
   workoutPlayer = new WorkoutPlayer(workoutSegments);
   workoutPlayer.start();
+  updateWorkoutPauseBtn();
 }
 
 function stopWorkout() {
@@ -251,7 +278,22 @@ function stopWorkout() {
   }
   workoutTargetHR = null;
   updateWorkoutBarDone();
+  updateWorkoutPauseBtn();
   log('Workout stopped', 'warn');
+}
+
+function toggleWorkoutPause() {
+  if (!workoutPlayer) return;
+  if (workoutPlayer.isPaused) workoutPlayer.resume();
+  else                        workoutPlayer.pause();
+}
+
+function updateWorkoutPauseBtn() {
+  const btn = document.getElementById('btn-pause-workout');
+  if (!btn) return;
+  const paused = workoutPlayer ? workoutPlayer.isPaused : false;
+  btn.textContent = paused ? '▶ Continue' : '⏸ Pause';
+  btn.disabled    = !workoutPlayer || workoutPlayer.done;
 }
 
 // ── Power ERG (direct, no PID) ────────────────────────────────────────────────

@@ -127,6 +127,50 @@ function calcHRZone(hr, restHR, maxHR) {
   return 'Z5';
 }
 
+// ── Power curve ───────────────────────────────────────────────────────────────
+// Standard durations (seconds) used for Mean Maximal Power and NP curves.
+const MMP_DURATIONS = [1, 2, 5, 10, 15, 20, 30, 60, 120, 300, 600, 1200, 2400, 3600];
+
+// Mean Maximal Power — best average power for each duration window.
+// Returns [{dur, power}] for durations that fit within sampleArr.
+function calcMMP(sampleArr) {
+  const powers = sampleArr.map(s => s.power ?? 0);
+  const result = [];
+  for (const dur of MMP_DURATIONS) {
+    if (powers.length < dur) break;
+    let sum = powers.slice(0, dur).reduce((a, b) => a + b, 0);
+    let best = sum;
+    for (let i = dur; i < powers.length; i++) {
+      sum += powers[i] - powers[i - dur];
+      if (sum > best) best = sum;
+    }
+    result.push({ dur, power: Math.round(best / dur) });
+  }
+  return result;
+}
+
+// NP curve — normalised power computed over the best MMP window for each
+// duration >= 120 s.  Returns [{dur, power}].
+function calcNPCurve(sampleArr) {
+  const powers = sampleArr.map(s => s.power ?? 0);
+  const result = [];
+  for (const dur of MMP_DURATIONS.filter(d => d >= 120)) {
+    if (powers.length < dur) break;
+    // Find start index of the best avg-power window
+    let sum  = powers.slice(0, dur).reduce((a, b) => a + b, 0);
+    let best = sum;
+    let bestIdx = 0;
+    for (let i = dur; i < powers.length; i++) {
+      sum += powers[i] - powers[i - dur];
+      if (sum > best) { best = sum; bestIdx = i - dur + 1; }
+    }
+    const slice = sampleArr.slice(bestIdx, bestIdx + dur);
+    const np = calcNP(slice);
+    if (np) result.push({ dur, power: np });
+  }
+  return result;
+}
+
 // Convenience: return last N samples (or all if N is null).
 function recentSamples(n) {
   return n ? samples.slice(-n) : samples;

@@ -27,6 +27,11 @@ let warmupTimer  = null;
 // When a workout is playing, workout.js sets this to override the DOM target.
 let workoutTargetHR = null;
 
+// ── Pause state ───────────────────────────────────────────────────────────────
+// servoPaused = true while the servo is temporarily handed back to the rider.
+// servoActive remains true so state is preserved on resume.
+let servoPaused = false;
+
 function getTargetHR() {
   if (workoutTargetHR !== null) return workoutTargetHR;
   return parseInt(document.getElementById('target-hr').value) || 145;
@@ -40,10 +45,11 @@ function toggleServo() {
 }
 
 function startServo() {
-  servoActive = true;
-  pidIntegral = 0;
-  prevError   = null;
-  stableCount = 0;
+  servoActive  = true;
+  servoPaused  = false;
+  pidIntegral  = 0;
+  prevError    = null;
+  stableCount  = 0;
   prevSetpointSS      = null;
   heartbeatCount      = 0;
   pendingServoPowerSend = false;
@@ -79,6 +85,7 @@ function startServo() {
 
 function stopServo() {
   servoActive = false;
+  servoPaused = false;
   clearTimeout(tickTimer);
   clearInterval(countdownTimer);
   stopHeartbeat();
@@ -127,7 +134,7 @@ function scheduleNextTick() {
 }
 
 function pidTick() {
-  if (!servoActive || lastHR === null) return;
+  if (!servoActive || servoPaused || lastHR === null) return;
 
   const targetHR = getTargetHR();
   const deadband = parseInt(document.getElementById('deadband').value);
@@ -291,6 +298,55 @@ function updateWarmupDisplay() {
   const m = String(Math.floor(warmupSecs / 60)).padStart(2, '0');
   const s = String(warmupSecs % 60).padStart(2, '0');
   document.getElementById('wu-remaining').textContent = `${m}:${s}`;
+}
+
+// ── Servo pause / resume ──────────────────────────────────────────────────────
+
+function pauseServo() {
+  if (!servoActive || servoPaused) return;
+  servoPaused = true;
+
+  // Stop the PID tick cycle
+  clearTimeout(tickTimer);
+  clearInterval(countdownTimer);
+
+  // Release trainer resistance (return to free ride)
+  if (wahooCP) writeChar(wahooCP, [0x41, 0x00, 0x00]).catch(() => {});
+  else         writeCPBytes([0x08]).catch(() => {});
+
+  updateErgIndicator('idle');
+  updatePauseBtn();
+  log('Servo paused — ERG released to rider', 'warn');
+}
+
+function resumeServo() {
+  if (!servoActive || !servoPaused) return;
+  servoPaused = false;
+
+  // Re-take ERG control and immediately push the current setpoint
+  if (wahooCP) {
+    sendPower(ergSetpoint).catch(e => log(`Resume TX: ${e.message}`, 'warn'));
+  } else {
+    ftmsHandshake();
+  }
+
+  scheduleNextTick();
+  updateErgIndicator('active');
+  updatePauseBtn();
+  log(`Servo resumed → ${ergSetpoint}W`, 'ok');
+}
+
+function toggleServoPause() {
+  if (servoPaused) resumeServo();
+  else             pauseServo();
+}
+
+function updatePauseBtn() {
+  const btn = document.getElementById('btn-pause-servo');
+  if (!btn) return;
+  btn.textContent  = servoPaused ? 'CONTINUE' : 'PAUSE';
+  btn.classList.toggle('on', !servoPaused && servoActive);
+  btn.disabled = !servoActive;
 }
 
 // ── Target HR helpers ─────────────────────────────────────────────────────────
