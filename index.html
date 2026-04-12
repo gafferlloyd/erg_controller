@@ -1,1251 +1,253 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ERG Controller</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=DM+Sans:wght@300;400;500&display=swap');
-
-:root {
-  --bg:      #080b0f;
-  --panel:   #0e1218;
-  --panel2:  #131920;
-  --border:  #1a2233;
-  --accent:  #00d4ff;
-  --green:   #00e87a;
-  --red:     #ff3355;
-  --amber:   #ffaa00;
-  --purple:  #aa66ff;
-  --text:    #c8d8e8;
-  --muted:   #3d5068;
-  --mono:    'Share Tech Mono', monospace;
-  --sans:    'DM Sans', sans-serif;
-}
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--sans);
-  font-weight: 300;
-  min-height: 100vh;
-  overflow-x: hidden;
-}
-
-/* subtle scanline texture */
-body::before {
-  content: '';
-  position: fixed; inset: 0;
-  background: repeating-linear-gradient(
-    0deg, transparent, transparent 2px,
-    rgba(0,0,0,.07) 2px, rgba(0,0,0,.07) 4px
-  );
-  pointer-events: none; z-index: 0;
-}
-
-/* ══════════════════════════════════════
-   LAYOUT
-══════════════════════════════════════ */
-.app {
-  position: relative; z-index: 1;
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  grid-template-rows: 48px 1fr;
-  min-height: 100vh;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-/* Top bar spans both columns */
-.topbar {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0 18px;
-  border-bottom: 1px solid var(--border);
-  background: var(--panel);
-}
-.topbar-title {
-  font-family: var(--mono);
-  font-size: .85rem;
-  color: var(--accent);
-  letter-spacing: .1em;
-  flex-shrink: 0;
-}
-.topbar-pills { display: flex; gap: 8px; flex: 1; }
-.topbar-right { display: flex; gap: 8px; align-items: center; margin-left: auto; }
-
-/* ── Device pill ── */
-.pill {
-  display: flex; align-items: center; gap: 6px;
-  border: 1px solid var(--red);
-  border-radius: 20px;
-  padding: 3px 10px 3px 6px;
-  font-size: .7rem;
-  font-family: var(--mono);
-  cursor: pointer;
-  transition: border-color .3s, background .3s;
-  user-select: none;
-  position: relative;
-}
-.pill.connected { border-color: var(--green); }
-.pill-icon { font-size: .9rem; line-height: 1; }
-.pill-label { color: var(--muted); font-size: .65rem; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pill.connected .pill-label { color: var(--green); }
-.pill-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
-.pill.connected .pill-dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
-
-/* pill popover */
-.pill-menu {
-  display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px;
-  gap: 6px;
-  flex-direction: column;
-  z-index: 100;
-  min-width: 140px;
-}
-.pill-menu.open { display: flex; }
-.pill-menu-btn {
-  font-family: var(--mono);
-  font-size: .65rem;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  border: 1px solid currentColor;
-  border-radius: 3px;
-  padding: 4px 8px;
-  cursor: pointer;
-  background: transparent;
-  width: 100%;
-  text-align: left;
-}
-.pill-menu-btn.scan   { color: var(--accent); }
-.pill-menu-btn.forget { color: var(--muted);  }
-.pill-menu-btn:hover  { opacity: .8; }
-
-/* ── Left column ── */
-.left {
-  border-right: 1px solid var(--border);
-  background: var(--panel);
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  overflow-y: auto;
-}
-
-.section {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-}
-.section-label {
-  font-size: .58rem;
-  text-transform: uppercase;
-  letter-spacing: .16em;
-  color: var(--muted);
-  margin-bottom: 10px;
-}
-
-/* ── Big metric readouts ── */
-.metric-trio {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.metric-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-.metric-name { font-size: .65rem; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
-.metric-num  { font-family: var(--mono); font-size: 2rem; line-height: 1; }
-.metric-num.pwr { color: var(--accent); }
-.metric-num.cad { color: var(--green); }
-.metric-num.hr  { color: var(--red); }
-.metric-num.dim { color: var(--muted); }
-.metric-unit { font-size: .6rem; color: var(--muted); margin-left: 3px; }
-
-/* ── ERG panel ── */
-.erg-section { padding: 14px 16px; border-bottom: 1px solid var(--border); }
-
-.erg-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 12px;
-}
-.erg-toggle {
-  font-family: var(--mono);
-  font-size: .7rem;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  border: 1px solid var(--muted);
-  border-radius: 4px;
-  padding: 5px 14px;
-  cursor: pointer;
-  background: transparent;
-  color: var(--muted);
-  transition: all .2s;
-}
-.erg-toggle.on {
-  border-color: var(--green);
-  color: var(--green);
-  box-shadow: 0 0 8px rgba(0,232,122,.2);
-}
-
-.erg-target-row {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
-}
-.erg-target {
-  font-family: var(--mono);
-  font-size: 2.2rem;
-  color: var(--amber);
-  line-height: 1;
-}
-.erg-target-unit { font-size: .65rem; color: var(--muted); }
-.erg-delta {
-  font-family: var(--mono);
-  font-size: .7rem;
-  margin-left: auto;
-}
-.erg-delta.over  { color: var(--amber); }
-.erg-delta.under { color: var(--red); }
-.erg-delta.ok    { color: var(--green); }
-
-.erg-btns {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  gap: 5px;
-}
-.erg-btn {
-  font-family: var(--mono);
-  font-size: .65rem;
-  letter-spacing: .04em;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 7px 4px;
-  cursor: pointer;
-  background: var(--panel2);
-  color: var(--text);
-  transition: background .15s, border-color .15s;
-  text-align: center;
-}
-.erg-btn:hover { border-color: var(--amber); color: var(--amber); }
-.erg-btn:disabled { opacity: .25; cursor: not-allowed; }
-
-/* slider */
-.erg-slider { width: 100%; accent-color: var(--amber); margin-top: 8px; cursor: pointer; }
-
-/* ── Stats table ── */
-.stats-table { width: 100%; border-collapse: collapse; }
-.stats-table tr { border-bottom: 1px solid var(--border); }
-.stats-table tr:last-child { border-bottom: none; }
-.stats-table td { padding: 5px 2px; font-size: .72rem; }
-.stats-table td:first-child { color: var(--muted); }
-.stats-table td:last-child  { font-family: var(--mono); text-align: right; }
-.stats-table td.now  { color: var(--text); }
-.stats-table td.np   { color: var(--purple); }
-.stats-table .row-header td {
-  font-size: .55rem; text-transform: uppercase;
-  letter-spacing: .12em; color: var(--muted); padding-top: 10px;
-}
-
-/* ── Record / download ── */
-.rec-section {
-  margin-top: auto;
-  padding: 14px 16px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.rec-row { display: flex; gap: 8px; align-items: center; }
-.btn-rec {
-  font-family: var(--mono);
-  font-size: .75rem;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  border: none;
-  border-radius: 4px;
-  padding: 9px 20px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: opacity .2s, transform .1s;
-  flex: 1;
-}
-.btn-rec:active { transform: scale(.97); }
-.btn-rec:disabled { opacity: .25; cursor: not-allowed; }
-.btn-rec.start { background: var(--green); color: var(--bg); }
-.btn-rec.stop  { background: var(--red);   color: #fff; }
-.btn-dl {
-  font-family: var(--mono); font-size: .7rem; letter-spacing: .06em;
-  text-transform: uppercase; border: 1px solid var(--amber); border-radius: 4px;
-  padding: 9px 14px; cursor: pointer; background: transparent; color: var(--amber);
-  transition: background .15s;
-}
-.btn-dl:not(:disabled):hover { background: var(--amber); color: var(--bg); }
-.btn-dl:disabled { opacity: .25; cursor: not-allowed; }
-.rec-timer {
-  font-family: var(--mono); font-size: .7rem; color: var(--muted);
-  display: flex; align-items: center; gap: 6px;
-}
-.rec-blink {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--red); display: none; animation: blink .7s infinite;
-}
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.1} }
-.is-recording .rec-blink { display: inline-block; }
-.is-recording .rec-timer { color: var(--red); }
-
-/* ── Right column ── */
-.right {
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-
-/* Channel graph card */
-.channel {
-  display: grid;
-  grid-template-columns: 1fr 140px;
-  border-bottom: 1px solid var(--border);
-  flex: 1;
-  min-height: 0;
-}
-.channel:last-child { border-bottom: none; }
-
-.ch-main {
-  padding: 10px 14px 8px;
-  display: flex;
-  flex-direction: column;
-}
-.ch-header {
-  display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px;
-}
-.ch-name { font-size: .6rem; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); }
-.ch-val  { font-family: var(--mono); font-size: 1.4rem; line-height: 1; }
-.ch-val.pwr { color: var(--accent); }
-.ch-val.cad { color: var(--green); }
-.ch-val.hr  { color: var(--red); }
-.ch-val.dim { color: var(--muted); }
-.ch-unit { font-size: .6rem; color: var(--muted); }
-.ch-canvas-wrap { flex: 1; min-height: 0; position: relative; }
-.ch-canvas-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-
-.ch-thumb {
-  border-left: 1px solid var(--border);
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-}
-.ch-thumb-label {
-  font-size: .5rem; text-transform: uppercase; letter-spacing: .12em;
-  color: var(--muted); margin-bottom: 4px;
-}
-.ch-thumb canvas { display: block; width: 100%; height: 60px; }
-
-/* ── Log (collapsed at bottom of right column) ── */
-.log-bar {
-  border-top: 1px solid var(--border);
-  background: var(--panel);
-  flex-shrink: 0;
-}
-.log-bar-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 5px 14px; cursor: pointer; user-select: none;
-}
-.log-bar-header span { font-size: .58rem; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); }
-.log-toggle { font-family: var(--mono); font-size: .65rem; color: var(--muted); }
-#log {
-  font-family: var(--mono); font-size: .62rem; line-height: 1.65;
-  color: #4a6080; padding: 8px 14px;
-  max-height: 100px; overflow-y: auto;
-  display: flex; flex-direction: column-reverse;
-}
-#log .ok   { color: var(--green); }
-#log .warn { color: var(--amber); }
-#log .err  { color: var(--red);   }
-#log .tx   { color: var(--accent);}
-#log .rx   { color: var(--purple);}
-
-/* ── Responsive ── */
-@media (max-width: 700px) {
-  .app { grid-template-columns: 1fr; grid-template-rows: 48px auto 1fr; }
-  .left { border-right: none; border-bottom: 1px solid var(--border); }
-  .channel { grid-template-columns: 1fr; }
-  .ch-thumb { display: none; }
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ERG Controller</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-<div class="app">
+<body class="show-recorder">
 
-<!-- ═══ TOP BAR ═══ -->
-<div class="topbar">
-  <div class="topbar-title">ERG_CTRL</div>
-  <div class="topbar-pills">
-
-    <!-- Trainer pill -->
-    <div class="pill" id="pill-trainer" onclick="togglePillMenu('trainer')">
-      <span class="pill-dot" id="pdot-trainer"></span>
-      <span class="pill-icon">🚲</span>
-      <span class="pill-label" id="plbl-trainer">Not connected</span>
-      <div class="pill-menu" id="pmenu-trainer">
-        <button class="pill-menu-btn scan"   onclick="event.stopPropagation();manualConnect('trainer')">Scan / Connect</button>
-        <button class="pill-menu-btn forget" onclick="event.stopPropagation();forgetDevice('trainer')">Forget</button>
-      </div>
-    </div>
-
-    <!-- HR pill -->
-    <div class="pill" id="pill-hr" onclick="togglePillMenu('hr')">
-      <span class="pill-dot" id="pdot-hr"></span>
-      <span class="pill-icon">❤️</span>
-      <span class="pill-label" id="plbl-hr">Not connected</span>
-      <div class="pill-menu" id="pmenu-hr">
-        <button class="pill-menu-btn scan"   onclick="event.stopPropagation();manualConnect('hr')">Scan / Connect</button>
-        <button class="pill-menu-btn forget" onclick="event.stopPropagation();forgetDevice('hr')">Forget</button>
-      </div>
-    </div>
-
+<!-- ══════════════════════════════════════════════════
+     HEADER: mode tabs + connection pills + ERG status
+     ══════════════════════════════════════════════════ -->
+<header class="app-header">
+  <div class="mode-tabs" role="tablist">
+    <button class="mode-tab active" data-mode="recorder">RECORDER</button>
+    <button class="mode-tab"        data-mode="hr-servo">HR SERVO</button>
+    <button class="mode-tab"        data-mode="power-erg">POWER ERG</button>
   </div>
-  <div class="topbar-right">
-    <span style="font-family:var(--mono);font-size:.6rem;color:var(--muted)">Phase 2</span>
+
+  <div class="conn-row">
+    <div class="pill" id="pill-trainer">
+      <span class="dot" id="pdot-trainer"></span>
+      <span id="plbl-trainer">No trainer</span>
+      <button id="btn-connect-trainer">Connect</button>
+    </div>
+    <div class="pill" id="pill-hr">
+      <span class="dot" id="pdot-hr"></span>
+      <span id="plbl-hr">No HR monitor</span>
+      <button id="btn-connect-hr">Connect</button>
+    </div>
+    <div class="erg-indicator" id="erg-indicator">
+      <span class="erg-dot idle" id="erg-dot"></span>
+      <span id="erg-label">ERG IDLE</span>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════
+     WORKOUT BAR (hidden in recorder mode)
+     ══════════════════════════════════════════════════ -->
+<div class="workout-bar no-recorder" id="workout-bar">
+  <div class="segment-info">
+    <span id="seg-name">No workout loaded</span>
+    <span id="seg-remaining" style="color:var(--muted)">—</span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" id="workout-progress"></div>
+  </div>
+  <div class="workout-controls">
+    <input type="file" id="workout-file" accept=".zwo,.txt,.csv">
+    <label for="workout-file" class="btn-file-label">Load Workout</label>
+    <button id="btn-start-workout" disabled>&#9654; Start</button>
+    <button id="btn-stop-workout">&#9632; Stop</button>
   </div>
 </div>
 
-<!-- ═══ LEFT COLUMN ═══ -->
-<div class="left">
-
-  <!-- Live values -->
-  <div class="section">
-    <div class="section-label">Live</div>
-    <div class="metric-trio">
-      <div class="metric-row">
-        <span class="metric-name">Power</span>
-        <span><span class="metric-num pwr dim" id="val-pwr">—</span><span class="metric-unit">W</span></span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-name">Cadence</span>
-        <span><span class="metric-num cad dim" id="val-cad">—</span><span class="metric-unit">rpm</span></span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-name">Heart Rate</span>
-        <span><span class="metric-num hr dim" id="val-hr">—</span><span class="metric-unit">bpm</span></span>
-      </div>
+<!-- ══════════════════════════════════════════════════
+     MAIN DISPLAY: overview | rolling chart | values
+     ══════════════════════════════════════════════════ -->
+<div class="main-display">
+  <div class="overview-panel" title="Full session overview">
+    <canvas id="overview-canvas"></canvas>
+  </div>
+  <div class="chart-panel">
+    <canvas id="rolling-canvas"></canvas>
+  </div>
+  <div class="values-panel">
+    <div class="cv-block hr" id="cv-hr">
+      <div class="cv-val">—</div>
+      <div class="cv-lbl">HR bpm</div>
+    </div>
+    <div class="cv-block pwr" id="cv-power">
+      <div class="cv-val">—</div>
+      <div class="cv-lbl">Power W</div>
+    </div>
+    <div class="cv-block np" id="cv-np">
+      <div class="cv-val">—</div>
+      <div class="cv-lbl">NP W</div>
+    </div>
+    <div class="cv-block cad" id="cv-cadence">
+      <div class="cv-val">—</div>
+      <div class="cv-lbl">Cadence</div>
+    </div>
+    <div class="cv-block tgt" id="cv-tgt">
+      <div class="cv-val">—</div>
+      <div class="cv-lbl">Target W</div>
+    </div>
+    <div class="cv-block hrv" id="cv-hrv">
+      <div class="cv-val">—</div>
+      <div class="cv-lbl">HRV ms</div>
     </div>
   </div>
+</div>
 
-  <!-- ERG -->
-  <div class="erg-section">
-    <div class="section-label">ERG Mode</div>
-    <div class="erg-header">
-      <button class="erg-toggle" id="erg-toggle" onclick="toggleERG()">ERG OFF</button>
-      <div class="erg-delta dim" id="erg-delta">—</div>
-    </div>
-    <div class="erg-target-row">
-      <div>
-        <div class="erg-target" id="erg-target-val">150</div>
-        <div class="erg-target-unit">target watts</div>
-      </div>
-    </div>
-    <input type="range" class="erg-slider" id="erg-slider"
-           min="30" max="500" step="1" value="150"
-           oninput="onSliderInput(this.value)">
-    <div class="erg-btns" style="margin-top:8px">
-      <button class="erg-btn" onclick="adjustERG(-20)">−20W</button>
-      <button class="erg-btn" onclick="adjustERGPct(-10)">−10%</button>
-      <button class="erg-btn" onclick="adjustERGPct(+10)">+10%</button>
-      <button class="erg-btn" onclick="adjustERG(+20)">+20W</button>
-    </div>
-  </div>
-
-  <!-- Stats -->
-  <div class="section" style="flex:1">
-    <div class="section-label">Session Stats</div>
-    <table class="stats-table">
-      <tr class="row-header"><td colspan="3">Full session</td></tr>
-      <tr><td>Avg Power</td>  <td class="now" id="st-avg-pwr">—</td></tr>
-      <tr><td>Max Power</td>  <td class="now" id="st-max-pwr">—</td></tr>
-      <tr><td>Min Power</td>  <td class="now" id="st-min-pwr">—</td></tr>
-      <tr><td>NP</td>         <td class="np"  id="st-np">—</td></tr>
-      <tr><td>Avg Cadence</td><td class="now" id="st-avg-cad">—</td></tr>
-      <tr><td>Avg HR</td>     <td class="now" id="st-avg-hr">—</td></tr>
-      <tr><td>Max HR</td>     <td class="now" id="st-max-hr">—</td></tr>
-      <tr class="row-header"><td colspan="3">Last 2 min</td></tr>
-      <tr><td>Avg Power</td>  <td class="now" id="st2-avg-pwr">—</td></tr>
-      <tr><td>NP</td>         <td class="np"  id="st2-np">—</td></tr>
-      <tr><td>Avg HR</td>     <td class="now" id="st2-avg-hr">—</td></tr>
+<!-- ══════════════════════════════════════════════════
+     METRICS GRID
+     ══════════════════════════════════════════════════ -->
+<div class="metrics-grid">
+  <div class="metric-col">
+    <div class="metric-head">Session</div>
+    <table class="metric-table">
+      <tr><td class="mk">NP</td>       <td class="mv" id="mt-np">—</td>    <td class="mu">W</td></tr>
+      <tr><td class="mk">Avg Power</td><td class="mv" id="mt-avgpw">—</td> <td class="mu">W</td></tr>
+      <tr><td class="mk">IF</td>       <td class="mv" id="mt-if">—</td>    <td class="mu"></td></tr>
+      <tr><td class="mk">TSS</td>      <td class="mv" id="mt-tss">—</td>   <td class="mu"></td></tr>
+      <tr><td class="mk">Avg HR</td>   <td class="mv" id="mt-avghr">—</td> <td class="mu">bpm</td></tr>
     </table>
   </div>
+  <div class="metric-col">
+    <div class="metric-head">Last 2 min</div>
+    <table class="metric-table">
+      <tr><td class="mk">NP</td>       <td class="mv" id="mt-np2">—</td>    <td class="mu">W</td></tr>
+      <tr><td class="mk">Avg HR</td>   <td class="mv" id="mt-avghr2">—</td> <td class="mu">bpm</td></tr>
+      <tr><td class="mk">W/bpm</td>    <td class="mv" id="mt-eff2">—</td>   <td class="mu"></td></tr>
+      <tr><td class="mk">NP/bpm</td>   <td class="mv" id="mt-npeff2">—</td> <td class="mu"></td></tr>
+    </table>
+  </div>
+  <div class="metric-col">
+    <div class="metric-head">Efficiency</div>
+    <table class="metric-table">
+      <tr><td class="mk">W/bpm</td>      <td class="mv" id="mt-eff">—</td>   <td class="mu"></td></tr>
+      <tr><td class="mk">NP/bpm</td>     <td class="mv" id="mt-npeff">—</td> <td class="mu"></td></tr>
+      <tr><td class="mk">Decouple</td>   <td class="mv" id="mt-dcpl">—</td>  <td class="mu">%</td></tr>
+    </table>
+  </div>
+  <div class="metric-col">
+    <div class="metric-head">HRV &amp; HR</div>
+    <table class="metric-table">
+      <tr><td class="mk">RMSSD</td>  <td class="mv" id="mt-rmssd">—</td>   <td class="mu">ms</td></tr>
+      <tr><td class="mk">HR Zone</td><td class="mv" id="mt-hrzone">—</td>  <td class="mu"></td></tr>
+      <tr><td class="mk">%HRR</td>   <td class="mv" id="mt-hrr">—</td>     <td class="mu">%</td></tr>
+    </table>
+  </div>
+</div>
 
-  <!-- Record -->
-  <div class="rec-section" id="rec-section">
-    <div class="rec-row">
-      <button class="btn-rec start" id="btn-rec" onclick="toggleRecording()" disabled>⬤ Start</button>
-      <button class="btn-dl" id="btn-dl" onclick="downloadFIT()" disabled>↓ .fit</button>
-    </div>
-    <div class="rec-timer" id="rec-timer">
-      <div class="rec-blink"></div>
-      <span id="rec-label">Connect a device to begin</span>
+<!-- ══════════════════════════════════════════════════
+     HR SERVO CONTROL PANEL
+     ══════════════════════════════════════════════════ -->
+<div class="panel hr-servo-only" id="panel-hr-servo">
+  <div class="panel-section">
+    <span class="panel-head">Target HR</span>
+    <button id="btn-hr-down5">&#8722;5</button>
+    <button id="btn-hr-down">&#8722;1</button>
+    <span class="target-display" id="target-hr-big">145</span>
+    <button id="btn-hr-up">+1</button>
+    <button id="btn-hr-up5">+5</button>
+    <input type="number" id="target-hr" value="145" min="60" max="220" style="width:52px">
+    <span style="color:var(--muted)">bpm</span>
+  </div>
+
+  <div class="panel-section">
+    <span class="panel-head">PID</span>
+    <div class="slider-grid">
+      <div class="slider-row"><label>Kp</label>      <input type="range" id="kp"       min="0"   max="5"   step="0.1"  value="1.5" ><span class="sv" id="kp-v">1.5</span></div>
+      <div class="slider-row"><label>Ki</label>      <input type="range" id="ki"       min="0"   max="0.5" step="0.01" value="0.05"><span class="sv" id="ki-v">0.05</span></div>
+      <div class="slider-row"><label>Kd</label>      <input type="range" id="kd"       min="0"   max="2"   step="0.1"  value="0"   ><span class="sv" id="kd-v">0</span></div>
+      <div class="slider-row"><label>Tick</label>    <input type="range" id="tick"     min="10"  max="60"  step="5"    value="30"  ><span class="sv" id="tick-v">30</span>s</div>
+      <div class="slider-row"><label>Max&#916;</label><input type="range" id="maxdelta" min="1"  max="50"  step="1"    value="10"  ><span class="sv" id="maxdelta-v">10</span>W</div>
+      <div class="slider-row"><label>Deadband</label><input type="range" id="deadband" min="0"   max="10"  step="1"    value="3"   ><span class="sv" id="deadband-v">3</span>bpm</div>
+      <div class="slider-row"><label>P min</label>   <input type="range" id="pmin"     min="0"   max="150" step="5"    value="50"  ><span class="sv" id="pmin-v">50</span>W</div>
+      <div class="slider-row"><label>P max</label>   <input type="range" id="pmax"     min="100" max="500" step="5"    value="290" ><span class="sv" id="pmax-v">290</span>W</div>
     </div>
   </div>
 
-</div><!-- /left -->
-
-<!-- ═══ RIGHT COLUMN ═══ -->
-<div class="right">
-
-  <!-- Power channel -->
-  <div class="channel" style="flex:1.1">
-    <div class="ch-main">
-      <div class="ch-header">
-        <span class="ch-name">Power</span>
-        <span class="ch-val pwr dim" id="cv-pwr">—</span>
-        <span class="ch-unit">W</span>
-        <span style="margin-left:auto;font-family:var(--mono);font-size:.6rem;color:var(--muted)" id="cv-pwr-range"></span>
-      </div>
-      <div class="ch-canvas-wrap"><canvas id="gc-pwr"></canvas></div>
-    </div>
-    <div class="ch-thumb">
-      <div class="ch-thumb-label">Full session</div>
-      <canvas id="tc-pwr"></canvas>
-    </div>
+  <div class="panel-section">
+    <span class="panel-head">Control</span>
+    <button id="btn-servo" disabled>START SERVO</button>
+    <button id="btn-warmup">START WARM-UP</button>
+    <span id="wu-remaining" style="color:var(--muted)">—</span>
+    <input type="number" id="wu-dur" value="3" min="1" max="60" step="1" style="width:44px">
+    <span style="color:var(--muted)">min</span>
   </div>
 
-  <!-- Cadence channel -->
-  <div class="channel" style="flex:1">
-    <div class="ch-main">
-      <div class="ch-header">
-        <span class="ch-name">Cadence</span>
-        <span class="ch-val cad dim" id="cv-cad">—</span>
-        <span class="ch-unit">rpm</span>
-        <span style="margin-left:auto;font-family:var(--mono);font-size:.6rem;color:var(--muted)" id="cv-cad-range"></span>
-      </div>
-      <div class="ch-canvas-wrap"><canvas id="gc-cad"></canvas></div>
-    </div>
-    <div class="ch-thumb">
-      <div class="ch-thumb-label">Full session</div>
-      <canvas id="tc-cad"></canvas>
-    </div>
+  <div class="panel-section">
+    <span class="panel-head">State</span>
+    <span style="color:var(--muted);font-size:11px">
+      err&nbsp;<span id="st-err">—</span>&nbsp;
+      &#8747;&nbsp;<span id="st-int">—</span>&nbsp;
+      d&nbsp;<span id="st-der">—</span>&nbsp;
+      &#8594;&nbsp;<span id="st-out" style="color:var(--orange)">—</span>W&nbsp;
+      hb&nbsp;<span id="m-hb">—</span>&nbsp;
+      next&nbsp;<span id="st-next">—</span>
+    </span>
   </div>
+</div>
 
-  <!-- HR channel -->
-  <div class="channel" style="flex:1">
-    <div class="ch-main">
-      <div class="ch-header">
-        <span class="ch-name">Heart Rate</span>
-        <span class="ch-val hr dim" id="cv-hr">—</span>
-        <span class="ch-unit">bpm</span>
-        <span style="margin-left:auto;font-family:var(--mono);font-size:.6rem;color:var(--muted)" id="cv-hr-range"></span>
-      </div>
-      <div class="ch-canvas-wrap"><canvas id="gc-hr"></canvas></div>
-    </div>
-    <div class="ch-thumb">
-      <div class="ch-thumb-label">Full session</div>
-      <canvas id="tc-hr"></canvas>
-    </div>
+<!-- ══════════════════════════════════════════════════
+     POWER ERG CONTROL PANEL
+     ══════════════════════════════════════════════════ -->
+<div class="panel power-erg-only" id="panel-power-erg">
+  <div class="panel-section">
+    <span class="panel-head">Power ERG</span>
+    <button id="btn-start-power-erg" disabled>&#9654; Start ERG</button>
+    <button id="btn-stop-power-erg">&#9632; Stop ERG</button>
+    <input type="number" id="erg-setpoint" value="150" min="0" max="2000" step="5" style="width:60px">
+    <span style="color:var(--muted)">W target</span>
+    <span id="erg-setpoint-display" style="color:var(--orange);font-size:14px;font-weight:bold">—</span>
   </div>
+</div>
 
-  <!-- Log -->
-  <div class="log-bar">
-    <div class="log-bar-header" onclick="toggleLog()">
-      <span>Event Log</span>
-      <span class="log-toggle" id="log-toggle">▾ show</span>
-    </div>
-    <div id="log" style="display:none"></div>
+<!-- ══════════════════════════════════════════════════
+     PROFILE PANEL (always visible)
+     ══════════════════════════════════════════════════ -->
+<div class="panel" id="panel-profile">
+  <span class="panel-head">Profile</span>
+  <div class="profile-grid">
+    <label>Rest HR   <input type="number" id="prof-rest"    value="50"   min="30"  max="80"  step="1">  bpm</label>
+    <label>Max HR    <input type="number" id="prof-max"     value="180"  min="100" max="230" step="1">  bpm</label>
+    <label>FTP       <input type="number" id="prof-ftp"     value="250"  min="50"  max="600" step="5">  W</label>
+    <label>Model A   <input type="number" id="prof-model-a" value="0.35" min="0.1" max="1"   step="0.01"> bpm/W</label>
+    <label>Model B   <input type="number" id="prof-model-b" value="60"   min="20"  max="100" step="1">  bpm&#64;0W</label>
+    <button id="btn-save-profile">Save</button>
+    <span id="prof-status" style="color:var(--muted);font-size:11px"></span>
   </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     ACTION BAR
+     ══════════════════════════════════════════════════ -->
+<div class="action-bar">
+  <button id="btn-start-session">&#9654; Start Session</button>
+  <button id="btn-stop-session" disabled>&#9632; Stop Session</button>
+  <button id="btn-dl-csv" disabled>&#11015; CSV</button>
+  <button id="btn-dl-fit" disabled>&#11015; FIT</button>
+  <button id="btn-dl-log">&#11015; Log</button>
+  <div class="rpe-label">RPE <input type="number" id="rpe" min="1" max="10" step="1" placeholder="1-10" style="width:48px"></div>
+  <span class="session-timer" id="session-timer">00:00:00</span>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     LOG PANEL
+     ══════════════════════════════════════════════════ -->
+<div class="log-section" id="log-section">
+  <div class="log-header" id="btn-toggle-log">
+    <span>LOG</span><span id="log-toggle">&#9660;</span>
+  </div>
+  <div id="log"></div>
+</div>
+
+<!-- Scripts — load order matches dependency graph -->
+<script src="js/log.js"></script>
+<script src="js/ble.js"></script>
+<script src="js/session.js"></script>
+<script src="js/profile.js"></script>
+<script src="js/pid.js"></script>
+<script src="js/workout.js"></script>
+<script src="js/chart.js"></script>
+<script src="js/fit.js"></script>
+<script src="js/ui.js"></script>
 
-</div><!-- /right -->
-</div><!-- /app -->
-
-<script>
-'use strict';
-
-// ══════════════════════════════════════════════════════
-//  GATT UUIDs
-// ══════════════════════════════════════════════════════
-const UUID = {
-  CPS_SERVICE:     0x1818,
-  CPS_MEASUREMENT: 0x2A63,
-  FTMS_SERVICE:    0x1826,
-  FTMS_INDOOR:     0x2AD2,
-  FTMS_CP:         0x2AD9,   // control point
-  HR_SERVICE:      0x180D,
-  HR_MEASUREMENT:  0x2A37,
-};
-
-// ══════════════════════════════════════════════════════
-//  State
-// ══════════════════════════════════════════════════════
-let trainerDevice=null, hrDevice=null;
-let trainerLive=false, hrLive=false;
-let ftmsCP=null;               // FTMS control point characteristic
-let ergActive=false;
-let ergTarget=150;             // watts
-let ergHandshakeDone=false;
-
-let recording=false, recStart=null, recTimer=null, graphTimer=null, thumbTimer=null;
-let records=[], graphData=[];  // graphData sampled @1Hz
-
-let lastPower=null, lastCadence=null, lastHR=null;
-let prevCrankRevs=null, prevCrankTime=null, cpsRawLogged=0;
-
-// Rolling 2-min buffer for live graphs (120 points @1Hz)
-const ROLL_SECS = 120;
-
-// ══════════════════════════════════════════════════════
-//  Logging
-// ══════════════════════════════════════════════════════
-let logVisible = false;
-function toggleLog() {
-  logVisible = !logVisible;
-  document.getElementById('log').style.display = logVisible ? 'flex' : 'none';
-  document.getElementById('log-toggle').textContent = logVisible ? '▴ hide' : '▾ show';
-}
-function log(msg, cls='info') {
-  const el = document.getElementById('log');
-  const d  = document.createElement('div');
-  d.className = cls;
-  d.textContent = `[${new Date().toTimeString().slice(0,8)}] ${msg}`;
-  el.prepend(d);
-}
-function hex(bytes) { return Array.from(bytes).map(b=>b.toString(16).padStart(2,'0').toUpperCase()).join(' '); }
-
-// ══════════════════════════════════════════════════════
-//  Pill UI
-// ══════════════════════════════════════════════════════
-function togglePillMenu(role) {
-  const menu = document.getElementById(`pmenu-${role}`);
-  const other = document.getElementById(`pmenu-${role==='trainer'?'hr':'trainer'}`);
-  other.classList.remove('open');
-  menu.classList.toggle('open');
-}
-document.addEventListener('click', e => {
-  if (!e.target.closest('.pill')) {
-    document.querySelectorAll('.pill-menu').forEach(m => m.classList.remove('open'));
-  }
-});
-
-function setPillState(role, connected, name) {
-  const pill = document.getElementById(`pill-${role}`);
-  const dot  = document.getElementById(`pdot-${role}`);
-  const lbl  = document.getElementById(`plbl-${role}`);
-  pill.classList.toggle('connected', connected);
-  dot.style.background = connected ? 'var(--green)' : 'var(--red)';
-  lbl.textContent = name || (connected ? 'Connected' : 'Not connected');
-}
-
-// ══════════════════════════════════════════════════════
-//  localStorage
-// ══════════════════════════════════════════════════════
-const saveDevice  = (r,n) => localStorage.setItem(`ble_${r}`,n);
-const forgetSaved = r     => localStorage.removeItem(`ble_${r}`);
-const savedName   = r     => localStorage.getItem(`ble_${r}`);
-
-// ══════════════════════════════════════════════════════
-//  Auto-connect on load
-// ══════════════════════════════════════════════════════
-async function autoConnect() {
-  if (!navigator.bluetooth) {
-    log('Web Bluetooth unavailable — use Chrome','err');
-    return;
-  }
-  log('Checking for previously paired devices…');
-  let known = [];
-  try { known = await navigator.bluetooth.getDevices(); } catch(_) {}
-
-  const tn = savedName('trainer'), hn = savedName('hr');
-  const td = known.find(d => d.name === tn);
-  const hd = known.find(d => d.name === hn);
-
-  if (td) { setPillState('trainer',false,'Connecting…'); connectTrainer(td); }
-  else      setPillState('trainer',false, tn||'Not connected');
-
-  if (hd) { setPillState('hr',false,'Connecting…'); connectHR(hd); }
-  else      setPillState('hr',false, hn||'Not connected');
-
-  updateStartBtn();
-}
-
-// ══════════════════════════════════════════════════════
-//  Manual scan
-// ══════════════════════════════════════════════════════
-async function manualConnect(role) {
-  if (!navigator.bluetooth) return;
-  document.getElementById(`pmenu-${role}`).classList.remove('open');
-  try {
-    if (role === 'trainer') {
-      setPillState('trainer',false,'Scanning…');
-      const dev = await navigator.bluetooth.requestDevice({
-        filters:[{namePrefix:'KICKR'},{namePrefix:'Wahoo'},
-                 {services:[UUID.CPS_SERVICE]},{services:[UUID.FTMS_SERVICE]}],
-        optionalServices:[UUID.CPS_SERVICE,UUID.FTMS_SERVICE,
-                          UUID.FTMS_CP,UUID.FTMS_INDOOR,0x180A],
-      });
-      saveDevice('trainer', dev.name);
-      connectTrainer(dev);
-    } else {
-      setPillState('hr',false,'Scanning…');
-      const dev = await navigator.bluetooth.requestDevice({
-        filters:[{services:[UUID.HR_SERVICE]}],
-        optionalServices:[UUID.HR_SERVICE],
-      });
-      saveDevice('hr', dev.name);
-      connectHR(dev);
-    }
-  } catch(e) {
-    log(`Scan cancelled: ${e.message}`, 'warn');
-    setPillState(role, false, savedName(role)||'Not connected');
-    updateStartBtn();
-  }
-}
-
-function forgetDevice(role) {
-  document.getElementById(`pmenu-${role}`).classList.remove('open');
-  forgetSaved(role);
-  if (role==='trainer') {
-    try { if(trainerDevice?.gatt?.connected) trainerDevice.gatt.disconnect(); } catch(_){}
-    trainerDevice=null; trainerLive=false; ftmsCP=null; ergHandshakeDone=false;
-    setPillState('trainer',false,'Not connected');
-    setLiveVal('pwr',null); setLiveVal('cad',null);
-  } else {
-    try { if(hrDevice?.gatt?.connected) hrDevice.gatt.disconnect(); } catch(_){}
-    hrDevice=null; hrLive=false;
-    setPillState('hr',false,'Not connected');
-    setLiveVal('hr',null);
-  }
-  updateStartBtn();
-  log(`Forgot ${role}`,'warn');
-}
-
-// ══════════════════════════════════════════════════════
-//  Trainer connect
-// ══════════════════════════════════════════════════════
-async function connectTrainer(dev, attempt=1) {
-  trainerDevice = dev;
-  if (attempt===1) {
-    dev.addEventListener('gattserverdisconnected', () => {
-      trainerLive=false; ftmsCP=null; ergHandshakeDone=false;
-      setPillState('trainer',false,'Reconnecting…');
-      setLiveVal('pwr',null); setLiveVal('cad',null);
-      updateStartBtn();
-      log('Trainer disconnected — reconnecting…','warn');
-      setTimeout(()=>connectTrainer(dev),2500);
-    });
-  }
-  try {
-    const server = await dev.gatt.connect();
-    log(`Trainer GATT connected (attempt ${attempt})`,'ok');
-    cpsRawLogged=0;
-    let subscribed=false;
-
-    // Try CPS for power/cadence data
-    try {
-      const svc = await server.getPrimaryService(UUID.CPS_SERVICE);
-      const chr = await svc.getCharacteristic(UUID.CPS_MEASUREMENT);
-      chr.addEventListener('characteristicvaluechanged', onCPS);
-      await chr.startNotifications();
-      log('Subscribed: CPS power/cadence','ok');
-      subscribed=true;
-    } catch(_) { log('CPS not found, trying FTMS data…','warn'); }
-
-    if (!subscribed) {
-      try {
-        const svc = await server.getPrimaryService(UUID.FTMS_SERVICE);
-        const chr = await svc.getCharacteristic(UUID.FTMS_INDOOR);
-        chr.addEventListener('characteristicvaluechanged', onFTMS);
-        await chr.startNotifications();
-        log('Subscribed: FTMS indoor bike data','ok');
-        subscribed=true;
-      } catch(_) { log('FTMS data not found','err'); }
-    }
-
-    // Always try to get FTMS control point for ERG
-    try {
-      const svc = await server.getPrimaryService(UUID.FTMS_SERVICE);
-      const cp  = await svc.getCharacteristic(UUID.FTMS_CP);
-      cp.addEventListener('characteristicvaluechanged', onCPResponse);
-      await cp.startNotifications();
-      ftmsCP = cp;
-      log('FTMS Control Point ready','ok');
-      // Send Request Control handshake once
-      await writeCPBytes([0x00]);
-      log('[TX] 00 (Request Control)','tx');
-      ergHandshakeDone = true;
-    } catch(e) { log(`FTMS CP not available: ${e.message}`,'warn'); }
-
-    if (subscribed) {
-      trainerLive=true;
-      setPillState('trainer',true,dev.name);
-    } else {
-      setPillState('trainer',false,'No data service');
-    }
-  } catch(e) {
-    log(`Trainer connect failed (attempt ${attempt}): ${e.message}`,'err');
-    if (attempt<3) setTimeout(()=>connectTrainer(dev,attempt+1),1500);
-    else setPillState('trainer',false,'Failed — tap to retry');
-  }
-  updateStartBtn();
-}
-
-function onCPResponse(event) {
-  const b = new Uint8Array(event.target.value.buffer);
-  log(`[RX] ${hex(b)}`,'rx');
-  if (b[0]===0x80) {
-    const results={0x01:'SUCCESS',0x02:'Op not supported',0x03:'Invalid param',
-                   0x04:'Op failed',0x05:'Control not permitted'};
-    // b[1] = echoed opcode, b[2] = result code
-    const result = b.length >= 3 ? b[2] : b[1];
-    log(`  → ${results[result]||'Unknown 0x'+result.toString(16)}`, result===0x01?'ok':'warn');
-  }
-}
-
-// ══════════════════════════════════════════════════════
-//  HR connect
-// ══════════════════════════════════════════════════════
-async function connectHR(dev, attempt=1) {
-  hrDevice = dev;
-  if (attempt===1) {
-    dev.addEventListener('gattserverdisconnected', () => {
-      hrLive=false;
-      setPillState('hr',false,'Reconnecting…');
-      setLiveVal('hr',null);
-      updateStartBtn();
-      setTimeout(()=>connectHR(dev),2500);
-    });
-  }
-  try {
-    const server = await dev.gatt.connect();
-    const svc = await server.getPrimaryService(UUID.HR_SERVICE);
-    const chr = await svc.getCharacteristic(UUID.HR_MEASUREMENT);
-    chr.addEventListener('characteristicvaluechanged', onHR);
-    await chr.startNotifications();
-    hrLive=true;
-    setPillState('hr',true,dev.name);
-    log(`HR strap connected (attempt ${attempt})`,'ok');
-  } catch(e) {
-    log(`HR connect failed (attempt ${attempt}): ${e.message}`,'err');
-    if (attempt<3) setTimeout(()=>connectHR(dev,attempt+1),1500);
-    else setPillState('hr',false,'Failed — tap to retry');
-  }
-  updateStartBtn();
-}
-
-// ══════════════════════════════════════════════════════
-//  Data parsers
-// ══════════════════════════════════════════════════════
-function onCPS(event) {
-  const d=event.target.value, flags=d.getUint16(0,true);
-  const power=d.getInt16(2,true);
-  if(cpsRawLogged<3){
-    log(`CPS raw [${d.byteLength}B] flags=0x${flags.toString(16).padStart(4,'0')}: ${hex(new Uint8Array(d.buffer))}`,'warn');
-    cpsRawLogged++;
-  }
-  lastPower=power; setLiveVal('pwr',power);
-
-  let offset=4;
-  if(flags&0x01) offset+=1;
-  if(flags&0x04) offset+=2;
-  if(flags&0x10) offset+=6;
-  if((flags&0x20)||(d.byteLength>=offset+4)) {
-    if(d.byteLength>=offset+4) {
-      const cR=d.getUint16(offset,true), cT=d.getUint16(offset+2,true);
-      if(prevCrankRevs!==null) {
-        let dR=cR-prevCrankRevs; if(dR<0)dR+=65536;
-        let dT=cT-prevCrankTime; if(dT<0)dT+=65536;
-        if(dR>0&&dT>0){const c=Math.round((dR/dT)*1024*60);if(c>0&&c<250){lastCadence=c;setLiveVal('cad',c);}}
-        else if(dT>2048){lastCadence=0;setLiveVal('cad',0);}
-      }
-      prevCrankRevs=cR; prevCrankTime=cT;
-    }
-  }
-  updateERGDelta();
-  stampRecord();
-}
-
-function onFTMS(event) {
-  const d=event.target.value, flags=d.getUint16(0,true);
-  let o=2;
-  if(!(flags&0x01))o+=2;
-  if(flags&0x02)o+=2;
-  if(flags&0x04){lastCadence=Math.round(d.getUint16(o,true)*.5);o+=2;setLiveVal('cad',lastCadence);}
-  if(flags&0x08)o+=2;
-  if(flags&0x10)o+=3;
-  if(flags&0x20)o+=2;
-  if(flags&0x40){lastPower=d.getInt16(o,true);setLiveVal('pwr',lastPower);}
-  updateERGDelta();
-  stampRecord();
-}
-
-function onHR(event) {
-  const d=event.target.value, flags=d.getUint8(0);
-  lastHR=(flags&0x01)?d.getUint16(1,true):d.getUint8(1);
-  setLiveVal('hr',lastHR);
-  stampRecord();
-}
-
-function setLiveVal(ch, val) {
-  const ids = {pwr:['val-pwr','cv-pwr'], cad:['val-cad','cv-cad'], hr:['val-hr','cv-hr']};
-  ids[ch].forEach(id => {
-    const el=document.getElementById(id);
-    el.textContent = val!=null ? val : '—';
-    el.classList.toggle('dim', val==null);
-  });
-}
-
-// ══════════════════════════════════════════════════════
-//  ERG Control
-// ══════════════════════════════════════════════════════
-function toggleERG() {
-  ergActive = !ergActive;
-  const btn = document.getElementById('erg-toggle');
-  btn.textContent = ergActive ? 'ERG ON' : 'ERG OFF';
-  btn.classList.toggle('on', ergActive);
-
-  if (ergActive) {
-    if (!ftmsCP) { log('No FTMS control point — cannot enable ERG','err'); ergActive=false; btn.textContent='ERG OFF'; btn.classList.remove('on'); return; }
-    sendERGTarget();
-    log(`ERG enabled @ ${ergTarget}W`,'ok');
-  } else {
-    // Send stop to release resistance
-    if (ftmsCP) {
-      writeCPBytes([0x08]).then(()=>log('[TX] 08 (Stop — ERG released)','tx')).catch(()=>{});
-    }
-    document.getElementById('erg-delta').textContent='—';
-    document.getElementById('erg-delta').className='erg-delta';
-    log('ERG disabled','warn');
-  }
-}
-
-function adjustERG(delta) {
-  ergTarget = Math.max(30, Math.min(500, ergTarget + delta));
-  updateERGDisplay();
-  if (ergActive) sendERGTarget();
-}
-
-function adjustERGPct(pct) {
-  ergTarget = Math.max(30, Math.min(500, Math.round(ergTarget * (1 + pct/100))));
-  updateERGDisplay();
-  if (ergActive) sendERGTarget();
-}
-
-function onSliderInput(val) {
-  ergTarget = parseInt(val);
-  document.getElementById('erg-target-val').textContent = ergTarget;
-  if (ergActive) sendERGTarget();
-}
-
-function updateERGDisplay() {
-  document.getElementById('erg-target-val').textContent = ergTarget;
-  document.getElementById('erg-slider').value = ergTarget;
-}
-
-async function sendERGTarget() {
-  if (!ftmsCP) return;
-  const lo = ergTarget & 0xFF, hi = (ergTarget >> 8) & 0xFF;
-  try {
-    await writeCPBytes([0x05, lo, hi]);
-    log(`[TX] 05 ${lo.toString(16).padStart(2,'0')} ${hi.toString(16).padStart(2,'0')} (Set Target Power ${ergTarget}W)`,'tx');
-  } catch(e) {
-    log(`ERG write failed: ${e.message}`,'err');
-  }
-}
-
-async function writeCPBytes(bytes) {
-  if (!ftmsCP) throw new Error('No control point');
-  const buf = new Uint8Array(bytes).buffer;
-  if (ftmsCP.writeValueWithResponse) await ftmsCP.writeValueWithResponse(buf);
-  else await ftmsCP.writeValue(buf);
-}
-
-function updateERGDelta() {
-  if (!ergActive || lastPower==null) return;
-  const delta = lastPower - ergTarget;
-  const el = document.getElementById('erg-delta');
-  el.textContent = (delta>=0?'+':'')+delta+'W';
-  el.className = 'erg-delta ' + (Math.abs(delta)<=5?'ok':delta>0?'over':'under');
-}
-
-// ══════════════════════════════════════════════════════
-//  Recording
-// ══════════════════════════════════════════════════════
-function updateStartBtn() {
-  const can=trainerLive||hrLive;
-  const btn=document.getElementById('btn-rec');
-  btn.disabled=(!can&&!recording);
-  if(!recording) document.getElementById('rec-label').textContent=can?'Ready':'Connect a device';
-}
-
-function stampRecord() {
-  if(!recording)return;
-  records.push({t:Date.now(),power:lastPower,cadence:lastCadence,hr:lastHR});
-}
-
-function toggleRecording() {
-  if(!recording) startRecording(); else stopRecording();
-}
-
-function startRecording() {
-  records=[]; graphData=[];
-  recStart=Date.now(); recording=true;
-  prevCrankRevs=null; prevCrankTime=null;
-
-  const btn=document.getElementById('btn-rec');
-  btn.textContent='■ Stop'; btn.className='btn-rec stop';
-  document.getElementById('btn-dl').disabled=true;
-  document.getElementById('rec-section').classList.add('is-recording');
-
-  graphTimer  = setInterval(sampleGraph, 1000);
-  thumbTimer  = setInterval(renderThumbs, 20000);
-  recTimer    = setInterval(() => {
-    const e=Math.floor((Date.now()-recStart)/1000);
-    const h=String(Math.floor(e/3600)).padStart(2,'0');
-    const m=String(Math.floor((e%3600)/60)).padStart(2,'0');
-    const s=String(e%60).padStart(2,'0');
-    document.getElementById('rec-label').textContent=`${h}:${m}:${s}  ·  ${records.length} samples`;
-  },1000);
-
-  log('Recording started','ok');
-}
-
-function stopRecording() {
-  recording=false;
-  clearInterval(recTimer); clearInterval(graphTimer); clearInterval(thumbTimer);
-  const btn=document.getElementById('btn-rec');
-  btn.textContent='⬤ Start'; btn.className='btn-rec start';
-  document.getElementById('btn-dl').disabled=(records.length===0);
-  document.getElementById('rec-section').classList.remove('is-recording');
-  document.getElementById('rec-label').textContent=`Stopped · ${records.length} samples`;
-  renderThumbs();
-  renderStats();
-  log(`Recording stopped. ${records.length} samples.`,'ok');
-}
-
-// ══════════════════════════════════════════════════════
-//  Graph sampling
-// ══════════════════════════════════════════════════════
-function sampleGraph() {
-  graphData.push({t:Date.now(),power:lastPower,cadence:lastCadence,hr:lastHR});
-  renderRollingGraphs();
-  renderStats();
-}
-
-// ══════════════════════════════════════════════════════
-//  Canvas chart renderer
-// ══════════════════════════════════════════════════════
-function drawChart(canvas, points, color, opts={}) {
-  if (!canvas) return;
-  const dpr=window.devicePixelRatio||1;
-  const W=canvas.offsetWidth||canvas.parentElement?.offsetWidth||200;
-  const H=canvas.offsetHeight||canvas.parentElement?.offsetHeight||80;
-  if(W<2||H<2) return;
-  canvas.width=W*dpr; canvas.height=H*dpr;
-  const ctx=canvas.getContext('2d');
-  ctx.scale(dpr,dpr);
-  ctx.clearRect(0,0,W,H);
-
-  const valid=points.filter(p=>p!=null&&p.v!=null);
-  if(valid.length<2){
-    ctx.fillStyle='#2a3848'; ctx.font=`9px monospace`;
-    ctx.textAlign='center'; ctx.fillText('—',W/2,H/2+4);
-    return;
-  }
-  const vals=valid.map(p=>p.v);
-  let lo=Math.min(...vals), hi=Math.max(...vals);
-  if(opts.minLo!=null) lo=Math.min(lo,opts.minLo);
-  const range=hi-lo||1;
-  const pl=2,pr=2,pt=4,pb=4, cW=W-pl-pr, cH=H-pt-pb;
-
-  // Grid lines
-  ctx.strokeStyle='rgba(255,255,255,.03)'; ctx.lineWidth=1;
-  for(let i=0;i<=3;i++){const y=pt+(cH/3)*i+.5;ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();}
-
-  // Fill
-  ctx.beginPath(); ctx.fillStyle=color+'15';
-  points.forEach((p,i)=>{
-    const x=pl+(i/(points.length-1))*cW;
-    const y=p?.v!=null?pt+cH-((p.v-lo)/range)*cH:pt+cH;
-    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-  });
-  ctx.lineTo(W-pr,pt+cH); ctx.lineTo(pl,pt+cH); ctx.closePath(); ctx.fill();
-
-  // Line
-  ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=opts.thin?1:1.5;
-  ctx.lineJoin='round'; let started=false;
-  points.forEach((p,i)=>{
-    if(!p||p.v==null){started=false;return;}
-    const x=pl+(i/(points.length-1))*cW;
-    const y=pt+cH-((p.v-lo)/range)*cH;
-    if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);
-  });
-  ctx.stroke();
-
-  // Range labels
-  if(!opts.noLabels){
-    ctx.fillStyle='#3d5068'; ctx.font=`8px monospace`;
-    ctx.textAlign='left';
-    ctx.fillText(Math.round(hi),pl+2,pt+9);
-    ctx.fillText(Math.round(lo),pl+2,pt+cH-2);
-  }
-}
-
-function renderRollingGraphs() {
-  if(!graphData.length) return;
-  const now=Date.now(), cut=now-ROLL_SECS*1000;
-
-  // Build fixed-length rolling arrays (pad left with nulls)
-  const slice=graphData.filter(d=>d.t>=cut);
-  const pad=ROLL_SECS-slice.length;
-  const nulls=Array(Math.max(0,pad)).fill(null);
-
-  const pwr=[...nulls,...slice.map(d=>({v:d.power}))];
-  const cad=[...nulls,...slice.map(d=>({v:d.cadence}))];
-  const hr =[...nulls,...slice.map(d=>({v:d.hr}))];
-
-  drawChart(document.getElementById('gc-pwr'),pwr,'#00d4ff');
-  drawChart(document.getElementById('gc-cad'),cad,'#00e87a');
-  drawChart(document.getElementById('gc-hr'), hr, '#ff3355');
-
-  // Update range labels in header
-  const rangeStr=(arr)=>{const v=arr.filter(p=>p?.v!=null).map(p=>p.v);return v.length?`${Math.round(Math.min(...v))}–${Math.round(Math.max(...v))}`:'';};
-  document.getElementById('cv-pwr-range').textContent=rangeStr(pwr)+' W';
-  document.getElementById('cv-cad-range').textContent=rangeStr(cad)+' rpm';
-  document.getElementById('cv-hr-range').textContent=rangeStr(hr)+' bpm';
-}
-
-function renderThumbs() {
-  if(!graphData.length) return;
-  const pwr=graphData.map(d=>({v:d.power}));
-  const cad=graphData.map(d=>({v:d.cadence}));
-  const hr =graphData.map(d=>({v:d.hr}));
-  drawChart(document.getElementById('tc-pwr'),pwr,'#00d4ff',{thin:true,noLabels:true});
-  drawChart(document.getElementById('tc-cad'),cad,'#00e87a',{thin:true,noLabels:true});
-  drawChart(document.getElementById('tc-hr'), hr, '#ff3355',{thin:true,noLabels:true});
-}
-
-// ══════════════════════════════════════════════════════
-//  Stats & NP
-// ══════════════════════════════════════════════════════
-function normPower(data) {
-  const p=data.map(d=>d.power??0);
-  if(p.length<30) return null;
-  const rolled=[];
-  for(let i=29;i<p.length;i++){const w=p.slice(i-29,i+1);rolled.push(w.reduce((a,b)=>a+b,0)/30);}
-  const m4=rolled.reduce((a,v)=>a+Math.pow(v,4),0)/rolled.length;
-  return Math.round(Math.pow(m4,.25));
-}
-function computeStats(data){
-  const vp=data.filter(d=>d.power!=null).map(d=>d.power);
-  const vc=data.filter(d=>d.cadence!=null&&d.cadence>0).map(d=>d.cadence);
-  const vh=data.filter(d=>d.hr!=null).map(d=>d.hr);
-  const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):null;
-  const mx =a=>a.length?Math.round(Math.max(...a)):null;
-  const mn =a=>a.length?Math.round(Math.min(...a)):null;
-  return{avgPwr:avg(vp),maxPwr:mx(vp),minPwr:mn(vp),np:normPower(data),avgCad:avg(vc),avgHR:avg(vh),maxHR:mx(vh)};
-}
-function setStat(id,v,u=''){document.getElementById(id).textContent=v!=null?`${v}${u}`:'—';}
-function renderStats(){
-  if(!graphData.length)return;
-  const f=computeStats(graphData);
-  setStat('st-avg-pwr',f.avgPwr,' W');setStat('st-max-pwr',f.maxPwr,' W');setStat('st-min-pwr',f.minPwr,' W');
-  setStat('st-np',f.np,' W');setStat('st-avg-cad',f.avgCad,' rpm');setStat('st-avg-hr',f.avgHR,' bpm');setStat('st-max-hr',f.maxHR,' bpm');
-  const cut=Date.now()-120000;
-  const t=computeStats(graphData.filter(d=>d.t>=cut));
-  setStat('st2-avg-pwr',t.avgPwr,' W');setStat('st2-np',t.np,' W');setStat('st2-avg-hr',t.avgHR,' bpm');
-}
-
-// ══════════════════════════════════════════════════════
-//  FIT file writer (unchanged, proven working)
-// ══════════════════════════════════════════════════════
-const FIT_EPOCH=631065600;
-const fitTs=ms=>Math.round(ms/1000)-FIT_EPOCH;
-function writeFIT(records,startMs){
-  const buf=[];
-  const u8=v=>buf.push(v&0xFF);
-  const u16=v=>buf.push(v&0xFF,(v>>8)&0xFF);
-  const u32=v=>buf.push(v&0xFF,(v>>8)&0xFF,(v>>16)&0xFF,(v>>24)&0xFF);
-  const T_ENUM=0x00,T_UINT8=0x02,T_UINT16=0x84,T_UINT32=0x86;
-  const defMsg=(local,global,fields)=>{
-    u8(0x40|local);u8(0);u8(0);u16(global);u8(fields.length);
-    fields.forEach(f=>{u8(f.def);u8(f.size);u8(f.type);});
-  };
-  defMsg(0,0,[{def:0,size:1,type:T_ENUM},{def:1,size:2,type:T_UINT16},{def:2,size:2,type:T_UINT16},{def:4,size:4,type:T_UINT32}]);
-  u8(0x00);u8(4);u16(255);u16(0);u32(fitTs(startMs));
-  defMsg(1,20,[{def:253,size:4,type:T_UINT32},{def:7,size:2,type:T_UINT16},{def:4,size:1,type:T_UINT8},{def:3,size:1,type:T_UINT8}]);
-  for(const r of records){
-    u8(0x01);u32(fitTs(r.t));
-    u16(r.power!=null?Math.round(r.power):0xFFFF);
-    u8(r.cadence!=null?Math.round(r.cadence):0xFF);
-    u8(r.hr!=null?Math.round(r.hr):0xFF);
-  }
-  const elapsed=Math.round((records[records.length-1].t-startMs)/1000);
-  const vp=records.filter(r=>r.power!=null).map(r=>r.power);
-  const vh=records.filter(r=>r.hr!=null).map(r=>r.hr);
-  const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):0;
-  const mx=a=>a.length?Math.round(Math.max(...a)):0;
-  defMsg(2,18,[
-    {def:253,size:4,type:T_UINT32},{def:2,size:4,type:T_UINT32},
-    {def:7,size:4,type:T_UINT32},{def:8,size:4,type:T_UINT32},
-    {def:20,size:2,type:T_UINT16},{def:21,size:2,type:T_UINT16},
-    {def:16,size:1,type:T_UINT8},{def:17,size:1,type:T_UINT8},
-    {def:5,size:1,type:T_ENUM},{def:6,size:1,type:T_ENUM},
-  ]);
-  u8(0x02);u32(fitTs(records[records.length-1].t));u32(fitTs(startMs));
-  u32(elapsed*1000);u32(elapsed*1000);u16(avg(vp));u16(mx(vp));u8(avg(vh));u8(mx(vh));u8(2);u8(6);
-  defMsg(3,34,[
-    {def:253,size:4,type:T_UINT32},{def:1,size:4,type:T_UINT32},
-    {def:2,size:2,type:T_UINT16},{def:3,size:1,type:T_ENUM},
-    {def:4,size:1,type:T_ENUM},{def:5,size:1,type:T_ENUM},
-  ]);
-  u8(0x03);u32(fitTs(records[records.length-1].t));u32(elapsed*1000);u16(1);u8(0);u8(26);u8(1);
-  const ds=buf.length;
-  const hb=[14,0x20,0x54,0x08,ds&0xFF,(ds>>8)&0xFF,(ds>>16)&0xFF,(ds>>24)&0xFF,0x2E,0x46,0x49,0x54];
-  const hcrc=crc16(hb);
-  const header=[...hb,hcrc&0xFF,(hcrc>>8)&0xFF];
-  const all=[...header,...buf];
-  const fcrc=crc16(all);
-  all.push(fcrc&0xFF,(fcrc>>8)&0xFF);
-  return new Uint8Array(all);
-}
-function crc16(bytes){
-  const T=[0x0000,0xCC01,0xD801,0x1400,0xF001,0x3C00,0x2800,0xE401,
-            0xA001,0x6C00,0x7800,0xB401,0x5000,0x9C01,0x8801,0x4400];
-  let c=0;
-  for(const b of bytes){
-    let t=T[c&0xF];c=(c>>4)&0x0FFF;c=c^t^T[b&0xF];
-    t=T[c&0xF];c=(c>>4)&0x0FFF;c=c^t^T[(b>>4)&0xF];
-  }
-  return c;
-}
-function downloadFIT(){
-  if(!records.length){log('No data','warn');return;}
-  const data=writeFIT(records,recStart);
-  const url=URL.createObjectURL(new Blob([data],{type:'application/octet-stream'}));
-  const a=document.createElement('a');
-  const ds=new Date(recStart).toISOString().slice(0,19).replace(/[T:]/g,'-');
-  a.href=url;a.download=`erg_${ds}.fit`;a.click();
-  URL.revokeObjectURL(url);
-  log(`Downloaded erg_${ds}.fit — ${data.length} bytes`,'ok');
-}
-
-// ══════════════════════════════════════════════════════
-//  Window resize — redraw graphs
-// ══════════════════════════════════════════════════════
-let resizeTimer;
-window.addEventListener('resize', ()=>{
-  clearTimeout(resizeTimer);
-  resizeTimer=setTimeout(()=>{renderRollingGraphs();renderThumbs();},150);
-});
-
-// ══════════════════════════════════════════════════════
-//  Boot
-// ══════════════════════════════════════════════════════
-window.addEventListener('load', autoConnect);
-</script>
 </body>
 </html>

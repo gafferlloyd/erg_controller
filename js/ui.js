@@ -1,0 +1,304 @@
+'use strict';
+
+// ── Mode management ───────────────────────────────────────────────────────────
+// currentMode: 'recorder' | 'hr-servo' | 'power-erg'
+let currentMode = 'recorder';
+
+function setMode(mode) {
+  currentMode = mode;
+  document.body.className = `show-${mode}`;
+  document.querySelectorAll('.mode-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+}
+
+// ── Connection pill ───────────────────────────────────────────────────────────
+
+function setPill(role, live, label) {
+  const pill = document.getElementById(`pill-${role}`);
+  const lbl  = document.getElementById(`plbl-${role}`);
+  const dot  = document.getElementById(`pdot-${role}`);
+  if (!pill) return;
+  if (lbl) lbl.textContent = label;
+  pill.classList.toggle('live', !!live);
+  if (dot) dot.className = `dot${live ? ' live' : ''}`;
+}
+
+// ── Servo button ──────────────────────────────────────────────────────────────
+
+function updateServoBtn() {
+  const btn = document.getElementById('btn-servo');
+  if (!btn) return;
+  const canRun = trainerLive && hrLive;
+  btn.disabled = !canRun;
+  btn.textContent = servoActive ? 'STOP SERVO' : 'START SERVO';
+  btn.classList.toggle('on', servoActive);
+
+  const ergStart = document.getElementById('btn-start-power-erg');
+  if (ergStart) ergStart.disabled = !trainerLive;
+}
+
+// ── ERG indicator ─────────────────────────────────────────────────────────────
+// state: 'idle' | 'active' | 'gap'
+
+function updateErgIndicator(state) {
+  const el    = document.getElementById('erg-indicator');
+  const dot   = document.getElementById('erg-dot');
+  const label = document.getElementById('erg-label');
+  if (!el) return;
+  el.className = `erg-indicator`;
+  if (dot) dot.className = `erg-dot ${state}`;
+  const labels = { idle: 'ERG IDLE', active: 'ERG ACTIVE', gap: 'ERG GAP' };
+  if (label) label.textContent = labels[state] ?? state.toUpperCase();
+}
+
+// ── Slider sync ───────────────────────────────────────────────────────────────
+
+function syncSlider(id) {
+  const el  = document.getElementById(id);
+  const vEl = document.getElementById(`${id}-v`);
+  if (!el || !vEl) return;
+  vEl.textContent = el.value;
+  el.addEventListener('input', () => { vEl.textContent = el.value; });
+}
+
+// ── New HR / power handlers ───────────────────────────────────────────────────
+
+function onNewHR(hr) {
+  setVal('cv-hr', hr);
+  const zone = calcHRZone(hr, profile.restHR, profile.maxHR);
+  const hrr  = calcHRR(hr, profile.restHR, profile.maxHR);
+  setText('mt-hrzone', zone ?? '—');
+  setText('mt-hrr',    hrr != null ? `${hrr}` : '—');
+}
+
+function onNewPower(power, cadence) {
+  setVal('cv-power',   power   ?? '—');
+  setVal('cv-cadence', cadence ?? '—');
+}
+
+// ── ERG confirmed / control lost ─────────────────────────────────────────────
+
+function onErgConfirmed(watts) {
+  updateErgIndicator('active');
+  setText('erg-setpoint-display', `${watts}W`);
+}
+
+function onErgControlLost() {
+  updateErgIndicator('idle');
+  log('ERG control lost — another device may have taken over', 'warn');
+}
+
+// ── Session lifecycle callbacks ───────────────────────────────────────────────
+
+function onSessionStarted() {
+  document.getElementById('btn-start-session').disabled = true;
+  document.getElementById('btn-stop-session').disabled  = false;
+  clearChartData();
+  startChartLoop();
+  _timerInterval = setInterval(updateSessionTimer, 1000);
+}
+
+function onSessionStopped() {
+  document.getElementById('btn-start-session').disabled = false;
+  document.getElementById('btn-stop-session').disabled  = true;
+  clearInterval(_timerInterval);
+  stopChartLoop();
+  drawOverview();
+  drawRolling();
+  updateSessionMetrics();
+}
+
+let _timerInterval = null;
+
+function updateSessionTimer() {
+  setText('session-timer', sessionElapsed());
+}
+
+// ── Per-sample callback ───────────────────────────────────────────────────────
+
+function onSampleTaken() {
+  const s  = samples[samples.length - 1];
+  const np = calcNP(samples);
+
+  setVal('cv-np',  np ?? '—');
+  setVal('cv-hrv', currentRMSSD != null ? `${currentRMSSD}` : '—');
+
+  // Push to chart
+  const target = (servoActive || ergActive) ? ergSetpoint : null;
+  pushChartPoint(s.hr, s.power, np, s.cadence, target);
+
+  // Refresh metrics every 5 samples
+  if (samples.length % 5 === 0) updateSessionMetrics();
+}
+
+// ── Metrics panel ─────────────────────────────────────────────────────────────
+
+function updateSessionMetrics() {
+  const all  = samples;
+  const last = recentSamples(120);
+
+  const np     = calcNP(all);
+  const npLast = calcNP(last);
+  const IF     = calcIF(all, profile.ftp);
+  const tss    = calcTSS(all, profile.ftp);
+  const dcpl   = calcDecoupling(all);
+
+  setText('mt-np',    np    != null ? `${np}W`    : '—');
+  setText('mt-np2',   npLast != null ? `${npLast}W` : '—');
+  setText('mt-if',    IF    ?? '—');
+  setText('mt-tss',   tss   ?? '—');
+  setText('mt-dcpl',  dcpl  != null ? `${dcpl}%` : '—');
+  setText('mt-eff',   calcEfficiency(all)    ?? '—');
+  setText('mt-npeff', calcNPEfficiency(all)  ?? '—');
+  setText('mt-eff2',  calcEfficiency(last)   ?? '—');
+  setText('mt-npeff2',calcNPEfficiency(last) ?? '—');
+
+  const hrAll  = all.filter(s => s.hr > 0);
+  const hr2    = last.filter(s => s.hr > 0);
+  const avgHR  = hrAll.length ? Math.round(hrAll.reduce((a, s) => a + s.hr, 0) / hrAll.length) : null;
+  const avgHR2 = hr2.length  ? Math.round(hr2.reduce((a, s) => a + s.hr, 0)  / hr2.length)  : null;
+  setText('mt-avghr',  avgHR  ?? '—');
+  setText('mt-avghr2', avgHR2 ?? '—');
+
+  const pwAll = all.filter(s => s.power != null && s.power > 0);
+  const avgPw = pwAll.length ? Math.round(pwAll.reduce((a, s) => a + s.power, 0) / pwAll.length) : null;
+  setText('mt-avgpw', avgPw ?? '—');
+  setText('mt-rmssd', currentRMSSD != null ? `${currentRMSSD}` : '—');
+}
+
+// ── DOM text helpers ──────────────────────────────────────────────────────────
+
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+// Set the .cv-val child of a cv-block
+function setVal(blockId, val) {
+  const el = document.getElementById(blockId);
+  if (!el) return;
+  const v = el.querySelector('.cv-val');
+  if (v) v.textContent = val;
+}
+
+// ── Workout bar ───────────────────────────────────────────────────────────────
+
+function updateWorkoutBar(player) {
+  const seg = player.currentSegment;
+  if (!seg) return;
+
+  setText('seg-name', seg.label);
+
+  const pct = Math.round((player.totalElapsed / player.totalDuration) * 100);
+  const bar = document.getElementById('workout-progress');
+  if (bar) bar.style.width = `${Math.min(100, pct)}%`;
+
+  const rem = player.totalDuration - player.totalElapsed;
+  const m   = String(Math.floor(rem / 60)).padStart(2, '0');
+  const s   = String(rem % 60).padStart(2, '0');
+  setText('seg-remaining', `${m}:${s}`);
+}
+
+function updateWorkoutBarDone() {
+  setText('seg-name', 'Workout complete');
+  const bar = document.getElementById('workout-progress');
+  if (bar) bar.style.width = '100%';
+  setText('seg-remaining', '00:00');
+}
+
+// ── Workout file + mode button wiring ────────────────────────────────────────
+
+function wireWorkoutButtons() {
+  const fileInput = document.getElementById('workout-file');
+  const btnStart  = document.getElementById('btn-start-workout');
+  const btnStop   = document.getElementById('btn-stop-workout');
+
+  if (fileInput) fileInput.addEventListener('change', () => loadWorkoutFile(fileInput));
+  if (btnStart)  btnStart.addEventListener('click',   startWorkout);
+  if (btnStop)   btnStop.addEventListener('click',    stopWorkout);
+}
+
+// ── Power ERG setpoint display sync ──────────────────────────────────────────
+
+function wireErgSetpoint() {
+  const inp = document.getElementById('erg-setpoint');
+  if (!inp) return;
+  inp.addEventListener('input', () => {
+    ergSetpoint = Math.max(0, Math.min(2000, parseInt(inp.value) || 0));
+    setText('erg-setpoint-display', `${ergSetpoint}W`);
+  });
+}
+
+// ── Target HR input ───────────────────────────────────────────────────────────
+
+function wireTargetHR() {
+  const inp = document.getElementById('target-hr');
+  if (!inp) return;
+  inp.addEventListener('change', () => setTarget(parseInt(inp.value) || 145));
+}
+
+// ── Global button wiring ──────────────────────────────────────────────────────
+
+function wireButtons() {
+  bindClick('btn-connect-trainer', () => connectDevice('trainer'));
+  bindClick('btn-connect-hr',      () => connectDevice('hr'));
+  bindClick('btn-servo',           toggleServo);
+  bindClick('btn-warmup',          toggleWarmup);
+  bindClick('btn-start-power-erg', startPowerErg);
+  bindClick('btn-stop-power-erg',  stopPowerErg);
+  bindClick('btn-start-session',   startSession);
+  bindClick('btn-stop-session',    stopSession);
+  bindClick('btn-dl-csv',          downloadCsv);
+  bindClick('btn-dl-fit',          downloadFit);
+  bindClick('btn-dl-log',          downloadLog);
+  bindClick('btn-save-profile',    saveProfile);
+  bindClick('btn-toggle-log',      toggleLog);
+
+  bindClick('btn-hr-up',   () => adjustTarget(+1));
+  bindClick('btn-hr-down', () => adjustTarget(-1));
+  bindClick('btn-hr-up5',  () => adjustTarget(+5));
+  bindClick('btn-hr-down5',() => adjustTarget(-5));
+
+  document.querySelectorAll('.mode-tab').forEach(btn => {
+    btn.addEventListener('click', () => setMode(btn.dataset.mode));
+  });
+}
+
+function bindClick(id, fn) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', fn);
+}
+
+// ── Slider wiring ─────────────────────────────────────────────────────────────
+
+function wireSliders() {
+  ['kp','ki','kd','tick','maxdelta','deadband','pmin','pmax','wu-dur'].forEach(syncSlider);
+}
+
+// ── Resize handler ────────────────────────────────────────────────────────────
+
+function wireResize() {
+  let debounce = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => { drawOverview(); drawRolling(); }, 150);
+  });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadProfile();
+  wireButtons();
+  wireSliders();
+  wireWorkoutButtons();
+  wireErgSetpoint();
+  wireTargetHR();
+  wireResize();
+  setMode('recorder');
+  updateServoBtn();
+  updateErgIndicator('idle');
+  setText('session-timer', '00:00:00');
+  log('ERG Controller ready', 'ok');
+});
