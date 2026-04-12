@@ -41,12 +41,11 @@ h1 {
   margin-bottom: 16px;
 }
 
-/* ── layout ── */
 .grid {
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 320px 1fr;
   gap: 12px;
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -57,7 +56,7 @@ h1 {
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .panel-title {
@@ -68,22 +67,17 @@ h1 {
   color: var(--muted);
   border-bottom: 1px solid var(--border);
   padding-bottom: 6px;
-  margin-bottom: 2px;
 }
 
-/* ── connection pills ── */
+/* ── pills ── */
 .pills { display: flex; gap: 8px; flex-wrap: wrap; }
 .pill {
   display: flex; align-items: center; gap: 6px;
   border: 1px solid var(--red);
   border-radius: 20px;
   padding: 4px 12px 4px 8px;
-  font-size: .68rem;
-  font-family: var(--mono);
-  cursor: pointer;
-  user-select: none;
-  transition: border-color .3s;
-  position: relative;
+  font-size: .68rem; font-family: var(--mono);
+  cursor: pointer; user-select: none; transition: border-color .3s;
 }
 .pill.connected { border-color: var(--green); }
 .pill-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
@@ -91,142 +85,151 @@ h1 {
 .pill-label { color: var(--muted); font-size: .65rem; }
 .pill.connected .pill-label { color: var(--green); }
 
-/* ── big numbers ── */
-.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.metric {
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 10px 12px;
-  text-align: center;
+/* ── profile inputs ── */
+.prof-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
 }
-.metric-val {
-  font-family: var(--mono);
-  font-size: 2.2rem;
-  line-height: 1;
+.prof-field { display: flex; flex-direction: column; gap: 4px; }
+.prof-field label {
+  font-family: var(--mono); font-size: .58rem;
+  text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+}
+.prof-field input {
+  background: var(--panel2); border: 1px solid var(--border);
+  color: var(--text); font-family: var(--mono); font-size: .95rem;
+  padding: 5px 6px; border-radius: 4px; text-align: center; width: 100%;
+}
+.prof-field input:focus { outline: none; border-color: var(--accent); }
+
+/* ── big HR buttons ── */
+.hr-adj-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-hr {
+  flex: 1; padding: 18px 4px;
+  border-radius: 4px; border: 1px solid var(--muted);
+  background: var(--panel2); color: var(--muted);
+  font-family: var(--mono); font-size: 1rem; font-weight: bold;
+  cursor: pointer; transition: all .12s; user-select: none; line-height: 1;
+}
+.btn-hr:hover { background: var(--border); color: var(--text); }
+.btn-hr:active { transform: scale(.96); }
+.btn-hr.dn { border-color: var(--red); color: var(--red); }
+.btn-hr.dn:hover { background: rgba(255,51,85,.12); }
+.btn-hr.up { border-color: var(--green); color: var(--green); }
+.btn-hr.up:hover { background: rgba(0,232,122,.12); }
+.hr-target-center { flex: 1.4; text-align: center; }
+.hr-target-big {
+  font-family: var(--mono); font-size: 2.8rem; line-height: 1;
   color: var(--accent);
 }
+.hr-target-sub { font-size: .58rem; color: var(--muted); letter-spacing: .1em; margin-top: 3px; }
+
+/* ── deadband row ── */
+.db-row { display: flex; align-items: center; gap: 8px; font-size: .72rem; }
+.db-row label { font-family: var(--mono); color: var(--muted); flex-shrink: 0; }
+.db-row input {
+  background: var(--panel2); border: 1px solid var(--border);
+  color: var(--text); font-family: var(--mono); font-size: .9rem;
+  padding: 4px 6px; border-radius: 4px; width: 52px; text-align: center;
+}
+.db-row .bpm { font-family: var(--mono); font-size: .7rem; color: var(--muted); }
+
+/* ── warm-up panel ── */
+.wu-info {
+  font-family: var(--mono); font-size: .65rem; color: var(--amber);
+  background: rgba(255,170,0,.07); border: 1px solid rgba(255,170,0,.2);
+  border-radius: 4px; padding: 7px 10px; line-height: 1.5;
+}
+.wu-row { display: flex; align-items: center; gap: 8px; }
+.wu-row label { font-family: var(--mono); font-size: .7rem; color: var(--muted); flex-shrink: 0; }
+.wu-row input {
+  background: var(--panel2); border: 1px solid var(--border);
+  color: var(--text); font-family: var(--mono); font-size: .9rem;
+  padding: 4px 6px; border-radius: 4px; width: 52px; text-align: center;
+}
+.wu-remaining {
+  font-family: var(--mono); font-size: 1.4rem; color: var(--amber);
+  text-align: center; letter-spacing: .1em;
+}
+
+/* ── PID sliders ── */
+details summary {
+  font-family: var(--mono); font-size: .6rem; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--muted); cursor: pointer;
+  border-bottom: 1px solid var(--border); padding-bottom: 6px;
+  list-style: none; display: flex; align-items: center; gap: 6px;
+}
+details summary::before { content: '▶'; font-size: .55rem; }
+details[open] summary::before { content: '▼'; }
+details summary::-webkit-details-marker { display: none; }
+.pid-rows { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.param-row { display: flex; align-items: center; gap: 8px; font-size: .72rem; }
+.param-row label { font-family: var(--mono); color: var(--muted); width: 130px; flex-shrink: 0; }
+.param-row input[type=range] { flex: 1; accent-color: var(--accent); }
+.param-val { font-family: var(--mono); font-size: .72rem; color: var(--text); width: 42px; text-align: right; }
+
+/* ── servo / warmup buttons ── */
+.btn-servo, .btn-warmup {
+  width: 100%; padding: 10px;
+  border-radius: 4px; border: 1px solid var(--muted);
+  background: transparent; color: var(--muted);
+  font-family: var(--mono); font-size: .75rem;
+  text-transform: uppercase; letter-spacing: .1em;
+  cursor: pointer; transition: all .2s;
+}
+.btn-servo.on  { border-color: var(--green); color: var(--green); box-shadow: 0 0 8px rgba(0,232,122,.25); }
+.btn-warmup.on { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 8px rgba(255,170,0,.25); }
+.btn-servo:disabled, .btn-warmup:disabled { opacity: .35; cursor: not-allowed; }
+
+.btn-small {
+  padding: 5px 12px; border-radius: 4px;
+  border: 1px solid var(--muted); background: transparent;
+  color: var(--muted); font-family: var(--mono); font-size: .65rem;
+  text-transform: uppercase; letter-spacing: .08em; cursor: pointer;
+  transition: all .15s;
+}
+.btn-small:hover { border-color: var(--text); color: var(--text); }
+.btn-small.danger:hover { border-color: var(--red); color: var(--red); }
+.btn-small.save { border-color: var(--green); color: var(--green); }
+.btn-small.save:hover { background: rgba(0,232,122,.1); }
+
+/* ── live metrics ── */
+.metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.metric {
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 10px 12px; text-align: center;
+}
+.metric-val { font-family: var(--mono); font-size: 2.2rem; line-height: 1; color: var(--accent); }
 .metric-val.hr  { color: var(--red); }
 .metric-val.pwr { color: var(--amber); }
-.metric-val.ok  { color: var(--green); }
-.metric-lbl {
-  font-size: .58rem;
-  text-transform: uppercase;
-  letter-spacing: .1em;
-  color: var(--muted);
-  margin-top: 4px;
-}
+.metric-lbl { font-size: .58rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-top: 4px; }
 
-/* ── PID knobs ── */
-.param-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: .72rem;
+/* ── mode badge ── */
+.mode-badge {
+  display: inline-block;
+  font-family: var(--mono); font-size: .65rem; letter-spacing: .1em;
+  padding: 3px 10px; border-radius: 20px;
 }
-.param-row label {
-  font-family: var(--mono);
-  color: var(--muted);
-  width: 120px;
-  flex-shrink: 0;
-}
-.param-row input[type=range] {
-  flex: 1;
-  accent-color: var(--accent);
-}
-.param-val {
-  font-family: var(--mono);
-  font-size: .72rem;
-  color: var(--text);
-  width: 42px;
-  text-align: right;
-}
-
-/* ── target HR ── */
-.target-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.target-row label {
-  font-family: var(--mono);
-  font-size: .7rem;
-  color: var(--muted);
-  flex-shrink: 0;
-}
-.target-row input[type=number] {
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 1rem;
-  padding: 4px 8px;
-  border-radius: 4px;
-  width: 70px;
-  text-align: center;
-}
-.bpm-label {
-  font-family: var(--mono);
-  font-size: .7rem;
-  color: var(--muted);
-}
-
-/* ── servo toggle ── */
-.btn-servo {
-  width: 100%;
-  padding: 9px;
-  border-radius: 4px;
-  border: 1px solid var(--muted);
-  background: transparent;
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: .75rem;
-  text-transform: uppercase;
-  letter-spacing: .1em;
-  cursor: pointer;
-  transition: all .2s;
-}
-.btn-servo.on {
-  border-color: var(--green);
-  color: var(--green);
-  box-shadow: 0 0 8px rgba(0,232,122,.25);
-}
-.btn-servo:disabled { opacity: .35; cursor: not-allowed; }
+.mode-badge.normal { background: rgba(0,232,122,.12); color: var(--green); border: 1px solid rgba(0,232,122,.3); }
+.mode-badge.warmup { background: rgba(255,170,0,.12); color: var(--amber); border: 1px solid rgba(255,170,0,.4); }
 
 /* ── status bar ── */
-.status-bar {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  align-items: center;
-  font-family: var(--mono);
-  font-size: .63rem;
-  color: var(--muted);
-}
+.status-bar { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; font-family: var(--mono); font-size: .63rem; color: var(--muted); }
 .status-item { display: flex; gap: 5px; align-items: center; }
 .status-item span { color: var(--text); }
 
-/* ── chart ── */
-canvas {
-  width: 100%;
-  background: var(--panel2);
-  border-radius: 4px;
-  display: block;
-}
+/* ── canvas ── */
+canvas { width: 100%; background: var(--panel2); border-radius: 4px; display: block; }
 
 /* ── log ── */
 .log-box {
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 8px;
-  height: 130px;
-  overflow-y: auto;
-  font-family: var(--mono);
-  font-size: .6rem;
-  display: flex;
-  flex-direction: column-reverse;
-  gap: 2px;
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 8px; height: 120px; overflow-y: auto;
+  font-family: var(--mono); font-size: .6rem;
+  display: flex; flex-direction: column-reverse; gap: 2px;
 }
 .log-box .ok   { color: var(--green); }
 .log-box .err  { color: var(--red); }
@@ -234,15 +237,11 @@ canvas {
 .log-box .tx   { color: var(--accent); }
 .log-box .info { color: var(--muted); }
 
-/* ── note box ── */
+/* ── note ── */
 .note {
-  background: rgba(255,170,0,.07);
-  border: 1px solid rgba(255,170,0,.2);
-  border-radius: 4px;
-  padding: 10px 12px;
-  font-size: .68rem;
-  color: var(--amber);
-  line-height: 1.5;
+  background: rgba(255,170,0,.07); border: 1px solid rgba(255,170,0,.2);
+  border-radius: 4px; padding: 10px 12px;
+  font-size: .65rem; color: var(--amber); line-height: 1.6;
 }
 </style>
 </head>
@@ -252,7 +251,7 @@ canvas {
 
 <div class="grid">
 
-  <!-- LEFT COLUMN -->
+  <!-- ═══ LEFT COLUMN ═══ -->
   <div style="display:flex;flex-direction:column;gap:12px;">
 
     <!-- Connections -->
@@ -270,6 +269,136 @@ canvas {
       </div>
     </div>
 
+    <!-- Athlete Profile -->
+    <div class="panel">
+      <div class="panel-title">Athlete Profile</div>
+      <div class="prof-grid">
+        <div class="prof-field">
+          <label>Rest HR</label>
+          <input type="number" id="prof-rest" value="43" min="30" max="80"
+                 oninput="updateProfileDerived()">
+        </div>
+        <div class="prof-field">
+          <label>Max HR</label>
+          <input type="number" id="prof-max" value="173" min="100" max="220"
+                 oninput="updateProfileDerived()">
+        </div>
+        <div class="prof-field">
+          <label>FTP (W)</label>
+          <input type="number" id="prof-ftp" value="290" min="50" max="800"
+                 oninput="updateProfileDerived()">
+        </div>
+      </div>
+      <button class="btn-small save" onclick="saveProfile()">SAVE PROFILE</button>
+    </div>
+
+    <!-- Target Heart Rate — big buttons -->
+    <div class="panel">
+      <div class="panel-title">Target Heart Rate</div>
+      <div class="hr-adj-row">
+        <button class="btn-hr dn" onclick="adjustTarget(-5)">−5</button>
+        <button class="btn-hr dn" onclick="adjustTarget(-1)">−1</button>
+        <div class="hr-target-center">
+          <div class="hr-target-big" id="target-hr-big">145</div>
+          <div class="hr-target-sub">BPM TARGET</div>
+        </div>
+        <button class="btn-hr up" onclick="adjustTarget(+1)">+1</button>
+        <button class="btn-hr up" onclick="adjustTarget(+5)">+5</button>
+      </div>
+      <!-- hidden input keeps value for pidTick -->
+      <input type="hidden" id="target-hr" value="145">
+      <div class="db-row">
+        <label>Deadband ±</label>
+        <input type="number" id="deadband" value="3" min="1" max="10" step="1">
+        <span class="bpm">bpm</span>
+      </div>
+    </div>
+
+    <!-- Warm-Up -->
+    <div class="panel">
+      <div class="panel-title">Warm-Up</div>
+      <div class="wu-info" id="wu-info">Loading profile…</div>
+      <div class="wu-row">
+        <label>Duration</label>
+        <input type="number" id="wu-dur" value="15" min="5" max="60" step="5">
+        <span style="font-family:var(--mono);font-size:.7rem;color:var(--muted);">min</span>
+        <div style="flex:1;text-align:right;">
+          <span class="wu-remaining" id="wu-remaining">—</span>
+        </div>
+      </div>
+      <button class="btn-warmup" id="btn-warmup" onclick="toggleWarmup()">START WARM-UP</button>
+    </div>
+
+    <!-- Servo toggle -->
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="btn-servo" id="btn-servo" onclick="toggleServo()" disabled>SERVO OFF</button>
+      <span class="mode-badge normal" id="mode-badge">NORMAL</span>
+    </div>
+
+    <!-- PID Tuning (collapsible) -->
+    <div class="panel">
+      <details>
+        <summary>PID Tuning</summary>
+        <div class="pid-rows">
+          <div class="param-row">
+            <label>Kp (W/bpm)</label>
+            <input type="range" id="kp" min="0.5" max="10" step="0.5" value="3"
+                   oninput="document.getElementById('kp-v').textContent=this.value">
+            <span class="param-val" id="kp-v">3</span>
+          </div>
+          <div class="param-row">
+            <label>Ki (W/bpm/tick)</label>
+            <input type="range" id="ki" min="0" max="1" step="0.05" value="0.1"
+                   oninput="document.getElementById('ki-v').textContent=this.value">
+            <span class="param-val" id="ki-v">0.1</span>
+          </div>
+          <div class="param-row">
+            <label>Kd (W·tick/bpm)</label>
+            <input type="range" id="kd" min="0" max="10" step="0.5" value="0"
+                   oninput="document.getElementById('kd-v').textContent=this.value">
+            <span class="param-val" id="kd-v">0</span>
+          </div>
+          <div class="param-row">
+            <label>Tick interval (s)</label>
+            <input type="range" id="tick" min="5" max="60" step="5" value="15"
+                   oninput="document.getElementById('tick-v').textContent=this.value">
+            <span class="param-val" id="tick-v">15</span>
+          </div>
+          <div class="param-row">
+            <label>Max ΔW/tick</label>
+            <input type="range" id="maxdelta" min="5" max="50" step="5" value="20"
+                   oninput="document.getElementById('maxdelta-v').textContent=this.value">
+            <span class="param-val" id="maxdelta-v">20</span>
+          </div>
+          <div class="param-row">
+            <label>Power floor (W)</label>
+            <input type="range" id="pmin" min="30" max="150" step="5" value="60"
+                   oninput="document.getElementById('pmin-v').textContent=this.value">
+            <span class="param-val" id="pmin-v">60</span>
+          </div>
+          <div class="param-row">
+            <label>Power ceil (W)</label>
+            <input type="range" id="pmax" min="100" max="600" step="10" value="350"
+                   oninput="document.getElementById('pmax-v').textContent=this.value">
+            <span class="param-val" id="pmax-v">350</span>
+          </div>
+          <div class="note" style="font-size:.62rem;">
+            <strong>Kd = 0 recommended to start.</strong> With HR lag of 30–60 s and tick
+            intervals ≥ 15 s, the derivative is computed over stale data and amplifies HR
+            measurement noise. Only add Kd (try 0.5–2) if you see limit-cycle oscillation
+            that Kp alone can't damp — and keep it small.<br><br>
+            <strong>Slow ticks &amp; modest ΔW prevent overshoot.</strong> Warm-up enforces
+            5 W/tick; normal mode allows up to 20 W/tick.
+          </div>
+        </div>
+      </details>
+    </div>
+
+  </div><!-- /left -->
+
+  <!-- ═══ RIGHT COLUMN ═══ -->
+  <div style="display:flex;flex-direction:column;gap:12px;">
+
     <!-- Live metrics -->
     <div class="panel">
       <div class="panel-title">Live</div>
@@ -283,108 +412,54 @@ canvas {
           <div class="metric-lbl">Power (W)</div>
         </div>
         <div class="metric">
-          <div class="metric-val" id="m-target">—</div>
+          <div class="metric-val" id="m-target">145</div>
           <div class="metric-lbl">HR Target (bpm)</div>
         </div>
         <div class="metric">
           <div class="metric-val" id="m-setpoint">—</div>
           <div class="metric-lbl">ERG Setpoint (W)</div>
         </div>
+        <div class="metric">
+          <div class="metric-val" id="m-err" style="font-size:1.8rem;">—</div>
+          <div class="metric-lbl">HR Error (bpm)</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="m-hb" style="font-size:1.4rem;color:var(--muted);">—</div>
+          <div class="metric-lbl">Heartbeat / 5 s</div>
+        </div>
       </div>
     </div>
 
-    <!-- Target HR -->
+    <!-- HR & Power chart -->
     <div class="panel">
-      <div class="panel-title">Target Heart Rate</div>
-      <div class="target-row">
-        <label>Target HR</label>
-        <input type="number" id="target-hr" value="145" min="60" max="200" step="1">
-        <span class="bpm-label">bpm</span>
-      </div>
-      <div class="target-row">
-        <label>Deadband ±</label>
-        <input type="number" id="deadband" value="3" min="1" max="10" step="1">
-        <span class="bpm-label">bpm</span>
-      </div>
-    </div>
-
-    <!-- PID tuning -->
-    <div class="panel">
-      <div class="panel-title">PID Tuning</div>
-
-      <div class="param-row">
-        <label>Kp (W/bpm)</label>
-        <input type="range" id="kp" min="0.5" max="10" step="0.5" value="3"
-               oninput="document.getElementById('kp-v').textContent=this.value">
-        <span class="param-val" id="kp-v">3</span>
-      </div>
-      <div class="param-row">
-        <label>Ki (W/bpm/tick)</label>
-        <input type="range" id="ki" min="0" max="1" step="0.05" value="0.1"
-               oninput="document.getElementById('ki-v').textContent=this.value">
-        <span class="param-val" id="ki-v">0.1</span>
-      </div>
-      <div class="param-row">
-        <label>Kd (W·tick/bpm)</label>
-        <input type="range" id="kd" min="0" max="20" step="1" value="5"
-               oninput="document.getElementById('kd-v').textContent=this.value">
-        <span class="param-val" id="kd-v">5</span>
-      </div>
-      <div class="param-row">
-        <label>Tick interval (s)</label>
-        <input type="range" id="tick" min="5" max="60" step="5" value="15"
-               oninput="document.getElementById('tick-v').textContent=this.value">
-        <span class="param-val" id="tick-v">15</span>
-      </div>
-      <div class="param-row">
-        <label>Max ΔW/tick</label>
-        <input type="range" id="maxdelta" min="5" max="50" step="5" value="20"
-               oninput="document.getElementById('maxdelta-v').textContent=this.value">
-        <span class="param-val" id="maxdelta-v">20</span>
-      </div>
-      <div class="param-row">
-        <label>Power floor (W)</label>
-        <input type="range" id="pmin" min="30" max="150" step="5" value="60"
-               oninput="document.getElementById('pmin-v').textContent=this.value">
-        <span class="param-val" id="pmin-v">60</span>
-      </div>
-      <div class="param-row">
-        <label>Power ceil (W)</label>
-        <input type="range" id="pmax" min="100" max="500" step="10" value="350"
-               oninput="document.getElementById('pmax-v').textContent=this.value">
-        <span class="param-val" id="pmax-v">350</span>
-      </div>
-    </div>
-
-    <!-- Servo toggle -->
-    <button class="btn-servo" id="btn-servo" onclick="toggleServo()" disabled>SERVO OFF</button>
-
-    <!-- Design note -->
-    <div class="note">
-      <strong>Why slow ticks?</strong> Heart rate lags power by ~30–60 s.
-      Fast control loops will oscillate wildly — the HR is still rising from
-      the last change when you make the next one. Keep the tick interval ≥ 15 s
-      and max ΔW/tick modest until you've characterised your own lag.
-    </div>
-
-  </div><!-- /left -->
-
-  <!-- RIGHT COLUMN -->
-  <div style="display:flex;flex-direction:column;gap:12px;">
-
-    <!-- Chart -->
-    <div class="panel" style="flex:1;">
       <div class="panel-title">HR &amp; Power — last 10 min</div>
-      <canvas id="chart" height="280"></canvas>
+      <canvas id="chart" height="220"></canvas>
     </div>
 
-    <!-- Controller state -->
+    <!-- HR vs Power Characteristic -->
+    <div class="panel">
+      <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">
+        <span class="panel-title" style="border:none;padding:0;margin:0;flex:1;">HR vs Power Characteristic</span>
+        <span style="font-family:var(--mono);font-size:.6rem;color:var(--muted);" id="char-count">0 stored · 0 session</span>
+        <button class="btn-small danger" onclick="clearCharacteristic()">CLEAR</button>
+      </div>
+      <canvas id="char-canvas" height="180"></canvas>
+      <div style="font-family:var(--mono);font-size:.6rem;color:var(--muted);line-height:1.5;">
+        Collected at steady-state (setpoint stable ≥ 2 ticks, non-warmup).
+        <span style="color:rgba(170,102,255,.7);">■ stored</span>
+        &nbsp;<span style="color:rgba(255,170,0,.9);">■ session</span>
+        &nbsp;<span style="color:rgba(0,212,255,.6);">— trend</span>
+        &nbsp;<span style="color:var(--green);">● now</span>
+      </div>
+    </div>
+
+    <!-- Controller State -->
     <div class="panel">
       <div class="panel-title">Controller State</div>
       <div class="status-bar">
         <div class="status-item">Error <span id="st-err">—</span> bpm</div>
         <div class="status-item">Integral <span id="st-int">—</span></div>
-        <div class="status-item">Derivative <span id="st-der">—</span> bpm/tick</div>
+        <div class="status-item">Derivative <span id="st-der">—</span></div>
         <div class="status-item">Output <span id="st-out">—</span> W</div>
         <div class="status-item">Next tick <span id="st-next">—</span></div>
       </div>
@@ -404,7 +479,7 @@ canvas {
 'use strict';
 
 // ══════════════════════════════════════════════════════
-//  GATT UUIDs  (same as index.html)
+//  GATT UUIDs
 // ══════════════════════════════════════════════════════
 const UUID = {
   CPS_SERVICE:     0x1818,
@@ -417,7 +492,117 @@ const UUID = {
 };
 
 // ══════════════════════════════════════════════════════
-//  State
+//  Athlete profile (localStorage)
+// ══════════════════════════════════════════════════════
+let profile = { restHR: 43, maxHR: 173, ftp: 290 };
+
+function loadProfile() {
+  try {
+    const s = localStorage.getItem('hrservo_profile');
+    if (s) Object.assign(profile, JSON.parse(s));
+  } catch(e) {}
+  document.getElementById('prof-rest').value = profile.restHR;
+  document.getElementById('prof-max').value  = profile.maxHR;
+  document.getElementById('prof-ftp').value  = profile.ftp;
+  updateProfileDerived();
+}
+
+function saveProfile() {
+  profile.restHR = parseInt(document.getElementById('prof-rest').value) || 43;
+  profile.maxHR  = parseInt(document.getElementById('prof-max').value)  || 173;
+  profile.ftp    = parseInt(document.getElementById('prof-ftp').value)  || 290;
+  localStorage.setItem('hrservo_profile', JSON.stringify(profile));
+  updateProfileDerived();
+  log(`Profile saved — restHR ${profile.restHR}  maxHR ${profile.maxHR}  FTP ${profile.ftp}W`, 'ok');
+}
+
+function hrr() { return profile.maxHR - profile.restHR; }
+
+function updateProfileDerived() {
+  // Read live from inputs so the display updates as you type
+  const rest = parseInt(document.getElementById('prof-rest').value) || profile.restHR;
+  const max  = parseInt(document.getElementById('prof-max').value)  || profile.maxHR;
+  const ftp  = parseInt(document.getElementById('prof-ftp').value)  || profile.ftp;
+  const wuTarget = Math.round(rest + 0.40 * (max - rest));
+  const wuPMax   = Math.round(0.50 * ftp);
+  document.getElementById('wu-info').textContent =
+    `40% HRR target: ${wuTarget} bpm  ·  Ceil: ${wuPMax} W  ·  Max 5 W/tick  ·  Floor: 50 W`;
+}
+
+// ══════════════════════════════════════════════════════
+//  HR vs Power Characteristic (localStorage + session)
+// ══════════════════════════════════════════════════════
+let hrCharStored  = [];   // across all sessions, saved to localStorage
+let hrCharSession = [];   // this session only
+
+function loadCharacteristic() {
+  try {
+    const s = localStorage.getItem('hrservo_char');
+    if (s) hrCharStored = JSON.parse(s);
+  } catch(e) { hrCharStored = []; }
+}
+
+function saveCharacteristic() {
+  try { localStorage.setItem('hrservo_char', JSON.stringify(hrCharStored)); } catch(e) {}
+}
+
+function clearCharacteristic() {
+  hrCharStored = []; hrCharSession = [];
+  saveCharacteristic();
+  drawCharacteristic();
+  log('Characteristic data cleared', 'warn');
+}
+
+// Steady-state detection
+let stableCount    = 0;
+let prevSetpointSS = null;   // last setpoint used for stability check
+
+function maybeCollectChar() {
+  if (warmupActive || lastHR === null || lastPower === null) return;
+
+  // Count ticks where setpoint hasn't moved more than 5 W
+  if (prevSetpointSS !== null && Math.abs(ergSetpoint - prevSetpointSS) <= 5) {
+    stableCount++;
+  } else {
+    stableCount = 0;
+  }
+  prevSetpointSS = ergSetpoint;
+
+  if (stableCount >= 2) {
+    const pt = { hr: lastHR, power: lastPower };
+    hrCharSession.push(pt);
+    hrCharStored.push(pt);
+    if (hrCharStored.length > 600) hrCharStored.shift();
+    saveCharacteristic();
+    drawCharacteristic();
+    log(`Char point: ${lastHR} bpm @ ${lastPower}W  (stable ${stableCount} ticks)`, 'info');
+  }
+}
+
+// Linear regression Power = a·HR + b
+function fitChar(points) {
+  if (points.length < 4) return null;
+  let n = points.length, sx = 0, sy = 0, sxy = 0, sx2 = 0;
+  for (const {hr, power} of points) {
+    sx += hr; sy += power; sxy += hr * power; sx2 += hr * hr;
+  }
+  const d = n * sx2 - sx * sx;
+  if (Math.abs(d) < 1e-9) return null;
+  const a = (n * sxy - sx * sy) / d;
+  const b = (sy - a * sx) / n;
+  return { a, b };
+}
+
+// Feedforward: predict watts for a given target HR
+function predictPower(targetHR) {
+  const src = hrCharSession.length >= 6 ? hrCharSession : hrCharStored;
+  const fit = fitChar(src);
+  if (!fit) return null;
+  return Math.round(fit.a * targetHR + fit.b);
+}
+
+// ══════════════════════════════════════════════════════
+//  Device state
 // ══════════════════════════════════════════════════════
 let trainerDevice = null, hrDevice = null;
 let trainerLive   = false, hrLive  = false;
@@ -427,21 +612,60 @@ let ergHandshakeDone = false;
 let lastHR    = null;
 let lastPower = null;
 
-// Servo
-let servoActive  = false;
-let ergSetpoint  = 100;       // current watts commanded
-let pidIntegral  = 0;
-let prevError    = null;
-let tickTimer    = null;
+// ══════════════════════════════════════════════════════
+//  Servo state
+// ══════════════════════════════════════════════════════
+let servoActive   = false;
+let ergSetpoint   = 100;
+let pidIntegral   = 0;
+let prevError     = null;
+let tickTimer     = null;
 let tickCountdown = 0;
 let countdownTimer = null;
 
-// Chart history — 600 points @ 1 s = 10 min
+// ══════════════════════════════════════════════════════
+//  Power heartbeat (re-send every 5 s)
+//  FTMS has no "query current ERG target" command —
+//  the control point is write-only. Periodic re-send
+//  ensures any corrupted value decays within 5 s.
+// ══════════════════════════════════════════════════════
+let heartbeatTimer = null;
+let heartbeatCount = 0;
+
+function startHeartbeat() {
+  stopHeartbeat();
+  heartbeatTimer = setInterval(async () => {
+    if (!servoActive || !ftmsCP) return;
+    heartbeatCount++;
+    document.getElementById('m-hb').textContent = heartbeatCount;
+    try {
+      await sendPower(ergSetpoint, /*silent=*/true);
+    } catch(e) {
+      log(`Heartbeat TX failed: ${e.message}`, 'warn');
+    }
+  }, 5000);
+}
+
+function stopHeartbeat() {
+  clearInterval(heartbeatTimer);
+  heartbeatTimer = null;
+}
+
+// ══════════════════════════════════════════════════════
+//  Warm-up state
+// ══════════════════════════════════════════════════════
+let warmupActive = false;
+let warmupSecs   = 0;
+let warmupTimer  = null;
+
+// ══════════════════════════════════════════════════════
+//  Chart history — 600 pts @ 1 s = 10 min
+// ══════════════════════════════════════════════════════
 const HIST = 600;
-const chartHR    = new Array(HIST).fill(null);
-const chartPwr   = new Array(HIST).fill(null);
-const chartTgt   = new Array(HIST).fill(null);
-let   chartTimer = null;
+const chartHR  = new Array(HIST).fill(null);
+const chartPwr = new Array(HIST).fill(null);
+const chartTgt = new Array(HIST).fill(null);
+let chartTimer = null;
 
 // ══════════════════════════════════════════════════════
 //  Log
@@ -462,12 +686,12 @@ function setPill(role, connected, name) {
   const dot  = document.getElementById(`pdot-${role}`);
   const lbl  = document.getElementById(`plbl-${role}`);
   pill.classList.toggle('connected', connected);
-  dot.style.background  = connected ? 'var(--green)' : 'var(--red)';
+  dot.style.background = connected ? 'var(--green)' : 'var(--red)';
   lbl.textContent = name || (connected ? 'Connected' : 'Not connected');
 }
 
 // ══════════════════════════════════════════════════════
-//  BLE — connect dispatcher
+//  BLE connect dispatcher
 // ══════════════════════════════════════════════════════
 async function connectDevice(role) {
   if (!navigator.bluetooth) { log('Web Bluetooth not available — use Chrome', 'err'); return; }
@@ -475,7 +699,6 @@ async function connectDevice(role) {
   else                    await connectHR();
 }
 
-// ── Trainer ──────────────────────────────────────────
 async function connectTrainer() {
   setPill('trainer', false, 'Scanning…');
   let dev;
@@ -502,7 +725,7 @@ async function connectTrainer() {
     const server = await dev.gatt.connect();
     let gotData = false;
 
-    // Try CPS first
+    // Try CPS power measurement first
     try {
       const svc = await server.getPrimaryService(UUID.CPS_SERVICE);
       const chr = await svc.getCharacteristic(UUID.CPS_MEASUREMENT);
@@ -512,7 +735,7 @@ async function connectTrainer() {
       log('Subscribed: CPS power', 'ok');
     } catch(_) {}
 
-    // FTMS data
+    // FTMS indoor bike data
     if (!gotData) {
       try {
         const svc = await server.getPrimaryService(UUID.FTMS_SERVICE);
@@ -524,7 +747,7 @@ async function connectTrainer() {
       } catch(_) {}
     }
 
-    // FTMS control point
+    // FTMS control point (write-only for ERG target; no read-back of current target)
     try {
       const svc = await server.getPrimaryService(UUID.FTMS_SERVICE);
       const cp  = await svc.getCharacteristic(UUID.FTMS_CP);
@@ -547,7 +770,6 @@ async function connectTrainer() {
   updateServoBtn();
 }
 
-// ── HR monitor ───────────────────────────────────────
 async function connectHR() {
   setPill('hr', false, 'Scanning…');
   let dev;
@@ -590,34 +812,38 @@ function onCPS(e) {
   const v = e.target.value;
   lastPower = v.getInt16(2, true);
   document.getElementById('m-pwr').textContent = lastPower;
+  drawCharacteristic();   // update live dot
 }
 
 function onFTMS(e) {
-  const v    = e.target.value;
+  const v     = e.target.value;
   const flags = v.getUint16(0, true);
   let offset  = 2;
-  // Speed (always present)
-  offset += 2;
-  // Average speed?
-  if (flags & 0x0002) offset += 2;
-  // Cadence?
-  if (flags & 0x0004) offset += 2;
-  // Total distance?
-  if (flags & 0x0008) offset += 3;
-  // Resistance level?
-  if (flags & 0x0010) offset += 2;
-  // Instantaneous power
+  offset += 2;                              // Speed (always present)
+  if (flags & 0x0002) offset += 2;         // Average speed
+  if (flags & 0x0004) offset += 2;         // Cadence
+  if (flags & 0x0008) offset += 3;         // Total distance
+  if (flags & 0x0010) offset += 2;         // Resistance level
   if (flags & 0x0040 && offset + 1 < v.byteLength) {
     lastPower = v.getInt16(offset, true);
     document.getElementById('m-pwr').textContent = lastPower;
+    drawCharacteristic();
   }
 }
 
 function onHR(e) {
-  const v       = e.target.value;
-  const flags   = v.getUint8(0);
-  lastHR        = (flags & 0x01) ? v.getUint16(1, true) : v.getUint8(1);
+  const v   = e.target.value;
+  const flags = v.getUint8(0);
+  lastHR    = (flags & 0x01) ? v.getUint16(1, true) : v.getUint8(1);
   document.getElementById('m-hr').textContent = lastHR;
+  if (servoActive) {
+    const tgt = parseInt(document.getElementById('target-hr').value);
+    const err = tgt - lastHR;
+    const el  = document.getElementById('m-err');
+    el.textContent = (err >= 0 ? '+' : '') + err;
+    el.style.color = Math.abs(err) <= parseInt(document.getElementById('deadband').value)
+      ? 'var(--green)' : Math.abs(err) > 10 ? 'var(--red)' : 'var(--amber)';
+  }
 }
 
 function onCPResponse(e) {
@@ -641,27 +867,132 @@ async function writeCPBytes(bytes) {
   else                               await ftmsCP.writeValue(buf);
 }
 
-async function sendPower(watts) {
-  const w = Math.round(Math.max(0, Math.min(2000, watts)));
+// silent=true suppresses log entry (used by heartbeat to avoid spam)
+async function sendPower(watts, silent = false) {
+  const w  = Math.round(Math.max(0, Math.min(2000, watts)));
   const lo = w & 0xFF, hi = (w >> 8) & 0xFF;
   await writeCPBytes([0x05, lo, hi]);
-  log(`[TX] Set power ${w}W`, 'tx');
+  if (!silent) log(`[TX] Set power ${w}W`, 'tx');
 }
 
 async function ftmsHandshake() {
   if (ergHandshakeDone) return;
   try {
-    await writeCPBytes([0x00]);   // Request Control
+    await writeCPBytes([0x00]);
     log('[TX] 00 Request Control', 'tx');
   } catch(e) { log(`Handshake failed: ${e.message}`, 'err'); }
+}
+
+// ══════════════════════════════════════════════════════
+//  HR Target — big button adjustment
+// ══════════════════════════════════════════════════════
+function adjustTarget(delta) {
+  const inp = document.getElementById('target-hr');
+  const v   = Math.max(60, Math.min(220, parseInt(inp.value || 145) + delta));
+  setTarget(v);
+}
+
+function setTarget(v) {
+  document.getElementById('target-hr').value = v;
+  document.getElementById('target-hr-big').textContent = v;
+  document.getElementById('m-target').textContent = v;
+}
+
+// ══════════════════════════════════════════════════════
+//  Slider helpers
+// ══════════════════════════════════════════════════════
+function setSlider(id, value) {
+  const el = document.getElementById(id);
+  el.value = value;
+  document.getElementById(`${id}-v`).textContent = value;
+}
+
+// ══════════════════════════════════════════════════════
+//  Warm-up
+// ══════════════════════════════════════════════════════
+function toggleWarmup() {
+  if (warmupActive) stopWarmup(false);
+  else              startWarmup();
+}
+
+function startWarmup() {
+  warmupActive = true;
+  warmupSecs   = parseInt(document.getElementById('wu-dur').value) * 60;
+
+  const rest = parseInt(document.getElementById('prof-rest').value) || profile.restHR;
+  const max  = parseInt(document.getElementById('prof-max').value)  || profile.maxHR;
+  const ftp  = parseInt(document.getElementById('prof-ftp').value)  || profile.ftp;
+  const wuTarget = Math.round(rest + 0.40 * (max - rest));
+  const wuPMax   = Math.round(0.50 * ftp);
+
+  // Apply warm-up params
+  setTarget(wuTarget);
+  setSlider('maxdelta', 5);
+  setSlider('pmin', 50);
+  setSlider('pmax', wuPMax);
+
+  // If servo already running, immediately clamp and re-send
+  if (servoActive) {
+    ergSetpoint = Math.min(ergSetpoint, wuPMax);
+    sendPower(ergSetpoint);
+  }
+
+  updateWarmupDisplay();
+  warmupTimer = setInterval(() => {
+    warmupSecs--;
+    updateWarmupDisplay();
+    if (warmupSecs <= 0) stopWarmup(true);
+  }, 1000);
+
+  const btn = document.getElementById('btn-warmup');
+  btn.textContent = 'STOP WARM-UP';
+  btn.classList.add('on');
+  setBadge('WARM-UP', 'warmup');
+  stableCount = 0; prevSetpointSS = null;
+
+  log(`Warm-up started — target ${wuTarget} bpm · ceil ${wuPMax}W · 5W/tick`, 'ok');
+}
+
+function stopWarmup(expired) {
+  warmupActive = false;
+  clearInterval(warmupTimer);
+  warmupTimer = null;
+
+  if (expired) {
+    // Transition to normal (post-warmup) limits
+    const ftp = parseInt(document.getElementById('prof-ftp').value) || profile.ftp;
+    setSlider('maxdelta', 20);
+    setSlider('pmax', ftp);
+    log(`Warm-up complete — limits now: 20W/tick · ${ftp}W ceil`, 'ok');
+  } else {
+    log('Warm-up stopped early', 'warn');
+  }
+
+  document.getElementById('wu-remaining').textContent = '—';
+  const btn = document.getElementById('btn-warmup');
+  btn.textContent = 'START WARM-UP';
+  btn.classList.remove('on');
+  setBadge('NORMAL', 'normal');
+  stableCount = 0; prevSetpointSS = null;
+}
+
+function updateWarmupDisplay() {
+  const m = String(Math.floor(warmupSecs / 60)).padStart(2, '0');
+  const s = String(warmupSecs % 60).padStart(2, '0');
+  document.getElementById('wu-remaining').textContent = `${m}:${s}`;
+}
+
+function setBadge(text, cls) {
+  const el = document.getElementById('mode-badge');
+  el.textContent = text;
+  el.className = `mode-badge ${cls}`;
 }
 
 // ══════════════════════════════════════════════════════
 //  Servo toggle
 // ══════════════════════════════════════════════════════
 function updateServoBtn() {
-  const btn = document.getElementById('btn-servo');
-  btn.disabled = !(trainerLive && hrLive && ftmsCP);
+  document.getElementById('btn-servo').disabled = !(trainerLive && hrLive && ftmsCP);
 }
 
 function toggleServo() {
@@ -669,21 +1000,28 @@ function toggleServo() {
   const btn = document.getElementById('btn-servo');
 
   if (servoActive) {
-    pidIntegral = 0;
-    prevError   = null;
-    // Start at a conservative wattage based on target HR
-    ergSetpoint = 100;
+    pidIntegral = 0; prevError = null;
+    stableCount = 0; prevSetpointSS = null;
+    heartbeatCount = 0;
+
+    const tgt  = parseInt(document.getElementById('target-hr').value);
+    const pMin = parseInt(document.getElementById('pmin').value);
+    const pMax = parseInt(document.getElementById('pmax').value);
+    const pred = predictPower(tgt);
+    if (pred) {
+      ergSetpoint = Math.max(pMin, Math.min(pMax, pred));
+      log(`Feedforward from characteristic: ${ergSetpoint}W for ${tgt} bpm`, 'info');
+    } else {
+      ergSetpoint = pMin;
+    }
+
     btn.textContent = 'SERVO ON';
     btn.classList.add('on');
     ftmsHandshake().then(() => sendPower(ergSetpoint));
-
-    // Chart sampler
     chartTimer = setInterval(sampleChart, 1000);
-
-    // PID tick
     scheduleNextTick();
-
-    log('HR servo started', 'ok');
+    startHeartbeat();
+    log(`Servo started → ${ergSetpoint}W`, 'ok');
   } else {
     servoActive = false;
     btn.textContent = 'SERVO OFF';
@@ -691,9 +1029,13 @@ function toggleServo() {
     clearTimeout(tickTimer);
     clearInterval(chartTimer);
     clearInterval(countdownTimer);
+    stopHeartbeat();
     document.getElementById('st-next').textContent = '—';
-    writeCPBytes([0x08]).catch(() => {});   // Stop / release resistance
-    log('HR servo stopped', 'warn');
+    document.getElementById('m-hb').textContent = '—';
+    document.getElementById('m-err').textContent = '—';
+    document.getElementById('m-err').style.color = '';
+    writeCPBytes([0x08]).catch(() => {});
+    log('Servo stopped', 'warn');
   }
 }
 
@@ -705,7 +1047,6 @@ function scheduleNextTick() {
   const interval = parseInt(document.getElementById('tick').value) * 1000;
   tickCountdown = Math.round(interval / 1000);
 
-  // Visual countdown
   clearInterval(countdownTimer);
   countdownTimer = setInterval(() => {
     if (tickCountdown > 0) {
@@ -724,128 +1065,122 @@ function scheduleNextTick() {
 function pidTick() {
   if (!servoActive || lastHR === null) return;
 
-  const targetHR  = parseInt(document.getElementById('target-hr').value);
-  const deadband  = parseInt(document.getElementById('deadband').value);
-  const Kp        = parseFloat(document.getElementById('kp').value);
-  const Ki        = parseFloat(document.getElementById('ki').value);
-  const Kd        = parseFloat(document.getElementById('kd').value);
-  const maxDelta  = parseFloat(document.getElementById('maxdelta').value);
-  const pMin      = parseInt(document.getElementById('pmin').value);
-  const pMax      = parseInt(document.getElementById('pmax').value);
+  const targetHR = parseInt(document.getElementById('target-hr').value);
+  const deadband = parseInt(document.getElementById('deadband').value);
+  const Kp       = parseFloat(document.getElementById('kp').value);
+  const Ki       = parseFloat(document.getElementById('ki').value);
+  const Kd       = parseFloat(document.getElementById('kd').value);
+  const maxDelta = parseFloat(document.getElementById('maxdelta').value);
+  const pMin     = parseInt(document.getElementById('pmin').value);
+  const pMax     = parseInt(document.getElementById('pmax').value);
 
-  // Error: positive means HR is BELOW target → we should increase power
-  //        negative means HR is ABOVE target → we should decrease power
+  // Positive error → HR below target → increase power
   const error = targetHR - lastHR;
 
-  // Deadband: do nothing if within tolerance
   if (Math.abs(error) <= deadband) {
-    document.getElementById('st-err').textContent  = error.toFixed(1);
-    document.getElementById('st-int').textContent  = pidIntegral.toFixed(2);
-    document.getElementById('st-der').textContent  = '0 (deadband)';
-    document.getElementById('st-out').textContent  = ergSetpoint;
-    log(`PID tick — error ${error} bpm within deadband ±${deadband}`, 'info');
-    document.getElementById('m-target').textContent = targetHR;
+    document.getElementById('st-err').textContent = error.toFixed(1);
+    document.getElementById('st-int').textContent = pidIntegral.toFixed(2);
+    document.getElementById('st-der').textContent = '0 (deadband)';
+    document.getElementById('st-out').textContent = ergSetpoint;
+    document.getElementById('m-target').textContent  = targetHR;
     document.getElementById('m-setpoint').textContent = ergSetpoint;
+    log(`Tick — HR ${lastHR} tgt ${targetHR} | deadband ±${deadband} · hold ${ergSetpoint}W`, 'info');
+    maybeCollectChar();
     return;
   }
 
-  // Derivative
+  // Derivative over tick interval (note: computed on stale HR — keep Kd small)
   const derivative = (prevError !== null) ? (error - prevError) : 0;
   prevError = error;
 
-  // Integral with anti-windup: only accumulate if output isn't saturated
+  // Integral with anti-windup
   pidIntegral += error;
   const intClamp = maxDelta * 5 / Math.max(Ki, 0.001);
   pidIntegral = Math.max(-intClamp, Math.min(intClamp, pidIntegral));
 
-  // PID output = how much to change power
+  // PID output
   const rawDelta = Kp * error + Ki * pidIntegral + Kd * derivative;
+  const delta    = Math.max(-maxDelta, Math.min(maxDelta, rawDelta));
 
-  // Rate-limit the change
-  const delta = Math.max(-maxDelta, Math.min(maxDelta, rawDelta));
-
-  // New setpoint
   let newSetpoint = ergSetpoint + delta;
   newSetpoint = Math.round(Math.max(pMin, Math.min(pMax, newSetpoint)));
-
-  // Update state + display
   ergSetpoint = newSetpoint;
+
   document.getElementById('st-err').textContent  = error.toFixed(1);
   document.getElementById('st-int').textContent  = pidIntegral.toFixed(2);
   document.getElementById('st-der').textContent  = derivative.toFixed(2);
   document.getElementById('st-out').textContent  = ergSetpoint;
-  document.getElementById('m-target').textContent  = targetHR;
+  document.getElementById('m-target').textContent   = targetHR;
   document.getElementById('m-setpoint').textContent = ergSetpoint;
 
-  log(`PID tick — HR ${lastHR} / tgt ${targetHR} | err ${error.toFixed(1)} | Δ ${delta.toFixed(1)}W → ${ergSetpoint}W`, 'info');
-
+  log(`Tick — HR ${lastHR} / tgt ${targetHR} | err ${error.toFixed(1)} | Δ ${delta.toFixed(1)}W → ${ergSetpoint}W`, 'info');
   sendPower(ergSetpoint);
+  maybeCollectChar();
 }
 
 // ══════════════════════════════════════════════════════
-//  Chart
+//  HR & Power time-series chart
 // ══════════════════════════════════════════════════════
 function sampleChart() {
   const targetHR = parseInt(document.getElementById('target-hr').value);
-  chartHR.push(lastHR);       chartHR.shift();
-  chartPwr.push(lastPower);   chartPwr.shift();
-  chartTgt.push(targetHR);    chartTgt.shift();
+  chartHR.push(lastHR);     chartHR.shift();
+  chartPwr.push(lastPower); chartPwr.shift();
+  chartTgt.push(targetHR);  chartTgt.shift();
   drawChart();
 }
 
 function drawChart() {
   const canvas = document.getElementById('chart');
-  const W = canvas.offsetWidth, H = 280;
+  const W = canvas.offsetWidth, H = 220;
   if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#131920';
   ctx.fillRect(0, 0, W, H);
 
   const PAD = { t: 12, b: 28, l: 38, r: 52 };
-  const chartW = W - PAD.l - PAD.r;
-  const chartH = H - PAD.t - PAD.b;
+  const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
 
-  // Determine ranges
   const hrVals  = chartHR.filter(v => v !== null);
   const pwrVals = chartPwr.filter(v => v !== null);
   const tgtVals = chartTgt.filter(v => v !== null);
 
-  const hrMin  = hrVals.length  ? Math.min(...hrVals,  ...tgtVals) - 10 : 60;
-  const hrMax  = hrVals.length  ? Math.max(...hrVals,  ...tgtVals) + 10 : 200;
-  const pwrMin = pwrVals.length ? Math.max(0, Math.min(...pwrVals) - 20) : 0;
-  const pwrMax = pwrVals.length ? Math.max(...pwrVals) + 20              : 300;
+  const hrMin  = hrVals.length  ? Math.min(...hrVals, ...tgtVals) - 10  : 60;
+  const hrMax  = hrVals.length  ? Math.max(...hrVals, ...tgtVals) + 10  : 200;
+  const pwrMin = pwrVals.length ? Math.max(0, Math.min(...pwrVals) - 20): 0;
+  const pwrMax = pwrVals.length ? Math.max(...pwrVals) + 20             : 300;
 
-  const hrY  = v => PAD.t + chartH * (1 - (v - hrMin)  / (hrMax  - hrMin));
-  const pwY  = v => PAD.t + chartH * (1 - (v - pwrMin) / (pwrMax - pwrMin));
-  const xOf  = i => PAD.l + (i / (HIST - 1)) * chartW;
+  const hrY = v => PAD.t + cH * (1 - (v - hrMin)  / (hrMax  - hrMin));
+  const pwY = v => PAD.t + cH * (1 - (v - pwrMin) / (pwrMax - pwrMin));
+  const xOf = i => PAD.l + (i / (HIST - 1)) * cW;
 
-  // Grid lines
+  // Grid
   ctx.strokeStyle = '#1a2233'; ctx.lineWidth = 0.5;
   for (let i = 0; i <= 4; i++) {
-    const y = PAD.t + (i / 4) * chartH;
-    ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(PAD.l + chartW, y); ctx.stroke();
+    const y = PAD.t + (i / 4) * cH;
+    ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(PAD.l + cW, y); ctx.stroke();
   }
 
-  // Axes labels — left (HR), right (Power)
+  // Axis labels
   ctx.fillStyle = '#ff3355'; ctx.font = '9px Share Tech Mono'; ctx.textAlign = 'right';
   for (let i = 0; i <= 4; i++) {
     const val = hrMin + (i / 4) * (hrMax - hrMin);
-    ctx.fillText(Math.round(val), PAD.l - 4, PAD.t + chartH * (1 - i / 4) + 3);
+    ctx.fillText(Math.round(val), PAD.l - 4, PAD.t + cH * (1 - i / 4) + 3);
   }
   ctx.fillStyle = '#ffaa00'; ctx.textAlign = 'left';
   for (let i = 0; i <= 4; i++) {
     const val = pwrMin + (i / 4) * (pwrMax - pwrMin);
-    ctx.fillText(Math.round(val) + 'W', PAD.l + chartW + 4, PAD.t + chartH * (1 - i / 4) + 3);
+    ctx.fillText(Math.round(val) + 'W', PAD.l + cW + 4, PAD.t + cH * (1 - i / 4) + 3);
   }
 
   // Target HR line (dashed)
   const tgt = parseInt(document.getElementById('target-hr').value);
-  ctx.strokeStyle = 'rgba(255,51,85,.35)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
-  ctx.beginPath(); ctx.moveTo(PAD.l, hrY(tgt)); ctx.lineTo(PAD.l + chartW, hrY(tgt)); ctx.stroke();
-  ctx.setLineDash([]);
+  if (!isNaN(tgt)) {
+    ctx.strokeStyle = 'rgba(255,51,85,.35)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(PAD.l, hrY(tgt)); ctx.lineTo(PAD.l + cW, hrY(tgt)); ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
-  // Power line
-  function drawLine(data, colorFn, yFn) {
+  function drawLine(data, color, yFn) {
     ctx.beginPath();
     let started = false;
     data.forEach((v, i) => {
@@ -853,36 +1188,150 @@ function drawChart() {
       const x = xOf(i), y = yFn(v);
       if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
     });
-    ctx.strokeStyle = colorFn;
-    ctx.lineWidth   = 1.5;
-    ctx.stroke();
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
   }
 
-  drawLine(chartPwr, 'rgba(255,170,0,.8)',  pwY);
-  drawLine(chartHR,  'rgba(255,51,85,.9)',  hrY);
+  drawLine(chartPwr, 'rgba(255,170,0,.8)', pwY);
+  drawLine(chartHR,  'rgba(255,51,85,.9)', hrY);
 
   // Legend
   ctx.font = '9px Share Tech Mono'; ctx.textAlign = 'left';
-  ctx.fillStyle = '#ff3355'; ctx.fillText('HR', PAD.l + 4, PAD.t + 12);
-  ctx.fillStyle = '#ffaa00'; ctx.fillText('Power', PAD.l + 28, PAD.t + 12);
-  ctx.fillStyle = 'rgba(255,51,85,.5)'; ctx.fillText('Target', PAD.l + 72, PAD.t + 12);
+  ctx.fillStyle = '#ff3355'; ctx.fillText('HR',     PAD.l + 4,  PAD.t + 12);
+  ctx.fillStyle = '#ffaa00'; ctx.fillText('Power',  PAD.l + 28, PAD.t + 12);
+  ctx.fillStyle = 'rgba(255,51,85,.5)'; ctx.fillText('Target', PAD.l + 74, PAD.t + 12);
 
-  // X axis: time labels
+  // X axis time labels
   ctx.fillStyle = '#3d5068'; ctx.textAlign = 'center'; ctx.font = '8px Share Tech Mono';
   ['−10m', '−7.5m', '−5m', '−2.5m', 'now'].forEach((lbl, i) => {
-    ctx.fillText(lbl, PAD.l + (i / 4) * chartW, H - 8);
+    ctx.fillText(lbl, PAD.l + (i / 4) * cW, H - 8);
   });
+}
+
+// ══════════════════════════════════════════════════════
+//  HR vs Power Characteristic scatter
+// ══════════════════════════════════════════════════════
+function drawCharacteristic() {
+  const canvas = document.getElementById('char-canvas');
+  const W = canvas.offsetWidth;
+  const H = 180;
+  if (!W) return;
+  if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#131920';
+  ctx.fillRect(0, 0, W, H);
+
+  // Update count label
+  document.getElementById('char-count').textContent =
+    `${hrCharStored.length} stored · ${hrCharSession.length} session`;
+
+  const allPts = hrCharStored;   // stored includes session points
+
+  if (allPts.length === 0 && !(servoActive && lastHR !== null)) {
+    ctx.fillStyle = '#3d5068'; ctx.font = '10px Share Tech Mono'; ctx.textAlign = 'center';
+    ctx.fillText('Characteristic builds during non-warmup servo sessions', W / 2, H / 2);
+    return;
+  }
+
+  const PAD = { t: 14, b: 26, l: 46, r: 16 };
+  const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
+
+  // Determine axis ranges from all data + live point
+  const xVals = allPts.map(p => p.hr);
+  const yVals = allPts.map(p => p.power);
+  if (servoActive && lastHR !== null) {
+    xVals.push(lastHR);
+    if (lastPower !== null) yVals.push(lastPower);
+  }
+
+  const xMin = xVals.length ? Math.max(profile.restHR - 5,  Math.min(...xVals) - 5)  : profile.restHR;
+  const xMax = xVals.length ? Math.min(profile.maxHR  + 5,  Math.max(...xVals) + 10) : profile.maxHR;
+  const yMin = yVals.length ? Math.max(0, Math.min(...yVals) - 20)                    : 0;
+  const yMax = yVals.length ? Math.max(...yVals) + 30                                 : 300;
+
+  const xOf = hr  => PAD.l + (hr  - xMin) / (xMax - xMin) * cW;
+  const yOf = pwr => PAD.t + (1 - (pwr - yMin) / (yMax - yMin)) * cH;
+
+  // Grid
+  ctx.strokeStyle = '#1a2233'; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = PAD.t + (i / 4) * cH;
+    ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(PAD.l + cW, y); ctx.stroke();
+  }
+
+  // Y axis labels (Power)
+  ctx.fillStyle = '#ffaa00'; ctx.font = '8px Share Tech Mono'; ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const val = yMin + (i / 4) * (yMax - yMin);
+    ctx.fillText(Math.round(val) + 'W', PAD.l - 3, PAD.t + cH * (1 - i / 4) + 3);
+  }
+  // X axis labels (HR)
+  ctx.fillStyle = '#ff3355'; ctx.textAlign = 'center';
+  for (let i = 0; i <= 4; i++) {
+    const val = xMin + (i / 4) * (xMax - xMin);
+    ctx.fillText(Math.round(val), PAD.l + (i / 4) * cW, H - 8);
+  }
+
+  // Regression line from stored (all-time) data
+  const fit = fitChar(hrCharStored.length >= 4 ? hrCharStored : allPts);
+  if (fit) {
+    ctx.strokeStyle = 'rgba(0,212,255,.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(xOf(xMin), yOf(fit.a * xMin + fit.b));
+    ctx.lineTo(xOf(xMax), yOf(fit.a * xMax + fit.b));
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // Stored points (dim purple) — excludes current session to avoid double-draw
+  const storedOnly = hrCharStored.slice(0, hrCharStored.length - hrCharSession.length);
+  for (const {hr, power} of storedOnly) {
+    ctx.fillStyle = 'rgba(170,102,255,0.3)';
+    ctx.beginPath(); ctx.arc(xOf(hr), yOf(power), 2.5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Session points (bright amber) — on top
+  for (const {hr, power} of hrCharSession) {
+    ctx.fillStyle = 'rgba(255,170,0,0.85)';
+    ctx.beginPath(); ctx.arc(xOf(hr), yOf(power), 3, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Current operating point (green)
+  if (servoActive && lastHR !== null) {
+    const pwr = lastPower !== null ? lastPower : ergSetpoint;
+    ctx.fillStyle = '#00e87a';
+    ctx.beginPath(); ctx.arc(xOf(lastHR), yOf(pwr), 6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#131920'; ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // Legend
+  ctx.font = '8px Share Tech Mono'; ctx.textAlign = 'left';
+  let lx = PAD.l + 2;
+  ctx.fillStyle = 'rgba(170,102,255,.6)';  ctx.fillText('■ stored',  lx,      PAD.t + 10); lx += 52;
+  ctx.fillStyle = 'rgba(255,170,0,.9)';    ctx.fillText('■ session', lx,      PAD.t + 10); lx += 58;
+  if (fit) {
+    ctx.fillStyle = 'rgba(0,212,255,.7)';
+    ctx.fillText(`trend ${fit.a >= 0 ? '+' : ''}${fit.a.toFixed(1)}W/bpm`, lx, PAD.t + 10);
+  }
+
+  // Axis labels
+  ctx.fillStyle = '#3d5068'; ctx.textAlign = 'right';
+  ctx.fillText('W ↑', PAD.l - 3, PAD.t + 6);
+  ctx.textAlign = 'right';
+  ctx.fillText('HR →', W - PAD.r + 14, H - 8);
 }
 
 // ══════════════════════════════════════════════════════
 //  Init
 // ══════════════════════════════════════════════════════
 window.addEventListener('load', () => {
+  loadProfile();
+  loadCharacteristic();
   setPill('trainer', false, 'Trainer');
   setPill('hr',      false, 'Heart Rate');
   drawChart();
+  drawCharacteristic();
 });
-window.addEventListener('resize', drawChart);
+window.addEventListener('resize', () => { drawChart(); drawCharacteristic(); });
 </script>
 </body>
 </html>
