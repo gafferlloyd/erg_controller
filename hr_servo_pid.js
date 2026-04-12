@@ -63,11 +63,10 @@ function startHeartbeat() {
     }
 
     // ── Re-send current setpoint ───────────────────────
+    // Note: do NOT send 0x07 here. The KICKR SHIFT interprets repeated
+    // Start/Resume as "restart ERG ramp", dropping resistance every 5 s.
+    // 0x07 is only sent on initial handshake and watchdog recovery.
     try {
-      if (ftmsCP && !wahooCP) {
-        _suppressResumeLog = true;
-        await writeCPBytes([0x07]);
-      }
       await sendPower(ergSetpoint, /*silent=*/true);
     } catch(e) {
       log(`Heartbeat TX failed: ${e.message}`, 'warn');
