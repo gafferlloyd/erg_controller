@@ -63,10 +63,16 @@ function startHeartbeat() {
     }
 
     // ── Re-send current setpoint ───────────────────────
-    // Note: do NOT send 0x07 here. The KICKR SHIFT interprets repeated
-    // Start/Resume as "restart ERG ramp", dropping resistance every 5 s.
-    // 0x07 is only sent on initial handshake and watchdog recovery.
+    // The KICKR SHIFT has a ~60 s FTMS Running-state timeout; without a
+    // periodic 0x07 it silently drops ERG mode.  Sending 0x07 every 5 s
+    // was too frequent — the trainer restarted its ERG ramp each time.
+    // Every 8th heartbeat (≈40 s) keeps the machine alive without hitting
+    // the ramp during normal steady-state operation.
     try {
+      if (ftmsCP && !wahooCP && heartbeatCount % 8 === 0) {
+        _suppressResumeLog = true;
+        await writeCPBytes([0x07]);
+      }
       await sendPower(ergSetpoint, /*silent=*/true);
     } catch(e) {
       log(`Heartbeat TX failed: ${e.message}`, 'warn');
