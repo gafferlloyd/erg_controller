@@ -4,13 +4,14 @@
 //  GATT UUIDs
 // ══════════════════════════════════════════════════════
 const UUID = {
-  CPS_SERVICE:     0x1818,
-  CPS_MEASUREMENT: 0x2A63,
-  FTMS_SERVICE:    0x1826,
-  FTMS_INDOOR:     0x2AD2,
-  FTMS_CP:         0x2AD9,
-  HR_SERVICE:      0x180D,
-  HR_MEASUREMENT:  0x2A37,
+  CPS_SERVICE:          0x1818,
+  CPS_MEASUREMENT:      0x2A63,
+  FTMS_SERVICE:         0x1826,
+  FTMS_INDOOR:          0x2AD2,
+  FTMS_CP:              0x2AD9,
+  FTMS_MACHINE_STATUS:  0x2ADA,
+  HR_SERVICE:           0x180D,
+  HR_MEASUREMENT:       0x2A37,
 };
 
 // Wahoo proprietary ERG control characteristic (lives inside the CPS service).
@@ -96,7 +97,7 @@ async function connectTrainer() {
         { namePrefix: 'KICKR' }, { namePrefix: 'Wahoo' },
         { services: [UUID.CPS_SERVICE] }, { services: [UUID.FTMS_SERVICE] }
       ],
-      optionalServices: [UUID.CPS_SERVICE, UUID.FTMS_SERVICE, UUID.FTMS_CP, UUID.FTMS_INDOOR],
+      optionalServices: [UUID.CPS_SERVICE, UUID.FTMS_SERVICE, UUID.FTMS_CP, UUID.FTMS_INDOOR, UUID.FTMS_MACHINE_STATUS],
     });
   } catch(e) { setPill('trainer', false, 'Cancelled'); return; }
 
@@ -163,6 +164,16 @@ async function connectTrainer() {
           log('FTMS Control Point ready', 'ok');
         } catch(e) { log(`FTMS CP unavailable: ${e.message}`, 'warn'); }
       }
+
+      // FTMS Machine Status — subscribe always for diagnostics.
+      // Opcode 0x08 = Target Power Changed (confirms our 0x05 was applied).
+      // Opcode 0x19 = Control Permission Lost (another device took over).
+      try {
+        const ms = await ftmsSvc.getCharacteristic(UUID.FTMS_MACHINE_STATUS);
+        ms.addEventListener('characteristicvaluechanged', onMachineStatus);
+        await ms.startNotifications();
+        log('FTMS Machine Status subscribed', 'ok');
+      } catch(_) {}  // not critical — ignore silently
     } catch(_) {}
 
     if (gotData) {
@@ -288,6 +299,24 @@ function onCPResponse(e) {
     log(`FTMS Start/Resume ${ok ? 'OK' : `rejected (code ${res})`}`, ok ? 'ok' : 'err');
   } else if (req === 0x05) {
     if (!ok) log(`FTMS Set Target Power rejected (code ${res})`, 'err');
+  }
+}
+
+function onMachineStatus(e) {
+  const v = e.target.value;
+  const op = v.getUint8(0);
+  if (op === 0x08 && v.byteLength >= 3) {
+    // Target Power Changed — KICKR acknowledged a Set Target Power command
+    const watts = v.getUint16(1, true);
+    log(`FTMS ack: Target Power Changed → ${watts}W`, 'ok');
+  } else if (op === 0x19 || op === 0xFF) {
+    // Control Permission Lost — another device has taken FTMS control
+    log('FTMS Control Permission Lost — another device took over!', 'warn');
+    if (servoActive) log('Servo may be ineffective — stop and reconnect', 'warn');
+  } else if (op === 0x04) {
+    log('FTMS: Machine started/resumed', 'info');
+  } else if (op === 0x02 || op === 0x03) {
+    log(`FTMS: Machine stopped (op=0x${op.toString(16)})`, 'warn');
   }
 }
 

@@ -173,19 +173,25 @@ function parseNotification(charUuid, value) {
     return `FTMS CP Response: req=${reqName}(0x${req.toString(16).padStart(2,'0')}) result=${ok?'OK':'FAIL'}(0x${res.toString(16).padStart(2,'0')})  | raw: ${raw}`;
   }
 
-  // FTMS Machine Status
+  // FTMS Machine Status (FTMS spec §4.16, opcodes per Table 4.18)
   if (u === '00002ada-0000-1000-8000-00805f9b34fb') {
     const statusNames = {
       0x01:'Reset', 0x02:'Stopped(safety)', 0x03:'Stopped(user)', 0x04:'Started',
-      0x05:'FitnessMachineStatusChange', 0x06:'TargetSpeedChanged',
-      0x07:'TargetInclineChanged', 0x08:'TargetResistanceLvlChanged',
-      0x09:'TargetPowerChanged', 0x0A:'TargetHRChanged',
+      0x05:'TargetSpeedChanged', 0x06:'TargetInclineChanged',
+      0x07:'TargetResistanceLvlChanged', 0x08:'TargetPowerChanged',
+      0x09:'TargetHRChanged', 0x0A:'TargetExpendedEnergyChanged',
       0x12:'IndoorBikeSimParamsChanged', 0x13:'WheelCircumferenceChanged',
       0x14:'SpinDownStatusChange', 0x19:'ControlPermissionLost',
       0xFF:'ControlPermissionLost',
     };
     const s = statusNames[b[0]] || `0x${b[0].toString(16)}`;
-    return `FTMS Status: ${s}  | raw: ${raw}`;
+    // For TargetPowerChanged (0x08), decode the wattage from bytes 1-2
+    let extra = '';
+    if (b[0] === 0x08 && b.length >= 3) {
+      const watts = (b[2] << 8) | b[1];
+      extra = `  → ${watts}W`;
+    }
+    return `FTMS Status: ${s}${extra}  | raw: ${raw}`;
   }
 
   // FTMS Training Status
