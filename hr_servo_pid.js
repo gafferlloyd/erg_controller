@@ -64,9 +64,16 @@ function adjustTarget(delta) {
 }
 
 function setTarget(v) {
+  const prev = parseInt(document.getElementById('target-hr').value) || v;
   document.getElementById('target-hr').value = v;
   document.getElementById('target-hr-big').textContent = v;
   document.getElementById('m-target').textContent = v;
+  // Large target change while servo is running: reset integral and characteristic
+  // stability counter so accumulated windup from the old target doesn't carry over.
+  if (servoActive && Math.abs(v - prev) > 3) {
+    pidIntegral = 0; prevError = null; stableCount = 0; prevSetpointSS = null;
+    log(`Target ${prev}→${v} bpm — integral reset`, 'info');
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -177,16 +184,22 @@ function toggleServo() {
     stableCount = 0; prevSetpointSS = null;
     heartbeatCount = 0; pendingServoPowerSend = false;
 
-    const tgt  = parseInt(document.getElementById('target-hr').value);
-    const pMin = parseInt(document.getElementById('pmin').value);
-    const pMax = parseInt(document.getElementById('pmax').value);
-    const pred = predictPower(tgt);
+    const tgt      = parseInt(document.getElementById('target-hr').value);
+    const pMin     = parseInt(document.getElementById('pmin').value);
+    const pMax     = parseInt(document.getElementById('pmax').value);
+    const Kp_      = parseFloat(document.getElementById('kp').value);
+    const Ki_      = parseFloat(document.getElementById('ki').value);
+    const Kd_      = parseFloat(document.getElementById('kd').value);
+    const tick_    = parseInt(document.getElementById('tick').value);
+    const maxDlt_  = parseFloat(document.getElementById('maxdelta').value);
+    const pred     = predictPower(tgt);
     if (pred) {
       ergSetpoint = Math.max(pMin, Math.min(pMax, pred));
-      log(`Feedforward from characteristic: ${ergSetpoint}W for ${tgt} bpm`, 'info');
+      log(`Feedforward from ${predictPowerSource()}: ${ergSetpoint}W for ${tgt} bpm`, 'info');
     } else {
       ergSetpoint = pMin;
     }
+    log(`PID Kp=${Kp_} Ki=${Ki_} Kd=${Kd_} tick=${tick_}s maxΔ=${maxDlt_}W pMin=${pMin} pMax=${pMax}W`, 'info');
 
     btn.textContent = 'SERVO ON';
     btn.classList.add('on');

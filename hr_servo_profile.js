@@ -3,7 +3,9 @@
 // ══════════════════════════════════════════════════════
 //  Athlete profile (localStorage)
 // ══════════════════════════════════════════════════════
-let profile = { restHR: 43, maxHR: 173, ftp: 290 };
+// modelA, modelB: athlete's linear HR-power relationship  HR = modelA × Power + modelB
+// Inverted for feedforward: Power = (targetHR − modelB) / modelA
+let profile = { restHR: 43, maxHR: 173, ftp: 290, modelA: 0.35, modelB: 60 };
 
 function loadProfile() {
   try {
@@ -14,9 +16,11 @@ function loadProfile() {
       if (savedAt) document.getElementById('prof-saved-at').textContent = `saved ${savedAt}`;
     }
   } catch(e) {}
-  document.getElementById('prof-rest').value = profile.restHR;
-  document.getElementById('prof-max').value  = profile.maxHR;
-  document.getElementById('prof-ftp').value  = profile.ftp;
+  document.getElementById('prof-rest').value    = profile.restHR;
+  document.getElementById('prof-max').value     = profile.maxHR;
+  document.getElementById('prof-ftp').value     = profile.ftp;
+  document.getElementById('prof-model-a').value = profile.modelA;
+  document.getElementById('prof-model-b').value = profile.modelB;
   updateProfileDerived();
   // Set initial HR target to 50% HRR from loaded profile
   const initTarget = Math.round(profile.restHR + 0.50 * (profile.maxHR - profile.restHR));
@@ -24,9 +28,11 @@ function loadProfile() {
 }
 
 function saveProfile() {
-  profile.restHR = parseInt(document.getElementById('prof-rest').value) || 43;
-  profile.maxHR  = parseInt(document.getElementById('prof-max').value)  || 173;
-  profile.ftp    = parseInt(document.getElementById('prof-ftp').value)  || 290;
+  profile.restHR = parseInt(document.getElementById('prof-rest').value)     || 43;
+  profile.maxHR  = parseInt(document.getElementById('prof-max').value)      || 173;
+  profile.ftp    = parseInt(document.getElementById('prof-ftp').value)      || 290;
+  profile.modelA = parseFloat(document.getElementById('prof-model-a').value) || 0.35;
+  profile.modelB = parseFloat(document.getElementById('prof-model-b').value) || 60;
   const ts = new Date().toTimeString().slice(0, 8);
   localStorage.setItem('hrservo_profile', JSON.stringify(profile));
   localStorage.setItem('hrservo_profile_ts', ts);
@@ -35,7 +41,8 @@ function saveProfile() {
   // Update HR target to 50% HRR from new profile values
   const newTarget = Math.round(profile.restHR + 0.50 * (profile.maxHR - profile.restHR));
   setTarget(newTarget);
-  log(`Profile saved — restHR ${profile.restHR}  maxHR ${profile.maxHR}  FTP ${profile.ftp}W  →  50%HRR target: ${newTarget} bpm`, 'ok');
+  const modelWpbpm = (1 / profile.modelA).toFixed(2);
+  log(`Profile saved — restHR ${profile.restHR}  maxHR ${profile.maxHR}  FTP ${profile.ftp}W  model ${modelWpbpm} W/bpm  →  50%HRR target: ${newTarget} bpm`, 'ok');
 }
 
 function hrr() { return profile.maxHR - profile.restHR; }
@@ -88,6 +95,10 @@ let prevSetpointSS = null;
 function maybeCollectChar() {
   if (warmupActive || lastHR === null || lastPower === null) return;
 
+  // Reject if the trainer's actual power is far from the commanded setpoint —
+  // the trainer hasn't settled yet (ramp-up/down lag) and the point is noise.
+  if (Math.abs(lastPower - ergSetpoint) > 15) { stableCount = 0; return; }
+
   if (prevSetpointSS !== null && Math.abs(ergSetpoint - prevSetpointSS) <= 5) {
     stableCount++;
   } else {
@@ -121,10 +132,20 @@ function fitChar(points) {
 }
 
 // Feedforward: predict watts for a given target HR.
-// Prefers current-session data (6+ points) over historical for fresher calibration.
+// Priority: session regression (6+ pts) → stored regression (4+ pts) → linear model prior.
 function predictPower(targetHR) {
   const src = hrCharSession.length >= 6 ? hrCharSession : hrCharStored;
   const fit = fitChar(src);
-  if (!fit) return null;
-  return Math.round(fit.a * targetHR + fit.b);
+  if (fit) return Math.round(fit.a * targetHR + fit.b);
+  // Fall back to athlete's known linear model: HR = modelA × Power + modelB
+  const { modelA, modelB } = profile;
+  if (modelA > 0) return Math.round((targetHR - modelB) / modelA);
+  return null;
+}
+
+// Describe the feedforward source for logging.
+function predictPowerSource() {
+  const src = hrCharSession.length >= 6 ? hrCharSession : hrCharStored;
+  if (fitChar(src)) return `char (${src.length} pts)`;
+  return `model (${(1 / profile.modelA).toFixed(2)} W/bpm)`;
 }

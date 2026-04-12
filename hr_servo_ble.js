@@ -65,14 +65,14 @@ let ftmsCP        = null;   // FTMS control point (fallback)
 let ergHandshakeDone      = false;
 let pendingServoPowerSend = false;  // true while waiting for FTMS 0x80 ack before first power TX
 
-// ── GATT write serialisation ──────────────────────────
-// Web BLE throws "GATT operation already in progress" if two writes overlap.
-// This flag gates writeChar so only one BLE write is in flight at a time.
-// Callers that can tolerate a miss (heartbeat) simply catch and continue.
-let _gattBusy = false;
+// ── GATT write serialiser ─────────────────────────────
+// Chains all BLE writes onto a single promise so they execute in order and
+// never overlap. Replaces the old _gattBusy flag, which caused one of every
+// colliding pair (heartbeat vs tick) to be dropped silently.
+let _gattChain = Promise.resolve();
 
-// Set by heartbeat before sending periodic 0x07 — suppresses the routine ack
-// log in onCPResponse so the log isn't flooded every 5 s.
+// Set by heartbeat before queuing a periodic 0x07 so onCPResponse can
+// swallow the routine ack without flooding the log.
 let _suppressResumeLog = false;
 
 let lastHR    = null;
@@ -295,15 +295,13 @@ function onCPResponse(e) {
 //  Write helpers
 // ══════════════════════════════════════════════════════
 async function writeChar(characteristic, bytes) {
-  if (_gattBusy) throw new Error('GATT busy');
-  _gattBusy = true;
-  try {
+  const p = _gattChain.then(async () => {
     const buf = new Uint8Array(bytes).buffer;
     if (characteristic.writeValueWithResponse) await characteristic.writeValueWithResponse(buf);
     else                                       await characteristic.writeValue(buf);
-  } finally {
-    _gattBusy = false;
-  }
+  });
+  _gattChain = p.catch(() => {});   // keep chain alive even if this write fails
+  return p;                          // caller can still await / catch
 }
 
 async function writeCPBytes(bytes) {

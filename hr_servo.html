@@ -289,6 +289,20 @@ canvas { width: 100%; background: var(--panel2); border-radius: 4px; display: bl
                  oninput="updateProfileDerived()">
         </div>
       </div>
+      <!-- HR-Power linear model prior  HR = modelA × Power + modelB -->
+      <div style="font-family:var(--mono);font-size:.62rem;color:var(--muted);margin:6px 0 2px;">
+        HR model: HR = a × Power + b &nbsp;→&nbsp; feedforward when char. data is sparse
+      </div>
+      <div class="prof-grid">
+        <div class="prof-field">
+          <label>a (bpm/W)</label>
+          <input type="number" id="prof-model-a" value="0.35" min="0.1" max="1.0" step="0.01">
+        </div>
+        <div class="prof-field">
+          <label>b (bpm offset)</label>
+          <input type="number" id="prof-model-b" value="60" min="0" max="120" step="1">
+        </div>
+      </div>
       <button class="btn-small save" onclick="saveProfile()">SAVE PROFILE</button>
       <div style="font-family:var(--mono);font-size:.58rem;color:var(--muted);text-align:right;" id="prof-saved-at">not saved this session</div>
     </div>
@@ -343,15 +357,15 @@ canvas { width: 100%; background: var(--panel2); border-radius: 4px; display: bl
         <div class="pid-rows">
           <div class="param-row">
             <label>Kp (W/bpm)</label>
-            <input type="range" id="kp" min="0.5" max="10" step="0.5" value="3"
+            <input type="range" id="kp" min="0.5" max="10" step="0.5" value="1.5"
                    oninput="document.getElementById('kp-v').textContent=this.value">
-            <span class="param-val" id="kp-v">3</span>
+            <span class="param-val" id="kp-v">1.5</span>
           </div>
           <div class="param-row">
             <label>Ki (W/bpm/tick)</label>
-            <input type="range" id="ki" min="0" max="1" step="0.05" value="0.1"
+            <input type="range" id="ki" min="0" max="1" step="0.05" value="0.05"
                    oninput="document.getElementById('ki-v').textContent=this.value">
-            <span class="param-val" id="ki-v">0.1</span>
+            <span class="param-val" id="ki-v">0.05</span>
           </div>
           <div class="param-row">
             <label>Kd (W·tick/bpm)</label>
@@ -361,15 +375,15 @@ canvas { width: 100%; background: var(--panel2); border-radius: 4px; display: bl
           </div>
           <div class="param-row">
             <label>Tick interval (s)</label>
-            <input type="range" id="tick" min="5" max="60" step="5" value="15"
+            <input type="range" id="tick" min="5" max="60" step="5" value="30"
                    oninput="document.getElementById('tick-v').textContent=this.value">
-            <span class="param-val" id="tick-v">15</span>
+            <span class="param-val" id="tick-v">30</span>
           </div>
           <div class="param-row">
             <label>Max ΔW/tick</label>
-            <input type="range" id="maxdelta" min="5" max="50" step="5" value="20"
+            <input type="range" id="maxdelta" min="5" max="50" step="5" value="10"
                    oninput="document.getElementById('maxdelta-v').textContent=this.value">
-            <span class="param-val" id="maxdelta-v">20</span>
+            <span class="param-val" id="maxdelta-v">10</span>
           </div>
           <div class="param-row">
             <label>Power floor (W)</label>
@@ -384,12 +398,15 @@ canvas { width: 100%; background: var(--panel2); border-radius: 4px; display: bl
             <span class="param-val" id="pmax-v">350</span>
           </div>
           <div class="note" style="font-size:.62rem;">
-            <strong>Kd = 0 recommended to start.</strong> With HR lag of 30–60 s and tick
-            intervals ≥ 15 s, the derivative is computed over stale data and amplifies HR
-            measurement noise. Only add Kd (try 0.5–2) if you see limit-cycle oscillation
-            that Kp alone can't damp — and keep it small.<br><br>
-            <strong>Slow ticks &amp; modest ΔW prevent overshoot.</strong> Warm-up enforces
-            5 W/tick; normal mode allows up to 20 W/tick.
+            <strong>Defaults are conservative by design.</strong> HR lags power by 30–60 s.
+            With a 30 s tick and 10 W/tick cap, the system makes one adjustment and waits
+            a full lag period before the next — preventing the overshoot seen with faster
+            settings. Only tighten if steady-state tracking is too slow.<br><br>
+            <strong>Kd = 0 recommended.</strong> Derivative is computed on HR, which is
+            already 30–60 s stale at tick time — it amplifies noise more than it damps.
+            Only add Kd (try 0.5) if you see persistent limit-cycle oscillation.<br><br>
+            <strong>Changing target mid-session</strong> resets the integral automatically
+            so windup from the old target doesn't corrupt the new one.
           </div>
         </div>
       </details>
