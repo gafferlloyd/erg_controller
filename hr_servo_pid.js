@@ -11,6 +11,12 @@ let tickTimer     = null;
 let tickCountdown = 0;
 let countdownTimer = null;
 
+// ── ERG tracking watchdog ──────────────────────────────
+// Compares lastPower (CPS) with ergSetpoint after the trainer has had time
+// to settle. Three consecutive heartbeat strikes → recovery attempt.
+let ergTrackFailCount = 0;
+let lastErgChangeTime = 0;    // ms timestamp — when ergSetpoint last changed
+
 // ══════════════════════════════════════════════════════
 //  Power heartbeat (re-send every 5 s)
 //  FTMS has no "query current ERG target" command —
@@ -27,11 +33,38 @@ function startHeartbeat() {
     if (!servoActive || !(wahooCP || ftmsCP)) return;
     heartbeatCount++;
     document.getElementById('m-hb').textContent = heartbeatCount;
+
+    // ── ERG tracking watchdog ──────────────────────────
+    // After a 20 s settle window, check that the trainer's reported power
+    // is tracking the setpoint. Three strikes → recovery.
+    const SETTLE_MS = 20000, GAP_W = 20, STRIKES = 3;
+    if (lastPower !== null && Date.now() - lastErgChangeTime > SETTLE_MS) {
+      const gap = Math.abs(lastPower - ergSetpoint);
+      if (gap > GAP_W) {
+        ergTrackFailCount++;
+        if (ergTrackFailCount >= STRIKES) {
+          log(`ERG tracking lost — actual ${lastPower}W vs setpoint ${ergSetpoint}W — recovering`, 'warn');
+          ergTrackFailCount = 0;
+          lastErgChangeTime = Date.now();   // suppress further alerts during recovery
+          if (ftmsCP && !wahooCP) {
+            _suppressResumeLog = true;
+            writeCPBytes([0x07])
+              .then(() => sendPower(ergSetpoint))
+              .catch(e => log(`Watchdog recovery failed: ${e.message}`, 'warn'));
+          } else {
+            sendPower(ergSetpoint).catch(e => log(`Watchdog recovery failed: ${e.message}`, 'warn'));
+          }
+        } else {
+          log(`ERG gap: actual ${lastPower}W vs setpoint ${ergSetpoint}W (${ergTrackFailCount}/${STRIKES})`, 'warn');
+        }
+      } else {
+        ergTrackFailCount = 0;   // tracking OK — reset silently
+      }
+    }
+
+    // ── Re-send current setpoint ───────────────────────
     try {
       if (ftmsCP && !wahooCP) {
-        // Re-assert Running state before Set Target Power.
-        // FTMS trainers that time out back to Idle/Paused will reject 0x05
-        // silently — 0x07 (Start/Resume) is idempotent when already Running.
         _suppressResumeLog = true;
         await writeCPBytes([0x07]);
       }
@@ -183,6 +216,7 @@ function toggleServo() {
     pidIntegral = 0; prevError = null;
     stableCount = 0; prevSetpointSS = null;
     heartbeatCount = 0; pendingServoPowerSend = false;
+    ergTrackFailCount = 0; lastErgChangeTime = Date.now();
 
     const tgt      = parseInt(document.getElementById('target-hr').value);
     const pMin     = parseInt(document.getElementById('pmin').value);
@@ -299,6 +333,7 @@ function pidTick() {
 
   let newSetpoint = ergSetpoint + delta;
   newSetpoint = Math.round(Math.max(pMin, Math.min(pMax, newSetpoint)));
+  if (newSetpoint !== ergSetpoint) lastErgChangeTime = Date.now();
   ergSetpoint = newSetpoint;
 
   document.getElementById('st-err').textContent  = error.toFixed(1);
