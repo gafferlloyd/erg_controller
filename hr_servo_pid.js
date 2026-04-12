@@ -28,6 +28,13 @@ function startHeartbeat() {
     heartbeatCount++;
     document.getElementById('m-hb').textContent = heartbeatCount;
     try {
+      if (ftmsCP && !wahooCP) {
+        // Re-assert Running state before Set Target Power.
+        // FTMS trainers that time out back to Idle/Paused will reject 0x05
+        // silently — 0x07 (Start/Resume) is idempotent when already Running.
+        _suppressResumeLog = true;
+        await writeCPBytes([0x07]);
+      }
       await sendPower(ergSetpoint, /*silent=*/true);
     } catch(e) {
       log(`Heartbeat TX failed: ${e.message}`, 'warn');
@@ -289,6 +296,6 @@ function pidTick() {
   document.getElementById('m-setpoint').textContent = ergSetpoint;
 
   log(`Tick — HR ${lastHR} / tgt ${targetHR} | err ${error.toFixed(1)} | Δ ${delta.toFixed(1)}W → ${ergSetpoint}W`, 'info');
-  sendPower(ergSetpoint);
+  sendPower(ergSetpoint).catch(e => log(`Tick TX failed: ${e.message}`, 'warn'));
   maybeCollectChar();
 }

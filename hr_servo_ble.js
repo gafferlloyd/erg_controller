@@ -48,6 +48,16 @@ let ftmsCP        = null;   // FTMS control point (fallback)
 let ergHandshakeDone      = false;
 let pendingServoPowerSend = false;  // true while waiting for FTMS 0x80 ack before first power TX
 
+// ── GATT write serialisation ──────────────────────────
+// Web BLE throws "GATT operation already in progress" if two writes overlap.
+// This flag gates writeChar so only one BLE write is in flight at a time.
+// Callers that can tolerate a miss (heartbeat) simply catch and continue.
+let _gattBusy = false;
+
+// Set by heartbeat before sending periodic 0x07 — suppresses the routine ack
+// log in onCPResponse so the log isn't flooded every 5 s.
+let _suppressResumeLog = false;
+
 let lastHR    = null;
 let lastPower = null;
 
@@ -257,6 +267,7 @@ function onCPResponse(e) {
       log(`FTMS Request Control rejected (code ${res})`, 'err');
     }
   } else if (req === 0x07) {
+    if (_suppressResumeLog) { _suppressResumeLog = false; return; }  // heartbeat 0x07 — silent
     log(`FTMS Start/Resume ${ok ? 'OK' : `rejected (code ${res})`}`, ok ? 'ok' : 'err');
   } else if (req === 0x05) {
     if (!ok) log(`FTMS Set Target Power rejected (code ${res})`, 'err');
@@ -267,9 +278,15 @@ function onCPResponse(e) {
 //  Write helpers
 // ══════════════════════════════════════════════════════
 async function writeChar(characteristic, bytes) {
-  const buf = new Uint8Array(bytes).buffer;
-  if (characteristic.writeValueWithResponse) await characteristic.writeValueWithResponse(buf);
-  else                                       await characteristic.writeValue(buf);
+  if (_gattBusy) throw new Error('GATT busy');
+  _gattBusy = true;
+  try {
+    const buf = new Uint8Array(bytes).buffer;
+    if (characteristic.writeValueWithResponse) await characteristic.writeValueWithResponse(buf);
+    else                                       await characteristic.writeValue(buf);
+  } finally {
+    _gattBusy = false;
+  }
 }
 
 async function writeCPBytes(bytes) {
