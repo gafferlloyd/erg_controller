@@ -21,12 +21,29 @@ const WAHOO_CP_UUID = 'a026e005-0a7d-4ab3-97fa-f1500f9feb8b';
 // ══════════════════════════════════════════════════════
 //  UI helpers (used by all modules)
 // ══════════════════════════════════════════════════════
+const _logBuffer = [];   // full session log for download
+
 function log(msg, cls = 'info') {
+  const ts   = new Date().toTimeString().slice(0, 8);
+  const line = `[${ts}] [${cls.toUpperCase().padEnd(4)}] ${msg}`;
+  _logBuffer.push(line);
+
   const el = document.getElementById('log');
   const d  = document.createElement('div');
   d.className = cls;
-  d.textContent = `[${new Date().toTimeString().slice(0, 8)}] ${msg}`;
+  d.textContent = `[${ts}] ${msg}`;
   el.prepend(d);
+}
+
+function downloadLog() {
+  const ts   = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const body = _logBuffer.join('\n');
+  const blob = new Blob([body], { type: 'text/plain' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `hrservo_${ts}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function setPill(role, connected, name) {

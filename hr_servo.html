@@ -468,7 +468,10 @@ canvas { width: 100%; background: var(--panel2); border-radius: 4px; display: bl
 
     <!-- Log -->
     <div class="panel">
-      <div class="panel-title">Log</div>
+      <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
+        Log
+        <button onclick="downloadLog()" style="font-size:10px;padding:2px 8px;background:#1a2233;border:1px solid #3d5068;color:#8ba3c7;cursor:pointer;border-radius:3px;">⬇ Download log</button>
+      </div>
       <div class="log-box" id="log"></div>
     </div>
 
