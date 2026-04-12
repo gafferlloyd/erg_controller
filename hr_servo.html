@@ -290,6 +290,7 @@ canvas { width: 100%; background: var(--panel2); border-radius: 4px; display: bl
         </div>
       </div>
       <button class="btn-small save" onclick="saveProfile()">SAVE PROFILE</button>
+      <div style="font-family:var(--mono);font-size:.58rem;color:var(--muted);text-align:right;" id="prof-saved-at">not saved this session</div>
     </div>
 
     <!-- Target Heart Rate — big buttons -->
@@ -445,7 +446,7 @@ canvas { width: 100%; background: var(--panel2); border-radius: 4px; display: bl
       </div>
       <canvas id="char-canvas" height="180"></canvas>
       <div style="font-family:var(--mono);font-size:.6rem;color:var(--muted);line-height:1.5;">
-        Collected at steady-state (setpoint stable ≥ 2 ticks, non-warmup).
+        Collected at steady-state (setpoint stable ≥ 2 ticks, non-warmup). <span id="char-saved-at"></span><br>
         <span style="color:rgba(170,102,255,.7);">■ stored</span>
         &nbsp;<span style="color:rgba(255,170,0,.9);">■ session</span>
         &nbsp;<span style="color:rgba(0,212,255,.6);">— trend</span>
@@ -490,6 +491,10 @@ const UUID = {
   HR_SERVICE:      0x180D,
   HR_MEASUREMENT:  0x2A37,
 };
+// Wahoo proprietary ERG control characteristic (lives inside the CPS service).
+// GoldenCheetah uses opcode 0x42 on this characteristic. The KICKR SHIFT exposes
+// it alongside standard FTMS; prefer this path when available.
+const WAHOO_CP_UUID = 'a026e005-0a7d-4ab3-97fa-f1500f9feb8b';
 
 // ══════════════════════════════════════════════════════
 //  Athlete profile (localStorage)
@@ -499,21 +504,34 @@ let profile = { restHR: 43, maxHR: 173, ftp: 290 };
 function loadProfile() {
   try {
     const s = localStorage.getItem('hrservo_profile');
-    if (s) Object.assign(profile, JSON.parse(s));
+    if (s) {
+      Object.assign(profile, JSON.parse(s));
+      const savedAt = localStorage.getItem('hrservo_profile_ts');
+      if (savedAt) document.getElementById('prof-saved-at').textContent = `saved ${savedAt}`;
+    }
   } catch(e) {}
   document.getElementById('prof-rest').value = profile.restHR;
   document.getElementById('prof-max').value  = profile.maxHR;
   document.getElementById('prof-ftp').value  = profile.ftp;
   updateProfileDerived();
+  // Set initial HR target to 50% HRR from loaded profile
+  const initTarget = Math.round(profile.restHR + 0.50 * (profile.maxHR - profile.restHR));
+  setTarget(initTarget);
 }
 
 function saveProfile() {
   profile.restHR = parseInt(document.getElementById('prof-rest').value) || 43;
   profile.maxHR  = parseInt(document.getElementById('prof-max').value)  || 173;
   profile.ftp    = parseInt(document.getElementById('prof-ftp').value)  || 290;
+  const ts = new Date().toTimeString().slice(0, 8);
   localStorage.setItem('hrservo_profile', JSON.stringify(profile));
+  localStorage.setItem('hrservo_profile_ts', ts);
+  document.getElementById('prof-saved-at').textContent = `saved ${ts}`;
   updateProfileDerived();
-  log(`Profile saved — restHR ${profile.restHR}  maxHR ${profile.maxHR}  FTP ${profile.ftp}W`, 'ok');
+  // Update HR target to 50% HRR from new profile values
+  const newTarget = Math.round(profile.restHR + 0.50 * (profile.maxHR - profile.restHR));
+  setTarget(newTarget);
+  log(`Profile saved — restHR ${profile.restHR}  maxHR ${profile.maxHR}  FTP ${profile.ftp}W  →  50%HRR target: ${newTarget} bpm`, 'ok');
 }
 
 function hrr() { return profile.maxHR - profile.restHR; }
@@ -543,7 +561,11 @@ function loadCharacteristic() {
 }
 
 function saveCharacteristic() {
-  try { localStorage.setItem('hrservo_char', JSON.stringify(hrCharStored)); } catch(e) {}
+  try {
+    localStorage.setItem('hrservo_char', JSON.stringify(hrCharStored));
+    const ts = new Date().toTimeString().slice(0, 8);
+    document.getElementById('char-saved-at').textContent = `auto-saved ${ts}`;
+  } catch(e) {}
 }
 
 function clearCharacteristic() {
@@ -606,8 +628,10 @@ function predictPower(targetHR) {
 // ══════════════════════════════════════════════════════
 let trainerDevice = null, hrDevice = null;
 let trainerLive   = false, hrLive  = false;
-let ftmsCP        = null;
-let ergHandshakeDone = false;
+let wahooCP       = null;   // Wahoo proprietary CP (preferred if found in CPS service)
+let ftmsCP        = null;   // FTMS control point (fallback)
+let ergHandshakeDone    = false;
+let pendingServoPowerSend = false;  // true while waiting for FTMS 0x80 ack before first power TX
 
 let lastHR    = null;
 let lastPower = null;
@@ -635,7 +659,7 @@ let heartbeatCount = 0;
 function startHeartbeat() {
   stopHeartbeat();
   heartbeatTimer = setInterval(async () => {
-    if (!servoActive || !ftmsCP) return;
+    if (!servoActive || !(wahooCP || ftmsCP)) return;
     heartbeatCount++;
     document.getElementById('m-hb').textContent = heartbeatCount;
     try {
@@ -714,7 +738,8 @@ async function connectTrainer() {
 
   trainerDevice = dev;
   dev.addEventListener('gattserverdisconnected', () => {
-    trainerLive = false; ftmsCP = null; ergHandshakeDone = false;
+    trainerLive = false; wahooCP = null; ftmsCP = null;
+    ergHandshakeDone = false; pendingServoPowerSend = false;
     setPill('trainer', false, 'Disconnected');
     log('Trainer disconnected', 'warn');
     updateServoBtn();
@@ -725,41 +750,63 @@ async function connectTrainer() {
     const server = await dev.gatt.connect();
     let gotData = false;
 
-    // Try CPS power measurement first
+    // ── CPS service: power readings + optional Wahoo proprietary CP ──
     try {
-      const svc = await server.getPrimaryService(UUID.CPS_SERVICE);
-      const chr = await svc.getCharacteristic(UUID.CPS_MEASUREMENT);
-      chr.addEventListener('characteristicvaluechanged', onCPS);
-      await chr.startNotifications();
-      gotData = true;
-      log('Subscribed: CPS power', 'ok');
-    } catch(_) {}
+      const cpsSvc = await server.getPrimaryService(UUID.CPS_SERVICE);
 
-    // FTMS indoor bike data
-    if (!gotData) {
+      // Power measurement
       try {
-        const svc = await server.getPrimaryService(UUID.FTMS_SERVICE);
-        const chr = await svc.getCharacteristic(UUID.FTMS_INDOOR);
-        chr.addEventListener('characteristicvaluechanged', onFTMS);
+        const chr = await cpsSvc.getCharacteristic(UUID.CPS_MEASUREMENT);
+        chr.addEventListener('characteristicvaluechanged', onCPS);
         await chr.startNotifications();
         gotData = true;
-        log('Subscribed: FTMS indoor', 'ok');
+        log('Subscribed: CPS power', 'ok');
       } catch(_) {}
-    }
 
-    // FTMS control point (write-only for ERG target; no read-back of current target)
+      // Wahoo proprietary ERG control (opcode 0x42), lives inside CPS service
+      try {
+        const wcp = await cpsSvc.getCharacteristic(WAHOO_CP_UUID);
+        wcp.addEventListener('characteristicvaluechanged', onWahooResponse);
+        await wcp.startNotifications();
+        wahooCP = wcp;
+        log('Wahoo proprietary CP ready (preferred over FTMS)', 'ok');
+      } catch(_) {
+        log('No Wahoo CP in CPS service — will try FTMS', 'info');
+      }
+    } catch(_) {}
+
+    // ── FTMS service: indoor data (if CPS not available) + CP (if Wahoo not found) ──
     try {
-      const svc = await server.getPrimaryService(UUID.FTMS_SERVICE);
-      const cp  = await svc.getCharacteristic(UUID.FTMS_CP);
-      cp.addEventListener('characteristicvaluechanged', onCPResponse);
-      await cp.startNotifications();
-      ftmsCP = cp;
-      log('FTMS Control Point ready', 'ok');
-    } catch(e) { log(`FTMS CP unavailable: ${e.message}`, 'warn'); }
+      const ftmsSvc = await server.getPrimaryService(UUID.FTMS_SERVICE);
+
+      if (!gotData) {
+        try {
+          const chr = await ftmsSvc.getCharacteristic(UUID.FTMS_INDOOR);
+          chr.addEventListener('characteristicvaluechanged', onFTMS);
+          await chr.startNotifications();
+          gotData = true;
+          log('Subscribed: FTMS indoor', 'ok');
+        } catch(_) {}
+      }
+
+      // FTMS Control Point — only needed if Wahoo CP not found
+      // Note: FTMS has no "read current ERG target" command; CP is write-only for targets
+      if (!wahooCP) {
+        try {
+          const cp = await ftmsSvc.getCharacteristic(UUID.FTMS_CP);
+          cp.addEventListener('characteristicvaluechanged', onCPResponse);
+          await cp.startNotifications();
+          ftmsCP = cp;
+          log('FTMS Control Point ready', 'ok');
+        } catch(e) { log(`FTMS CP unavailable: ${e.message}`, 'warn'); }
+      }
+    } catch(_) {}
 
     if (gotData) {
       trainerLive = true;
       setPill('trainer', true, dev.name);
+      const path = wahooCP ? 'Wahoo proprietary' : ftmsCP ? 'FTMS' : 'read-only';
+      log(`Control path: ${path}`, 'info');
     } else {
       setPill('trainer', false, 'No data service');
     }
@@ -846,41 +893,85 @@ function onHR(e) {
   }
 }
 
+function onWahooResponse(e) {
+  // Wahoo acknowledgements — log for diagnostics, no action needed
+  const v = e.target.value;
+  const op = v.getUint8(0);
+  log(`[RX/Wahoo] op=${op.toString(16).padStart(2,'0')} len=${v.byteLength}`, 'info');
+}
+
 function onCPResponse(e) {
   const v = e.target.value;
-  if (v.getUint8(0) === 0x80) {
-    const req = v.getUint8(1), res = v.getUint8(2);
-    if (req === 0x00 && res === 0x01 && !ergHandshakeDone) {
+  if (v.getUint8(0) !== 0x80) return;
+  const req = v.getUint8(1), res = v.getUint8(2);
+  const ok  = res === 0x01;
+  if (req === 0x00) {
+    // Response to Request Control (0x00)
+    if (ok && !ergHandshakeDone) {
       ergHandshakeDone = true;
-      log('FTMS handshake OK', 'ok');
+      log('FTMS Request Control OK', 'ok');
+      // Now send Start/Resume (0x07) to put trainer into Running state,
+      // then send the first power command if servo is waiting
+      writeCPBytes([0x07]).then(() => {
+        log('[TX/FTMS] 07 Start/Resume', 'tx');
+        if (pendingServoPowerSend && servoActive) {
+          pendingServoPowerSend = false;
+          sendPower(ergSetpoint);
+        }
+      }).catch(e => log(`Start/Resume failed: ${e.message}`, 'err'));
+    } else if (!ok) {
+      log(`FTMS Request Control rejected (code ${res})`, 'err');
     }
+  } else if (req === 0x07) {
+    log(`FTMS Start/Resume ${ok ? 'OK' : 'rejected (code ' + res + ')'}`, ok ? 'ok' : 'err');
+  } else if (req === 0x05) {
+    if (!ok) log(`FTMS Set Target Power rejected (code ${res})`, 'err');
   }
 }
 
 // ══════════════════════════════════════════════════════
-//  FTMS write helpers
+//  Write helpers
 // ══════════════════════════════════════════════════════
-async function writeCPBytes(bytes) {
-  if (!ftmsCP) throw new Error('No control point');
+async function writeChar(characteristic, bytes) {
   const buf = new Uint8Array(bytes).buffer;
-  if (ftmsCP.writeValueWithResponse) await ftmsCP.writeValueWithResponse(buf);
-  else                               await ftmsCP.writeValue(buf);
+  if (characteristic.writeValueWithResponse) await characteristic.writeValueWithResponse(buf);
+  else                                       await characteristic.writeValue(buf);
 }
 
-// silent=true suppresses log entry (used by heartbeat to avoid spam)
+async function writeCPBytes(bytes) {
+  if (!ftmsCP) throw new Error('No FTMS control point');
+  await writeChar(ftmsCP, bytes);
+}
+
+// silent=true suppresses log entry (heartbeat uses this to avoid spam)
 async function sendPower(watts, silent = false) {
   const w  = Math.round(Math.max(0, Math.min(2000, watts)));
   const lo = w & 0xFF, hi = (w >> 8) & 0xFF;
-  await writeCPBytes([0x05, lo, hi]);
-  if (!silent) log(`[TX] Set power ${w}W`, 'tx');
+  if (wahooCP) {
+    await writeChar(wahooCP, [0x42, lo, hi]);
+    if (!silent) log(`[TX/Wahoo] Set power ${w}W`, 'tx');
+  } else if (ftmsCP) {
+    await writeCPBytes([0x05, lo, hi]);
+    if (!silent) log(`[TX/FTMS] Set power ${w}W`, 'tx');
+  } else {
+    throw new Error('No control characteristic available');
+  }
 }
 
 async function ftmsHandshake() {
-  if (ergHandshakeDone) return;
+  // Only needed for FTMS path. Wahoo needs no handshake.
+  if (ergHandshakeDone) {
+    // Already have control — re-send Start/Resume then first power
+    await writeCPBytes([0x07]);
+    log('[TX/FTMS] 07 Start/Resume (re-connect)', 'tx');
+    if (servoActive) sendPower(ergSetpoint);
+    return;
+  }
   try {
     await writeCPBytes([0x00]);
-    log('[TX] 00 Request Control', 'tx');
-  } catch(e) { log(`Handshake failed: ${e.message}`, 'err'); }
+    log('[TX/FTMS] 00 Request Control', 'tx');
+    pendingServoPowerSend = true;  // power will be sent after 0x80 ack arrives
+  } catch(e) { log(`FTMS handshake failed: ${e.message}`, 'err'); }
 }
 
 // ══════════════════════════════════════════════════════
@@ -904,7 +995,8 @@ function setTarget(v) {
 function setSlider(id, value) {
   const el = document.getElementById(id);
   el.value = value;
-  document.getElementById(`${id}-v`).textContent = value;
+  // Read back the browser-snapped value (step constraints may adjust it)
+  document.getElementById(`${id}-v`).textContent = el.value;
 }
 
 // ══════════════════════════════════════════════════════
@@ -965,7 +1057,12 @@ function stopWarmup(expired) {
     setSlider('pmax', ftp);
     log(`Warm-up complete — limits now: 20W/tick · ${ftp}W ceil`, 'ok');
   } else {
-    log('Warm-up stopped early', 'warn');
+    // Early stop: also apply normal limits (same as expiry).
+    // If you want to stay in warmup limits, adjust PID sliders manually.
+    const ftp = parseInt(document.getElementById('prof-ftp').value) || profile.ftp;
+    setSlider('maxdelta', 20);
+    setSlider('pmax', ftp);
+    log(`Warm-up stopped early — limits set to normal: 20W/tick · ${ftp}W ceil`, 'warn');
   }
 
   document.getElementById('wu-remaining').textContent = '—';
@@ -992,7 +1089,7 @@ function setBadge(text, cls) {
 //  Servo toggle
 // ══════════════════════════════════════════════════════
 function updateServoBtn() {
-  document.getElementById('btn-servo').disabled = !(trainerLive && hrLive && ftmsCP);
+  document.getElementById('btn-servo').disabled = !(trainerLive && hrLive && (wahooCP || ftmsCP));
 }
 
 function toggleServo() {
@@ -1002,7 +1099,7 @@ function toggleServo() {
   if (servoActive) {
     pidIntegral = 0; prevError = null;
     stableCount = 0; prevSetpointSS = null;
-    heartbeatCount = 0;
+    heartbeatCount = 0; pendingServoPowerSend = false;
 
     const tgt  = parseInt(document.getElementById('target-hr').value);
     const pMin = parseInt(document.getElementById('pmin').value);
@@ -1017,11 +1114,19 @@ function toggleServo() {
 
     btn.textContent = 'SERVO ON';
     btn.classList.add('on');
-    ftmsHandshake().then(() => sendPower(ergSetpoint));
+
+    if (wahooCP) {
+      // Wahoo path: no handshake needed, send power immediately
+      sendPower(ergSetpoint);
+    } else {
+      // FTMS path: handshake → (wait for 0x80 ack) → 0x07 → 0x05
+      ftmsHandshake();
+    }
+
     chartTimer = setInterval(sampleChart, 1000);
     scheduleNextTick();
     startHeartbeat();
-    log(`Servo started → ${ergSetpoint}W`, 'ok');
+    log(`Servo started → ${ergSetpoint}W (${wahooCP ? 'Wahoo' : 'FTMS'})`, 'ok');
   } else {
     servoActive = false;
     btn.textContent = 'SERVO OFF';
@@ -1034,7 +1139,9 @@ function toggleServo() {
     document.getElementById('m-hb').textContent = '—';
     document.getElementById('m-err').textContent = '—';
     document.getElementById('m-err').style.color = '';
-    writeCPBytes([0x08]).catch(() => {});
+    // Release resistance: Wahoo uses 0x41 (resistance level 0), FTMS uses 0x08 (stop)
+    if (wahooCP) writeChar(wahooCP, [0x41, 0x00, 0x00]).catch(() => {});
+    else         writeCPBytes([0x08]).catch(() => {});
     log('Servo stopped', 'warn');
   }
 }
