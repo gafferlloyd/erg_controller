@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GATT Explorer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1117; color: #c9d1d9; font-family: 'Courier New', monospace;
+         font-size: 13px; padding: 16px; }
+  h1 { color: #58a6ff; font-size: 16px; margin-bottom: 12px; }
+  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  button { background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+           padding: 6px 14px; cursor: pointer; font-family: inherit; font-size: 12px; }
+  button:hover { background: #30363d; }
+  button.active { background: #1f6feb; border-color: #388bfd; color: #fff; }
+  #status { color: #8b949e; font-size: 11px; margin-bottom: 8px; }
+  #log { background: #0d1117; border: 1px solid #21262d; padding: 8px;
+         height: calc(100vh - 110px); overflow-y: auto; white-space: pre-wrap;
+         word-break: break-all; line-height: 1.6; }
+  .ts   { color: #484f58; }
+  .svc  { color: #79c0ff; font-weight: bold; }
+  .chr  { color: #d2a8ff; }
+  .prop { color: #56d364; }
+  .rx   { color: #ffa657; }
+  .tx   { color: #f85149; }
+  .ok   { color: #56d364; }
+  .warn { color: #e3b341; }
+  .err  { color: #f85149; }
+  .info { color: #8b949e; }
+  .parse{ color: #79c0ff; }
+</style>
+</head>
+<body>
+<h1>GATT Explorer — KICKR SHIFT</h1>
+<div class="toolbar">
+  <button id="btn-connect" onclick="connectAndExplore()">Connect &amp; Explore</button>
+  <button id="btn-disconnect" onclick="disconnect()">Disconnect</button>
+  <button onclick="downloadLog()">⬇ Download log</button>
+  <button onclick="clearLog()">Clear</button>
+</div>
+<div id="status">Not connected</div>
+<div id="log"></div>
+
+<script>
+'use strict';
+
+// ── Log ──────────────────────────────────────────────────────────────────────
+const _buf = [];
+
+function log(msg, cls = 'info') {
+  const ts = new Date().toTimeString().slice(0, 8);
+  _buf.push(`[${ts}] ${msg}`);
+  const el = document.getElementById('log');
+  const d  = document.createElement('div');
+  d.innerHTML = `<span class="ts">[${ts}]</span> <span class="${cls}">${escHtml(msg)}</span>`;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function hex(buf) {
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join(' ');
+}
+
+function downloadLog() {
+  const ts   = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+  const blob = new Blob([_buf.join('\n')], { type: 'text/plain' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `gatt_${ts}.txt`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function clearLog() {
+  document.getElementById('log').innerHTML = '';
+  _buf.length = 0;
+}
+
+// ── Known UUIDs ──────────────────────────────────────────────────────────────
+const KNOWN = {
+  // Standard services
+  '00001800-0000-1000-8000-00805f9b34fb': 'Generic Access',
+  '00001801-0000-1000-8000-00805f9b34fb': 'Generic Attribute',
+  '0000180a-0000-1000-8000-00805f9b34fb': 'Device Information',
+  '0000180d-0000-1000-8000-00805f9b34fb': 'Heart Rate',
+  '00001816-0000-1000-8000-00805f9b34fb': 'Cycling Speed & Cadence',
+  '00001818-0000-1000-8000-00805f9b34fb': 'Cycling Power (CPS)',
+  '00001826-0000-1000-8000-00805f9b34fb': 'FTMS (Fitness Machine)',
+  // Wahoo custom
+  'a026ee01-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Service',
+  'a026ee02-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Service 2',
+  'a026ee03-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Service 3',
+  'a026ee04-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Service 4',
+  // Standard characteristics
+  '00002a00-0000-1000-8000-00805f9b34fb': 'Device Name',
+  '00002a01-0000-1000-8000-00805f9b34fb': 'Appearance',
+  '00002a24-0000-1000-8000-00805f9b34fb': 'Model Number',
+  '00002a25-0000-1000-8000-00805f9b34fb': 'Serial Number',
+  '00002a26-0000-1000-8000-00805f9b34fb': 'Firmware Revision',
+  '00002a29-0000-1000-8000-00805f9b34fb': 'Manufacturer Name',
+  '00002a37-0000-1000-8000-00805f9b34fb': 'HR Measurement',
+  '00002a5b-0000-1000-8000-00805f9b34fb': 'CSC Measurement',
+  '00002a63-0000-1000-8000-00805f9b34fb': 'CPS Measurement',
+  '00002a65-0000-1000-8000-00805f9b34fb': 'CPS Feature',
+  '00002a66-0000-1000-8000-00805f9b34fb': 'CPS Control Point',
+  '00002acc-0000-1000-8000-00805f9b34fb': 'FTMS Feature',
+  '00002ad2-0000-1000-8000-00805f9b34fb': 'FTMS Indoor Bike Data',
+  '00002ada-0000-1000-8000-00805f9b34fb': 'FTMS Machine Status',
+  '00002ad9-0000-1000-8000-00805f9b34fb': 'FTMS Control Point',
+  '00002ad3-0000-1000-8000-00805f9b34fb': 'FTMS Training Status',
+  // Wahoo characteristics
+  'a026e002-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Characteristic 02',
+  'a026e003-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Characteristic 03',
+  'a026e004-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Characteristic 04',
+  'a026e005-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo ERG Control Point',
+  'a026e006-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Characteristic 06',
+  'a026e007-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Characteristic 07',
+  'a026e008-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Characteristic 08',
+};
+
+function label(uuid) {
+  return KNOWN[uuid.toLowerCase()] || uuid;
+}
+
+// ── Notification parsers ──────────────────────────────────────────────────────
+function parseNotification(charUuid, value) {
+  const u   = charUuid.toLowerCase();
+  const raw = hex(value.buffer);
+  const b   = new Uint8Array(value.buffer);
+
+  // CPS Measurement — instantaneous power at bytes 2-3
+  if (u === '00002a63-0000-1000-8000-00805f9b34fb' && b.length >= 4) {
+    const flags = value.getUint16(0, true);
+    const power = value.getInt16(2, true);
+    let extra = `power=${power}W  flags=0x${flags.toString(16)}`;
+    // Crank revolution data (bit 0 of flags)
+    if ((flags & 0x01) && b.length >= 9) {
+      const cumulCrank = value.getUint16(7, true);
+      const lastCrank  = value.getUint16(9, true);
+      extra += `  cumul_crank=${cumulCrank}  last_crank_time=${lastCrank}`;
+    }
+    return `CPS: ${extra}  | raw: ${raw}`;
+  }
+
+  // FTMS Indoor Bike Data
+  if (u === '00002ad2-0000-1000-8000-00805f9b34fb' && b.length >= 4) {
+    const flags = value.getUint16(0, true);
+    let offset = 2, parts = [`flags=0x${flags.toString(16).padStart(4,'0')}`];
+    // Speed (always present, 0.01 km/h)
+    if (b.length > offset+1) { parts.push(`speed=${(value.getUint16(offset,true)/100).toFixed(2)}km/h`); offset+=2; }
+    if (flags & 0x0002) { if(b.length>offset+1){parts.push(`avgSpeed=${(value.getUint16(offset,true)/100).toFixed(2)}km/h`);} offset+=2; }
+    if (flags & 0x0004) { if(b.length>offset+1){parts.push(`cadence=${(value.getUint16(offset,true)/2).toFixed(1)}rpm`);} offset+=2; }
+    if (flags & 0x0008) { offset+=3; }
+    if (flags & 0x0010) { offset+=2; }
+    if (flags & 0x0040) { if(b.length>offset+1){parts.push(`power=${value.getInt16(offset,true)}W`);} offset+=2; }
+    return `FTMS Indoor: ${parts.join('  ')}  | raw: ${raw}`;
+  }
+
+  // FTMS Control Point response (0x80)
+  if (u === '00002ad9-0000-1000-8000-00805f9b34fb' && b[0] === 0x80 && b.length >= 3) {
+    const opcodeNames = {
+      0x00:'RequestControl', 0x01:'Reset', 0x02:'SetTargetSpeed',
+      0x03:'SetTargetInclination', 0x04:'SetTargetResistance',
+      0x05:'SetTargetPower', 0x06:'SetTargetHR', 0x07:'StartResume',
+      0x08:'StopPause', 0x11:'SetIndoorBikeSimulation',
+    };
+    const req = b[1], res = b[2];
+    const ok  = res === 0x01;
+    const reqName = opcodeNames[req] || `0x${req.toString(16)}`;
+    return `FTMS CP Response: req=${reqName}(0x${req.toString(16).padStart(2,'0')}) result=${ok?'OK':'FAIL'}(0x${res.toString(16).padStart(2,'0')})  | raw: ${raw}`;
+  }
+
+  // FTMS Machine Status
+  if (u === '00002ada-0000-1000-8000-00805f9b34fb') {
+    const statusNames = {
+      0x01:'Reset', 0x02:'Stopped(safety)', 0x03:'Stopped(user)', 0x04:'Started',
+      0x05:'FitnessMachineStatusChange', 0x06:'TargetSpeedChanged',
+      0x07:'TargetInclineChanged', 0x08:'TargetResistanceLvlChanged',
+      0x09:'TargetPowerChanged', 0x0A:'TargetHRChanged',
+      0x12:'IndoorBikeSimParamsChanged', 0x13:'WheelCircumferenceChanged',
+      0x14:'SpinDownStatusChange', 0x19:'ControlPermissionLost',
+      0xFF:'ControlPermissionLost',
+    };
+    const s = statusNames[b[0]] || `0x${b[0].toString(16)}`;
+    return `FTMS Status: ${s}  | raw: ${raw}`;
+  }
+
+  // FTMS Training Status
+  if (u === '00002ad3-0000-1000-8000-00805f9b34fb') {
+    return `FTMS Training Status: raw: ${raw}`;
+  }
+
+  // Wahoo CP response — opcode echoed in byte 0
+  if (u === 'a026e005-0a7d-4ab3-97fa-f1500f9feb8b') {
+    return `Wahoo CP Response: op=0x${b[0].toString(16).padStart(2,'0')}  | raw: ${raw}`;
+  }
+
+  // Generic
+  return `raw: ${raw}`;
+}
+
+// ── Connection ────────────────────────────────────────────────────────────────
+let gattServer = null;
+
+const OPT_SERVICES = [
+  0x1800, 0x1801, 0x180a, 0x180d, 0x1816, 0x1818, 0x1826,
+  'a026ee01-0a7d-4ab3-97fa-f1500f9feb8b',
+  'a026ee02-0a7d-4ab3-97fa-f1500f9feb8b',
+  'a026ee03-0a7d-4ab3-97fa-f1500f9feb8b',
+  'a026ee04-0a7d-4ab3-97fa-f1500f9feb8b',
+];
+
+async function connectAndExplore() {
+  if (!navigator.bluetooth) { log('Web Bluetooth not available — use Chrome', 'err'); return; }
+
+  log('Scanning for trainer…', 'info');
+  let dev;
+  try {
+    dev = await navigator.bluetooth.requestDevice({
+      filters: [
+        { namePrefix: 'KICKR' }, { namePrefix: 'Wahoo' },
+        { services: [0x1818] }, { services: [0x1826] }
+      ],
+      optionalServices: OPT_SERVICES,
+    });
+  } catch(e) { log(`Scan cancelled: ${e.message}`, 'warn'); return; }
+
+  log(`Device: ${dev.name}  id=${dev.id}`, 'ok');
+  document.getElementById('status').textContent = `Connected: ${dev.name}`;
+
+  dev.addEventListener('gattserverdisconnected', () => {
+    log('Device disconnected', 'warn');
+    document.getElementById('status').textContent = 'Disconnected';
+    gattServer = null;
+  });
+
+  try {
+    gattServer = await dev.gatt.connect();
+    log('GATT connected — enumerating services…', 'ok');
+  } catch(e) { log(`GATT connect failed: ${e.message}`, 'err'); return; }
+
+  // ── Enumerate all primary services ──────────────────────────────────────
+  let services;
+  try {
+    services = await gattServer.getPrimaryServices();
+  } catch(e) { log(`getPrimaryServices failed: ${e.message}`, 'err'); return; }
+
+  log(`\n══ Found ${services.length} primary service(s) ══`, 'svc');
+
+  for (const svc of services) {
+    log(`\nSERVICE  ${svc.uuid}  (${label(svc.uuid)})`, 'svc');
+
+    let chars;
+    try { chars = await svc.getCharacteristics(); }
+    catch(e) { log(`  getCharacteristics failed: ${e.message}`, 'err'); continue; }
+
+    for (const chr of chars) {
+      const p = chr.properties;
+      const props = [
+        p.broadcast        && 'broadcast',
+        p.read             && 'read',
+        p.writeWithoutResponse && 'writeNoResp',
+        p.write            && 'write',
+        p.notify           && 'notify',
+        p.indicate         && 'indicate',
+        p.authenticatedSignedWrites && 'signedWrite',
+      ].filter(Boolean).join(' | ');
+
+      log(`  CHAR  ${chr.uuid}  (${label(chr.uuid)})`, 'chr');
+      log(`        props: ${props}`, 'prop');
+
+      // Read readable characteristics
+      if (p.read) {
+        try {
+          const val = await chr.readValue();
+          const raw = hex(val.buffer);
+          // Try to decode text for device info strings
+          let decoded = '';
+          try { decoded = `  → "${new TextDecoder().decode(val.buffer)}"`; } catch(_) {}
+          log(`        read:  ${raw}${decoded}`, 'rx');
+        } catch(e) {
+          log(`        read failed: ${e.message}`, 'warn');
+        }
+      }
+
+      // Subscribe to notifiable/indicatable characteristics
+      if (p.notify || p.indicate) {
+        try {
+          chr.addEventListener('characteristicvaluechanged', (e) => {
+            const parsed = parseNotification(chr.uuid, e.target.value);
+            log(`  [NOTIFY ${label(chr.uuid).slice(0,30)}]  ${parsed}`, 'rx');
+          });
+          await chr.startNotifications();
+          log(`        → subscribed to notifications`, 'ok');
+        } catch(e) {
+          log(`        subscribe failed: ${e.message}`, 'warn');
+        }
+      }
+    }
+  }
+
+  log('\n══ Enumeration complete — listening for notifications ══', 'ok');
+  log('Now connect myWhoosh on the iPad and control the trainer.', 'info');
+}
+
+async function disconnect() {
+  if (gattServer && gattServer.connected) {
+    gattServer.disconnect();
+    log('Disconnected', 'warn');
+    document.getElementById('status').textContent = 'Disconnected';
+  }
+}
+</script>
+</body>
+</html>
