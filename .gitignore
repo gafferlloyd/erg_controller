@@ -1,0 +1,6 @@
+log_*.txt
+*.fit
+*.csv
+change_requests.txt
+hrservo_*.txt
+gatt_*.txt
