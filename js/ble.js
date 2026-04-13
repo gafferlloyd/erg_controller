@@ -272,10 +272,11 @@ async function subscribeTrainerServices(server) {
     gotData = await subscribeCPS(cpsSvc);
   } catch (_) {}
 
-  // FTMS — indoor data + control point + machine status
+  // FTMS — indoor data (always subscribed for cadence) + control point + machine status
   try {
     const ftmsSvc = await server.getPrimaryService(UUID.FTMS_SERVICE);
-    if (!gotData) gotData = await subscribeFTMSData(ftmsSvc);
+    const ftmsGotData = await subscribeFTMSData(ftmsSvc);
+    if (!gotData) gotData = ftmsGotData;   // CPS already provides power; keep cadence
     await subscribeFTMSControl(ftmsSvc);
     await subscribeMachineStatus(ftmsSvc);
   } catch (_) {}

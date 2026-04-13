@@ -105,6 +105,8 @@ function onSessionStarted() {
 function onSessionStopped() {
   document.getElementById('btn-start-session').disabled = false;
   document.getElementById('btn-stop-session').disabled  = true;
+  document.getElementById('btn-dl-csv').disabled        = false;
+  document.getElementById('btn-dl-fit').disabled        = false;
   clearInterval(_timerInterval);
   stopChartLoop();
   drawOverview();
