@@ -179,8 +179,7 @@ function pidTick() {
 
 function startHeartbeat() {
   stopHeartbeat();
-  const secs = Math.max(1, parseInt(document.getElementById('hb-interval').value) || 5);
-  heartbeatTimer = setInterval(runHeartbeat, secs * 1000);
+  heartbeatTimer = setInterval(runHeartbeat, 5000);
 }
 
 function stopHeartbeat() {
