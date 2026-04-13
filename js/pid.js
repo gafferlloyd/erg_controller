@@ -16,7 +16,7 @@ let lastErgChangeTime = 0;
 // ── Heartbeat (re-send setpoint every 5 s) ───────────────────────────────────
 let heartbeatTimer = null;
 let heartbeatCount = 0;
-let pendingServoPowerSend = false;   // shared with ble.js
+// pendingServoPowerSend is declared in ble.js (shared global)
 
 // ── Warm-up state ─────────────────────────────────────────────────────────────
 let warmupActive = false;

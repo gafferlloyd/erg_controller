@@ -299,19 +299,19 @@ function wireTargetHR() {
 function wireButtons() {
   bindClick('btn-connect-trainer', () => connectDevice('trainer'));
   bindClick('btn-connect-hr',      () => connectDevice('hr'));
-  bindClick('btn-servo',           toggleServo);
-  bindClick('btn-pause-servo',     toggleServoPause);
-  bindClick('btn-pause-workout',   toggleWorkoutPause);
-  bindClick('btn-warmup',          toggleWarmup);
-  bindClick('btn-start-power-erg', startPowerErg);
-  bindClick('btn-stop-power-erg',  stopPowerErg);
-  bindClick('btn-start-session',   startSession);
-  bindClick('btn-stop-session',    stopSession);
-  bindClick('btn-dl-csv',          downloadCsv);
-  bindClick('btn-dl-fit',          downloadFit);
-  bindClick('btn-dl-log',          downloadLog);
-  bindClick('btn-save-profile',    saveProfile);
-  bindClick('btn-toggle-log',      toggleLog);
+  bindClick('btn-servo',           () => toggleServo());
+  bindClick('btn-pause-servo',     () => toggleServoPause());
+  bindClick('btn-pause-workout',   () => toggleWorkoutPause());
+  bindClick('btn-warmup',          () => toggleWarmup());
+  bindClick('btn-start-power-erg', () => startPowerErg());
+  bindClick('btn-stop-power-erg',  () => stopPowerErg());
+  bindClick('btn-start-session',   () => startSession());
+  bindClick('btn-stop-session',    () => stopSession());
+  bindClick('btn-dl-csv',          () => downloadCsv());
+  bindClick('btn-dl-fit',          () => downloadFit());
+  bindClick('btn-dl-log',          () => downloadLog());
+  bindClick('btn-save-profile',    () => saveProfile());
+  bindClick('btn-toggle-log',      () => toggleLog());
 
   bindClick('btn-hr-up',   () => adjustTarget(+1));
   bindClick('btn-hr-down', () => adjustTarget(-1));
