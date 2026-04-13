@@ -1,3 +1,19 @@
+## v1.1.2 — 2026-04-13
+
+- Fixed cadence recording: onCPS was resetting lastCadence to null every second
+  (readCadenceFromCPS always returns null), wiping values set by FTMS Indoor;
+  cadence and speed are now owned exclusively by the FTMS Indoor handler
+- Fixed Power ERG not sending any wattage target: FTMS handshake and response
+  handler only sent power when servoActive (HR servo flag), never ergActive;
+  fixed in ftmsHandshake(), onCPResponse(), and runHeartbeat() in pid.js
+- Fixed FTMS Indoor flag parsing: bit-3 (avg cadence) was skipped as 3 bytes
+  (should be 2), bit-4 (total distance) skipped as 2 bytes (should be 3),
+  bit-5 (resistance level) was not skipped at all
+- Added speed capture from FTMS Indoor (always present at offset 2, 0.01 km/h)
+  displayed live as amber cv-block; added to session samples and FIT records
+- Added distance calculation (speed integrated over time); shown in stats table
+  and written to FIT session message (total_distance, avg_speed fields)
+
 ## v1.1.1 — 2026-04-13
 
 - Reverted font size doubling (v1.1.0 item removed); all sizes restored to original
