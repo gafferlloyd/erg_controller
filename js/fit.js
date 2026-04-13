@@ -7,24 +7,22 @@
 // FIT CRC-16 uses the standard CCITT table baked in below.
 
 // ── CRC-16 ─────────────────────────────────────────────────────────────────────
+// Garmin FIT SDK table and algorithm (verbatim from FitCrc_Get16 in the SDK).
 
-const FIT_CRC_TABLE = (() => {
-  const table = new Uint16Array(16);
-  for (let i = 0; i < 16; i++) {
-    let crc = i;
-    for (let j = 0; j < 4; j++) {
-      crc = (crc & 1) ? (crc >> 1) ^ 0xB2AA : (crc >> 1);
-    }
-    table[i] = crc;
-  }
-  return table;
-})();
+const FIT_CRC_TABLE = new Uint16Array([
+  0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401,
+  0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400,
+]);
 
 function fitCrc(bytes) {
   let crc = 0;
   for (const byte of bytes) {
-    crc = (FIT_CRC_TABLE[(crc ^ byte) & 0x0F] ^ (crc >> 4));
-    crc = (FIT_CRC_TABLE[(crc ^ (byte >> 4)) & 0x0F] ^ (crc >> 4));
+    let tmp = FIT_CRC_TABLE[crc & 0x0F];
+    crc = (crc >> 4) & 0x0FFF;
+    crc = crc ^ tmp ^ FIT_CRC_TABLE[byte & 0x0F];
+    tmp = FIT_CRC_TABLE[crc & 0x0F];
+    crc = (crc >> 4) & 0x0FFF;
+    crc = crc ^ tmp ^ FIT_CRC_TABLE[(byte >> 4) & 0x0F];
   }
   return crc;
 }
