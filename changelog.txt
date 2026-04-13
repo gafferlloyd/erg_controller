@@ -1,3 +1,18 @@
+## v1.1.1 — 2026-04-13
+
+- Reverted font size doubling (v1.1.0 item removed); all sizes restored to original
+- Fixed all buttons non-functional: duplicate `let pendingServoPowerSend` in pid.js
+  caused Chrome to throw SyntaxError on pid.js load, leaving every button except
+  the two lambda-wrapped Connect buttons unbound; removed duplicate declaration and
+  converted all wireButtons callbacks to arrow functions
+- Fixed FIT export rejected by intervals.icu ("File CRC failed"): CRC table used
+  wrong polynomial and wrong XOR sequence; replaced with Garmin SDK table and
+  FitCrc_Get16 algorithm verbatim
+- Fixed cadence not captured: FTMS Indoor was skipped when CPS succeeded; now always
+  subscribed so cadence arrives via FTMS regardless of power source
+- Fixed download buttons (CSV, FIT) permanently disabled: added enable in onSessionStopped
+- Added .gitignore covering session logs, FIT/CSV exports, and scratch files
+
 ## v1.1.0 — 2026-04-13
 
 - Default values updated: RestHR 43, MaxHR 173, FTP 250
