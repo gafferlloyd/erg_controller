@@ -73,10 +73,6 @@ function syncSlider(id) {
 
 function onNewHR(hr) {
   setVal('cv-hr', hr);
-  const zone = calcHRZone(hr, profile.restHR, profile.maxHR);
-  const hrr  = calcHRR(hr, profile.restHR, profile.maxHR);
-  setText('mt-hrzone', zone ?? '—');
-  setText('mt-hrr',    hrr != null ? `${hrr}` : '—');
 }
 
 function onNewPower(power, cadence) {
@@ -209,10 +205,9 @@ function updateSessionMetrics() {
   setText('mt-if',  calcIF(all, profile.ftp)  ?? '—');
   setText('mt-tss', calcTSS(all, profile.ftp) ?? '—');
 
-  // HRV & HR
+  // Decoupling
   const dcpl = calcDecoupling(all);
   setText('mt-dcpl',  dcpl != null ? `${dcpl}%` : '—');
-  setText('mt-rmssd', currentRMSSD != null ? `${currentRMSSD}` : '—');
 }
 
 // ── DOM text helpers ──────────────────────────────────────────────────────────
@@ -294,6 +289,8 @@ function wireDragDrop() {
 function wireErgSetpoint() {
   const inp = document.getElementById('erg-setpoint');
   if (!inp) return;
+  ergSetpoint = Math.max(0, Math.min(2000, parseInt(inp.value) || 0));
+  setText('erg-setpoint-display', `${ergSetpoint}W`);
   inp.addEventListener('input', () => {
     ergSetpoint = Math.max(0, Math.min(2000, parseInt(inp.value) || 0));
     setText('erg-setpoint-display', `${ergSetpoint}W`);
@@ -362,6 +359,8 @@ function wireResize() {
 
 document.addEventListener('DOMContentLoaded', () => {
   loadProfile();
+  const defaultHR = Math.round(profile.restHR + 0.5 * (profile.maxHR - profile.restHR));
+  setTarget(defaultHR);
   wireButtons();
   wireSliders();
   wireWorkoutButtons();

@@ -1,3 +1,21 @@
+## v1.1.5 — 2026-04-13
+
+- Full UI redesign: left sidebar + main column page layout
+- Sidebar contains: vertical mode tabs, connection pills, ERG indicator,
+  session controls (Start/Stop Session), and profile panel
+- Target bar (hidden in passive mode) moved to top of main column;
+  target value displayed at 96px (4× original) in purple (HR) / orange (ERG)
+- Target ±1/±5 and ctrl-btn action buttons enlarged (22px/15px respectively)
+- PID State panel: switched from horizontal to vertical table layout
+- Stats table: min/max range shown inline as third column (no separate rows)
+- Removed HRV & HR box; RMSSD value stays as cv-block (sample-and-hold)
+- Removed %HRR and Zone columns from display
+- Decoupling moved from HRV box into Stats table
+- Default target HR on load set to 50% HRR (restHR + 0.5 × (maxHR − restHR))
+  e.g. with defaults Rest=43, Max=173 → 108 bpm
+- ERG setpoint display initialised on load (was blank until first input event)
+- In passive mode, target bar and workout bar hidden; content shifts up
+
 ## v1.1.4 — 2026-04-13
 
 - Renamed "Recorder" mode to "Passive" throughout (tab label, CSS classes, JS)

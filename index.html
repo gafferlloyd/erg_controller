@@ -8,17 +8,19 @@
 </head>
 <body class="show-passive">
 
-<!-- ══════════════════════════════════════════════════
-     HEADER: mode tabs + connection pills + ERG status
-     ══════════════════════════════════════════════════ -->
-<header class="app-header">
-  <div class="mode-tabs" role="tablist">
-    <button class="mode-tab active" data-mode="passive">PASSIVE</button>
-    <button class="mode-tab"        data-mode="hr-servo">HR SERVO</button>
-    <button class="mode-tab"        data-mode="power-erg">POWER ERG</button>
-  </div>
+<div class="page-layout">
 
-  <div class="conn-row">
+  <!-- ═══════════════════════════════════════════════════
+       LEFT SIDEBAR
+       ═══════════════════════════════════════════════════ -->
+  <aside class="left-col">
+
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="passive">PASSIVE</button>
+      <button class="mode-tab"        data-mode="hr-servo">HR SERVO</button>
+      <button class="mode-tab"        data-mode="power-erg">POWER ERG</button>
+    </div>
+
     <div class="pill" id="pill-trainer">
       <span class="pill-icon">🚴</span>
       <span class="dot" id="pdot-trainer"></span>
@@ -29,230 +31,286 @@
       <span class="dot" id="pdot-hr"></span>
       <button id="btn-connect-hr">Connect</button>
     </div>
+
     <div class="erg-indicator" id="erg-indicator">
       <span class="erg-dot idle" id="erg-dot"></span>
       <span id="erg-label">ERG IDLE</span>
     </div>
-  </div>
 
-  <div class="session-ctl">
-    <button id="btn-start-session">&#9654; Start Session</button>
-    <button id="btn-stop-session" disabled>&#9632; Stop Session</button>
-  </div>
-</header>
-
-<!-- ══════════════════════════════════════════════════
-     WORKOUT BAR (hidden in passive mode)
-     ══════════════════════════════════════════════════ -->
-<div class="workout-bar no-passive" id="workout-bar">
-  <div class="segment-info">
-    <span id="seg-name">No workout loaded</span>
-    <span id="seg-remaining" style="color:var(--muted)">—</span>
-  </div>
-  <div class="progress-track">
-    <div class="progress-fill" id="workout-progress"></div>
-  </div>
-  <div class="workout-controls">
-    <input type="file" id="workout-file" accept=".zwo,.txt,.csv">
-    <label for="workout-file" class="btn-file-label">Load Workout</label>
-    <button id="btn-start-workout" disabled>&#9654; Start</button>
-    <button id="btn-pause-workout" disabled>&#9208; Pause</button>
-    <button id="btn-stop-workout">&#9632; Stop</button>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════
-     MAIN DISPLAY: overview | rolling chart | values
-     ══════════════════════════════════════════════════ -->
-<div class="main-display">
-  <div class="overview-panel" title="Full session overview">
-    <canvas id="overview-canvas"></canvas>
-  </div>
-  <div class="chart-panel">
-    <canvas id="rolling-canvas"></canvas>
-  </div>
-  <div class="values-panel">
-    <div class="cv-block hr" id="cv-hr">
-      <div class="cv-val">—</div>
-      <div class="cv-lbl">HR bpm</div>
+    <div class="session-ctl">
+      <button id="btn-start-session">&#9654; Start Session</button>
+      <button id="btn-stop-session" disabled>&#9632; Stop Session</button>
     </div>
-    <div class="cv-block pwr" id="cv-power">
-      <div class="cv-val">—</div>
-      <div class="cv-lbl">Power W</div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-head">Profile</div>
+      <div class="profile-row"><label>Rest HR</label>  <input type="number" id="prof-rest"    value="43"   min="30"  max="80"  step="1"  ><span>bpm</span></div>
+      <div class="profile-row"><label>Max HR</label>   <input type="number" id="prof-max"     value="173"  min="100" max="230" step="1"  ><span>bpm</span></div>
+      <div class="profile-row"><label>FTP</label>      <input type="number" id="prof-ftp"     value="250"  min="50"  max="600" step="5"  ><span>W</span></div>
+      <div class="profile-row"><label>Model A</label>  <input type="number" id="prof-model-a" value="0.35" min="0.1" max="1"   step="0.01"></div>
+      <div class="profile-row"><label>Model B</label>  <input type="number" id="prof-model-b" value="60"   min="20"  max="100" step="1"  ></div>
+      <button id="btn-save-profile" class="full-btn" style="margin-top:5px">Save Profile</button>
+      <span id="prof-status" class="prof-status"></span>
     </div>
-    <div class="cv-block np" id="cv-np">
-      <div class="cv-val">—</div>
-      <div class="cv-lbl">NP W</div>
+
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════════
+       MAIN COLUMN
+       ═══════════════════════════════════════════════════ -->
+  <div class="main-col">
+
+    <!-- TARGET BAR (hidden in passive mode) ════════════ -->
+    <div class="target-bar no-passive">
+
+      <!-- HR Servo target -->
+      <div class="hr-servo-only target-section">
+        <div class="target-adjust">
+          <button class="target-btn" id="btn-hr-down5">&#8722;5</button>
+          <button class="target-btn" id="btn-hr-down">&#8722;1</button>
+          <div class="target-value-wrap">
+            <span class="target-big" id="target-hr-big">108</span>
+            <span class="target-unit">bpm</span>
+          </div>
+          <button class="target-btn" id="btn-hr-up">+1</button>
+          <button class="target-btn" id="btn-hr-up5">+5</button>
+          <input type="number" id="target-hr" value="108" min="60" max="220" style="width:54px">
+        </div>
+        <div class="target-controls">
+          <button class="ctrl-btn" id="btn-servo" disabled>START SERVO</button>
+          <button class="ctrl-btn" id="btn-pause-servo" disabled>PAUSE</button>
+          <button class="ctrl-btn" id="btn-warmup">WARM-UP</button>
+          <span id="wu-remaining" style="color:var(--muted)">—</span>
+          <input type="number" id="wu-dur" value="3" min="1" max="60" step="1" style="width:38px">
+          <span style="color:var(--muted);font-size:11px">min</span>
+        </div>
+      </div>
+
+      <!-- Power ERG target -->
+      <div class="power-erg-only target-section">
+        <div class="target-adjust">
+          <input type="number" id="erg-setpoint" value="150" min="0" max="2000" step="5" style="width:64px">
+          <div class="target-value-wrap">
+            <span class="target-big target-big-erg" id="erg-setpoint-display">150W</span>
+          </div>
+        </div>
+        <div class="target-controls">
+          <button class="ctrl-btn" id="btn-start-power-erg" disabled>&#9654; Start ERG</button>
+          <button class="ctrl-btn" id="btn-stop-power-erg">&#9632; Stop ERG</button>
+        </div>
+      </div>
+
+    </div><!-- /target-bar -->
+
+    <!-- WORKOUT BAR (hidden in passive mode) ═══════════ -->
+    <div class="workout-bar no-passive" id="workout-bar">
+      <div class="segment-info">
+        <span id="seg-name">No workout loaded</span>
+        <span id="seg-remaining" style="color:var(--muted)">—</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="workout-progress"></div>
+      </div>
+      <div class="workout-controls">
+        <input type="file" id="workout-file" accept=".zwo,.txt,.csv">
+        <label for="workout-file" class="btn-file-label">Load Workout</label>
+        <button id="btn-start-workout" disabled>&#9654; Start</button>
+        <button id="btn-pause-workout" disabled>&#9208; Pause</button>
+        <button id="btn-stop-workout">&#9632; Stop</button>
+      </div>
     </div>
-    <div class="cv-block cad" id="cv-cadence">
-      <div class="cv-val">—</div>
-      <div class="cv-lbl">Cadence</div>
+
+    <!-- MAIN DISPLAY: overview | rolling chart | values ═ -->
+    <div class="main-display">
+      <div class="overview-panel" title="Full session overview">
+        <canvas id="overview-canvas"></canvas>
+      </div>
+      <div class="chart-panel">
+        <canvas id="rolling-canvas"></canvas>
+      </div>
+      <div class="values-panel">
+        <div class="cv-block hr" id="cv-hr">
+          <div class="cv-val">—</div>
+          <div class="cv-lbl">HR bpm</div>
+        </div>
+        <div class="cv-block pwr" id="cv-power">
+          <div class="cv-val">—</div>
+          <div class="cv-lbl">Power W</div>
+        </div>
+        <div class="cv-block np" id="cv-np">
+          <div class="cv-val">—</div>
+          <div class="cv-lbl">NP W</div>
+        </div>
+        <div class="cv-block cad" id="cv-cadence">
+          <div class="cv-val">—</div>
+          <div class="cv-lbl">Cadence</div>
+        </div>
+        <div class="cv-block spd" id="cv-speed">
+          <div class="cv-val">—</div>
+          <div class="cv-lbl">Speed km/h</div>
+        </div>
+        <div class="cv-block tgt" id="cv-tgt">
+          <div class="cv-val">—</div>
+          <div class="cv-lbl">Target W</div>
+        </div>
+        <div class="cv-block hrv" id="cv-hrv">
+          <div class="cv-val">—</div>
+          <div class="cv-lbl">HRV ms</div>
+        </div>
+      </div>
     </div>
-    <div class="cv-block spd" id="cv-speed">
-      <div class="cv-val">—</div>
-      <div class="cv-lbl">Speed km/h</div>
+
+    <!-- STATS ══════════════════════════════════════════ -->
+    <div class="metric-col">
+      <div class="metric-head">Stats <span class="mh-sub">session · 2 min · range</span></div>
+      <table class="metric-table">
+        <tr class="mh-row">
+          <td></td>
+          <td class="mc">session</td>
+          <td class="mc">2 min</td>
+          <td class="mc">range</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td class="mk">NP</td>
+          <td class="mv"  id="mt-np">—</td>
+          <td class="mv2" id="mt-np2">—</td>
+          <td class="mv-rng"></td>
+          <td class="mu">W</td>
+        </tr>
+        <tr>
+          <td class="mk">Avg Pwr</td>
+          <td class="mv"  id="mt-avgpw">—</td>
+          <td class="mv2" id="mt-avgpw2">—</td>
+          <td class="mv-rng" id="mt-pwrng">—</td>
+          <td class="mu">W</td>
+        </tr>
+        <tr>
+          <td class="mk">Avg HR</td>
+          <td class="mv"  id="mt-avghr">—</td>
+          <td class="mv2" id="mt-avghr2">—</td>
+          <td class="mv-rng" id="mt-hrrng">—</td>
+          <td class="mu">bpm</td>
+        </tr>
+        <tr>
+          <td class="mk">Avg Cad</td>
+          <td class="mv"  id="mt-avgcad">—</td>
+          <td class="mv2" id="mt-avgcad2">—</td>
+          <td class="mv-rng" id="mt-cadrng">—</td>
+          <td class="mu">rpm</td>
+        </tr>
+        <tr>
+          <td class="mk">Avg Spd</td>
+          <td class="mv"  id="mt-avgspd">—</td>
+          <td class="mv2"></td>
+          <td class="mv-rng"></td>
+          <td class="mu">km/h</td>
+        </tr>
+        <tr>
+          <td class="mk">Distance</td>
+          <td class="mv"  id="mt-dist">—</td>
+          <td class="mv2"></td>
+          <td class="mv-rng"></td>
+          <td class="mu">km</td>
+        </tr>
+        <tr>
+          <td class="mk">W/bpm</td>
+          <td class="mv"  id="mt-eff">—</td>
+          <td class="mv2" id="mt-eff2">—</td>
+          <td class="mv-rng"></td>
+          <td class="mu"></td>
+        </tr>
+        <tr>
+          <td class="mk">NP/bpm</td>
+          <td class="mv"  id="mt-npeff">—</td>
+          <td class="mv2" id="mt-npeff2">—</td>
+          <td class="mv-rng"></td>
+          <td class="mu"></td>
+        </tr>
+        <tr>
+          <td class="mk">Decouple</td>
+          <td class="mv"  id="mt-dcpl">—</td>
+          <td class="mv2"></td>
+          <td class="mv-rng"></td>
+          <td class="mu">%</td>
+        </tr>
+        <tr>
+          <td class="mk">IF</td>
+          <td class="mv"  id="mt-if">—</td>
+          <td class="mv2"></td>
+          <td class="mv-rng"></td>
+          <td class="mu"></td>
+        </tr>
+        <tr>
+          <td class="mk">TSS</td>
+          <td class="mv"  id="mt-tss">—</td>
+          <td class="mv2"></td>
+          <td class="mv-rng"></td>
+          <td class="mu"></td>
+        </tr>
+      </table>
     </div>
-    <div class="cv-block tgt" id="cv-tgt">
-      <div class="cv-val">—</div>
-      <div class="cv-lbl">Target W</div>
+
+    <!-- PID PANEL (HR Servo only) ══════════════════════ -->
+    <div class="panel hr-servo-only" id="panel-hr-servo">
+      <div class="panel-section">
+        <span class="panel-head">PID</span>
+        <div class="slider-grid">
+          <div class="slider-row"><label>Kp</label>       <input type="range" id="kp"       min="0"   max="5"   step="0.1"  value="1.5" ><span class="sv" id="kp-v">1.5</span></div>
+          <div class="slider-row"><label>Ki</label>       <input type="range" id="ki"       min="0"   max="0.5" step="0.01" value="0.05"><span class="sv" id="ki-v">0.05</span></div>
+          <div class="slider-row"><label>Kd</label>       <input type="range" id="kd"       min="0"   max="2"   step="0.1"  value="0"   ><span class="sv" id="kd-v">0</span></div>
+          <div class="slider-row"><label>Tick</label>     <input type="range" id="tick"     min="10"  max="60"  step="5"    value="30"  ><span class="sv" id="tick-v">30</span>s</div>
+          <div class="slider-row"><label>Max&#916;</label> <input type="range" id="maxdelta" min="1"   max="50"  step="1"    value="10"  ><span class="sv" id="maxdelta-v">10</span>W</div>
+          <div class="slider-row"><label>Deadband</label> <input type="range" id="deadband" min="0"   max="10"  step="1"    value="3"   ><span class="sv" id="deadband-v">3</span>bpm</div>
+          <div class="slider-row"><label>P min</label>    <input type="range" id="pmin"     min="0"   max="150" step="5"    value="50"  ><span class="sv" id="pmin-v">50</span>W</div>
+          <div class="slider-row"><label>P max</label>    <input type="range" id="pmax"     min="100" max="500" step="5"    value="290" ><span class="sv" id="pmax-v">290</span>W</div>
+        </div>
+      </div>
+      <div class="panel-section">
+        <span class="panel-head">State</span>
+        <table class="state-table">
+          <tr><td class="sk">err</td>    <td class="sv2" id="st-err">—</td></tr>
+          <tr><td class="sk">&#8747;</td><td class="sv2" id="st-int">—</td></tr>
+          <tr><td class="sk">d</td>      <td class="sv2" id="st-der">—</td></tr>
+          <tr><td class="sk">&#8594;</td><td class="sv2" id="st-out" style="color:var(--orange)">—</td><td class="sk">W</td></tr>
+          <tr><td class="sk">hb</td>     <td class="sv2" id="m-hb">—</td></tr>
+          <tr><td class="sk">next</td>   <td class="sv2" id="st-next">—</td></tr>
+        </table>
+      </div>
     </div>
-    <div class="cv-block hrv" id="cv-hrv">
-      <div class="cv-val">—</div>
-      <div class="cv-lbl">HRV ms</div>
+
+    <!-- CHARTS ROW ═════════════════════════════════════ -->
+    <div class="charts-row">
+      <div class="power-curve-panel" id="power-curve-panel">
+        <div class="metric-head">Power Curve &nbsp;<span style="color:var(--blue2)">&#9644; MMP</span> &nbsp;<span style="color:var(--orange)">&#8943; NP (t&gt;2min)</span></div>
+        <canvas id="power-curve-canvas"></canvas>
+      </div>
+      <div class="hr-power-panel" id="hr-power-panel">
+        <div class="metric-head">HR vs Power</div>
+        <canvas id="hr-power-canvas"></canvas>
+      </div>
     </div>
-  </div>
-</div>
 
-<!-- ══════════════════════════════════════════════════
-     METRICS GRID
-     ══════════════════════════════════════════════════ -->
-<div class="metrics-grid">
-  <div class="metric-col wide">
-    <div class="metric-head">Stats <span class="mh-sub">session · 2 min</span></div>
-    <table class="metric-table">
-      <tr class="mh-row"><td></td><td class="mc">session</td><td class="mc">2 min</td><td></td></tr>
-      <tr><td class="mk">NP</td>      <td class="mv"  id="mt-np">—</td>     <td class="mv2" id="mt-np2">—</td>    <td class="mu">W</td></tr>
-      <tr><td class="mk">Avg Pwr</td> <td class="mv"  id="mt-avgpw">—</td>  <td class="mv2" id="mt-avgpw2">—</td> <td class="mu">W</td></tr>
-      <tr><td></td><td class="mv-rng" colspan="2" id="mt-pwrng">—</td><td></td></tr>
-      <tr><td class="mk">Avg HR</td>  <td class="mv"  id="mt-avghr">—</td>  <td class="mv2" id="mt-avghr2">—</td> <td class="mu">bpm</td></tr>
-      <tr><td></td><td class="mv-rng" colspan="2" id="mt-hrrng">—</td><td></td></tr>
-      <tr><td class="mk">Avg Cad</td> <td class="mv"  id="mt-avgcad">—</td> <td class="mv2" id="mt-avgcad2">—</td><td class="mu">rpm</td></tr>
-      <tr><td></td><td class="mv-rng" colspan="2" id="mt-cadrng">—</td><td></td></tr>
-      <tr><td class="mk">Avg Spd</td><td class="mv" id="mt-avgspd">—</td><td class="mv2"></td><td class="mu">km/h</td></tr>
-      <tr><td class="mk">Distance</td><td class="mv" id="mt-dist">—</td><td class="mv2"></td><td class="mu">km</td></tr>
-      <tr><td class="mk">W/bpm</td>   <td class="mv"  id="mt-eff">—</td>    <td class="mv2" id="mt-eff2">—</td>   <td class="mu"></td></tr>
-      <tr><td class="mk">NP/bpm</td>  <td class="mv"  id="mt-npeff">—</td>  <td class="mv2" id="mt-npeff2">—</td> <td class="mu"></td></tr>
-      <tr><td class="mk">IF</td>      <td class="mv"  id="mt-if">—</td>     <td class="mv2">—</td>                <td class="mu"></td></tr>
-      <tr><td class="mk">TSS</td>     <td class="mv"  id="mt-tss">—</td>    <td class="mv2">—</td>                <td class="mu"></td></tr>
-    </table>
-  </div>
-  <div class="metric-col">
-    <div class="metric-head">HRV &amp; HR</div>
-    <table class="metric-table">
-      <tr><td class="mk">RMSSD</td>   <td class="mv" id="mt-rmssd">—</td>  <td class="mu">ms</td></tr>
-      <tr><td class="mk">Zone</td>    <td class="mv" id="mt-hrzone">—</td> <td class="mu"></td></tr>
-      <tr><td class="mk">%HRR</td>    <td class="mv" id="mt-hrr">—</td>    <td class="mu">%</td></tr>
-      <tr><td class="mk">Decouple</td><td class="mv" id="mt-dcpl">—</td>   <td class="mu">%</td></tr>
-    </table>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════
-     HR SERVO CONTROL PANEL
-     ══════════════════════════════════════════════════ -->
-<div class="panel hr-servo-only" id="panel-hr-servo">
-  <div class="panel-section">
-    <span class="panel-head">Target HR</span>
-    <button id="btn-hr-down5">&#8722;5</button>
-    <button id="btn-hr-down">&#8722;1</button>
-    <span class="target-display" id="target-hr-big">145</span>
-    <button id="btn-hr-up">+1</button>
-    <button id="btn-hr-up5">+5</button>
-    <input type="number" id="target-hr" value="145" min="60" max="220" style="width:52px">
-    <span style="color:var(--muted)">bpm</span>
-  </div>
-
-  <div class="panel-section">
-    <span class="panel-head">PID</span>
-    <div class="slider-grid">
-      <div class="slider-row"><label>Kp</label>      <input type="range" id="kp"       min="0"   max="5"   step="0.1"  value="1.5" ><span class="sv" id="kp-v">1.5</span></div>
-      <div class="slider-row"><label>Ki</label>      <input type="range" id="ki"       min="0"   max="0.5" step="0.01" value="0.05"><span class="sv" id="ki-v">0.05</span></div>
-      <div class="slider-row"><label>Kd</label>      <input type="range" id="kd"       min="0"   max="2"   step="0.1"  value="0"   ><span class="sv" id="kd-v">0</span></div>
-      <div class="slider-row"><label>Tick</label>    <input type="range" id="tick"     min="10"  max="60"  step="5"    value="30"  ><span class="sv" id="tick-v">30</span>s</div>
-      <div class="slider-row"><label>Max&#916;</label><input type="range" id="maxdelta" min="1"  max="50"  step="1"    value="10"  ><span class="sv" id="maxdelta-v">10</span>W</div>
-      <div class="slider-row"><label>Deadband</label><input type="range" id="deadband" min="0"   max="10"  step="1"    value="3"   ><span class="sv" id="deadband-v">3</span>bpm</div>
-      <div class="slider-row"><label>P min</label>   <input type="range" id="pmin"     min="0"   max="150" step="5"    value="50"  ><span class="sv" id="pmin-v">50</span>W</div>
-      <div class="slider-row"><label>P max</label>   <input type="range" id="pmax"     min="100" max="500" step="5"    value="290" ><span class="sv" id="pmax-v">290</span>W</div>
+    <!-- ACTION BAR ═════════════════════════════════════ -->
+    <div class="action-bar">
+      <button id="btn-dl-csv" disabled>&#11015; CSV</button>
+      <button id="btn-dl-fit" disabled>&#11015; FIT</button>
+      <button id="btn-dl-log">&#11015; Log</button>
+      <div class="rpe-label">RPE <input type="number" id="rpe" min="1" max="10" step="1" placeholder="1-10" style="width:48px"></div>
+      <span class="session-timer" id="session-timer">00:00:00</span>
     </div>
-  </div>
 
-  <div class="panel-section">
-    <span class="panel-head">Control</span>
-    <button id="btn-servo" disabled>START SERVO</button>
-    <button id="btn-pause-servo" disabled>PAUSE</button>
-    <button id="btn-warmup">START WARM-UP</button>
-    <span id="wu-remaining" style="color:var(--muted)">—</span>
-    <input type="number" id="wu-dur" value="3" min="1" max="60" step="1" style="width:44px">
-    <span style="color:var(--muted)">min</span>
-  </div>
+    <!-- LOG ════════════════════════════════════════════ -->
+    <div class="log-section" id="log-section">
+      <div class="log-header" id="btn-toggle-log">
+        <span>LOG</span><span id="log-toggle">&#9660;</span>
+      </div>
+      <div id="log"></div>
+    </div>
 
-  <div class="panel-section">
-    <span class="panel-head">State</span>
-    <span style="color:var(--muted);font-size:11px">
-      err&nbsp;<span id="st-err">—</span>&nbsp;
-      &#8747;&nbsp;<span id="st-int">—</span>&nbsp;
-      d&nbsp;<span id="st-der">—</span>&nbsp;
-      &#8594;&nbsp;<span id="st-out" style="color:var(--orange)">—</span>W&nbsp;
-      hb&nbsp;<span id="m-hb">—</span>&nbsp;
-      next&nbsp;<span id="st-next">—</span>
-    </span>
-  </div>
-</div>
+  </div><!-- /main-col -->
 
-<!-- ══════════════════════════════════════════════════
-     POWER ERG CONTROL PANEL
-     ══════════════════════════════════════════════════ -->
-<div class="panel power-erg-only" id="panel-power-erg">
-  <div class="panel-section">
-    <span class="panel-head">Power ERG</span>
-    <button id="btn-start-power-erg" disabled>&#9654; Start ERG</button>
-    <button id="btn-stop-power-erg">&#9632; Stop ERG</button>
-    <input type="number" id="erg-setpoint" value="150" min="0" max="2000" step="5" style="width:60px">
-    <span style="color:var(--muted)">W target</span>
-    <span id="erg-setpoint-display" style="color:var(--orange);font-size:14px;font-weight:bold">—</span>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════
-     PROFILE PANEL (always visible)
-     ══════════════════════════════════════════════════ -->
-<div class="panel" id="panel-profile">
-  <span class="panel-head">Profile</span>
-  <div class="profile-grid">
-    <label>Rest HR   <input type="number" id="prof-rest"    value="43"   min="30"  max="80"  step="1">  bpm</label>
-    <label>Max HR    <input type="number" id="prof-max"     value="173"  min="100" max="230" step="1">  bpm</label>
-    <label>FTP       <input type="number" id="prof-ftp"     value="250"  min="50"  max="600" step="5">  W</label>
-    <label>Model A   <input type="number" id="prof-model-a" value="0.35" min="0.1" max="1"   step="0.01"> bpm/W</label>
-    <label>Model B   <input type="number" id="prof-model-b" value="60"   min="20"  max="100" step="1">  bpm&#64;0W</label>
-    <button id="btn-save-profile">Save</button>
-    <span id="prof-status" style="color:var(--muted);font-size:11px"></span>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════
-     CHARTS ROW: power curve + HR vs power
-     ══════════════════════════════════════════════════ -->
-<div class="charts-row">
-  <div class="power-curve-panel" id="power-curve-panel">
-    <div class="metric-head">Power Curve &nbsp;<span style="color:var(--blue2)">&#9644; MMP</span> &nbsp;<span style="color:var(--orange)">&#8943; NP (t&gt;2min)</span></div>
-    <canvas id="power-curve-canvas"></canvas>
-  </div>
-  <div class="hr-power-panel" id="hr-power-panel">
-    <div class="metric-head">HR vs Power</div>
-    <canvas id="hr-power-canvas"></canvas>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════
-     ACTION BAR
-     ══════════════════════════════════════════════════ -->
-<div class="action-bar">
-  <button id="btn-dl-csv" disabled>&#11015; CSV</button>
-  <button id="btn-dl-fit" disabled>&#11015; FIT</button>
-  <button id="btn-dl-log">&#11015; Log</button>
-  <div class="rpe-label">RPE <input type="number" id="rpe" min="1" max="10" step="1" placeholder="1-10" style="width:48px"></div>
-  <span class="session-timer" id="session-timer">00:00:00</span>
-</div>
-
-<!-- ══════════════════════════════════════════════════
-     LOG PANEL
-     ══════════════════════════════════════════════════ -->
-<div class="log-section" id="log-section">
-  <div class="log-header" id="btn-toggle-log">
-    <span>LOG</span><span id="log-toggle">&#9660;</span>
-  </div>
-  <div id="log"></div>
-</div>
+</div><!-- /page-layout -->
 
 <!-- Scripts — load order matches dependency graph -->
 <script src="js/log.js"></script>
