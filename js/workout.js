@@ -204,6 +204,7 @@ class WorkoutPlayer {
     }
 
     updateWorkoutBar(this);
+    updateWorkoutProfileCursor(this);
   }
 
   // Resolve the current segment's target and push it to the appropriate controller.
@@ -245,13 +246,16 @@ function handleWorkoutFile(file) {
       const mode = currentMode;   // 'hr-servo' | 'power-erg'
       if (file.name.endsWith('.zwo')) {
         workoutSegments = parseZwo(e.target.result, mode);
+        workoutRawSegs  = parseZwoRaw(e.target.result);
       } else {
         workoutSegments = parseAscii(e.target.result, mode);
+        workoutRawSegs  = [];
       }
       const totalMin = Math.round(workoutSegments.reduce((a, s) => a + s.durationSecs, 0) / 60);
-      document.getElementById('seg-name').textContent = `${file.name} — ${totalMin} min, ${workoutSegments.length} segments`;
+      document.getElementById('seg-name').textContent = `${file.name} — ${totalMin} min`;
       document.getElementById('btn-start-workout').disabled = false;
-      log(`Workout loaded: ${workoutSegments.length} segments from ${file.name}`, 'ok');
+      setTimeout(() => drawWorkoutProfile(workoutRawSegs), 30);
+      log(`Workout loaded: ${workoutSegments.length} segments, ${totalMin} min`, 'ok');
     } catch (err) {
       log(`Workout load failed: ${err.message}`, 'err');
     }

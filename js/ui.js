@@ -14,6 +14,9 @@ function setMode(mode) {
   document.querySelectorAll('.mode-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === mode);
   });
+  if (mode !== 'passive') {
+    setTimeout(() => drawWorkoutProfile(workoutRawSegs), 50);
+  }
 }
 
 // ── Connection pill ───────────────────────────────────────────────────────────
@@ -230,13 +233,7 @@ function setVal(blockId, val) {
 function updateWorkoutBar(player) {
   const seg = player.currentSegment;
   if (!seg) return;
-
   setText('seg-name', seg.label);
-
-  const pct = Math.round((player.totalElapsed / player.totalDuration) * 100);
-  const bar = document.getElementById('workout-progress');
-  if (bar) bar.style.width = `${Math.min(100, pct)}%`;
-
   const rem = player.totalDuration - player.totalElapsed;
   const m   = String(Math.floor(rem / 60)).padStart(2, '0');
   const s   = String(rem % 60).padStart(2, '0');
@@ -245,9 +242,8 @@ function updateWorkoutBar(player) {
 
 function updateWorkoutBarDone() {
   setText('seg-name', 'Workout complete');
-  const bar = document.getElementById('workout-progress');
-  if (bar) bar.style.width = '100%';
   setText('seg-remaining', '00:00');
+  drawWorkoutProfile(workoutRawSegs, Infinity);  // cursor past end
 }
 
 // ── Workout file + mode button wiring ────────────────────────────────────────
@@ -351,7 +347,11 @@ function wireResize() {
   let debounce = null;
   window.addEventListener('resize', () => {
     clearTimeout(debounce);
-    debounce = setTimeout(() => { drawOverview(); drawRolling(); }, 150);
+    debounce = setTimeout(() => {
+      drawOverview();
+      drawRolling();
+      drawWorkoutProfile(workoutRawSegs);
+    }, 150);
   });
 }
 

@@ -1,3 +1,18 @@
+## v1.1.6 — 2026-04-13
+
+- Left sidebar collapses to 58px (icons + status) and expands to 182px on hover;
+  Connect buttons, ERG label, and Profile section only visible when expanded;
+  mode tabs, session buttons show abbreviated text when collapsed, full on hover;
+  CSS transition on container width provides smooth expand/collapse animation
+- Workout profile canvas: loaded .zwo files are rendered as a zone-coloured bar
+  chart (height = %FTP, colour = training zone: recovery/endurance/tempo/
+  sweetspot/threshold/VO2max/anaerobic); FTP reference line and time axis labels
+  shown; a white cursor line tracks playback position during workout; placeholder
+  text shown before any file is loaded
+- Added js/workoutprofile.js: parseZwoRaw(), drawWorkoutProfile(), zoneColor(),
+  updateWorkoutProfileCursor() — raw ZWO parsing kept separate from
+  mode-converted playback segments in workout.js
+
 ## v1.1.5 — 2026-04-13
 
 - Full UI redesign: left sidebar + main column page layout

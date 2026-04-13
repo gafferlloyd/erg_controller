@@ -44,15 +44,48 @@ body {
   gap: 8px;
 }
 
+/* ── Collapsible sidebar ─────────────────────────────
+   Collapsed: 58px — icons + status only.
+   Hover: 182px — full labels, profile, connect btns.     */
 .left-col {
-  width: 160px;
+  width: 58px;
+  min-width: 58px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 5px;
+  overflow: hidden;
   overflow-y: auto;
+  transition: width 0.2s ease, min-width 0.2s ease;
   padding-right: 2px;
 }
+.left-col:hover {
+  width: 182px;
+  min-width: 182px;
+}
+
+/* Text spans that grow in/out during expansion */
+.left-col .sb-text {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 0;
+  opacity: 0;
+  white-space: nowrap;
+  vertical-align: baseline;
+  transition: max-width 0.18s ease, opacity 0.14s ease 0.06s;
+}
+.left-col:hover .sb-text {
+  max-width: 150px;
+  opacity: 1;
+}
+
+/* Whole buttons hidden when collapsed */
+.left-col .sb-btn  { display: none; }
+.left-col:hover .sb-btn  { display: inline; }
+
+/* Whole sections hidden when collapsed */
+.left-col .sb-only { display: none !important; }
+.left-col:hover .sb-only { display: flex !important; }
 
 .main-col {
   flex: 1;
@@ -257,12 +290,11 @@ label { cursor: pointer; }
 /* ── Workout bar ───────────────────────────────────── */
 .workout-bar {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 0;
   background: var(--surface);
   border: 1px solid var(--border);
-  padding: 6px 10px;
-  flex-wrap: wrap;
+  padding: 6px 10px 0;
   flex-shrink: 0;
   transition: border-color 0.15s, background 0.15s;
 }
@@ -270,24 +302,16 @@ label { cursor: pointer; }
   border-color: var(--blue2);
   background: rgba(31, 111, 235, 0.15);
 }
+.workout-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 6px;
+}
 .segment-info { display: flex; gap: 12px; align-items: center; font-size: 12px; flex: 1; }
-.segment-info #seg-name   { color: var(--blue2); font-weight: bold; }
+.segment-info #seg-name      { color: var(--blue2); font-weight: bold; }
 .segment-info #seg-remaining { color: var(--muted); }
-
-.progress-track {
-  flex: 2;
-  height: 6px;
-  background: var(--border);
-  border-radius: 3px;
-  overflow: hidden;
-  min-width: 100px;
-}
-.progress-fill {
-  height: 100%;
-  background: var(--blue);
-  width: 0%;
-  transition: width 1s linear;
-}
 
 .workout-controls { display: flex; align-items: center; gap: 6px; }
 .workout-controls input[type=file] { display: none; }
@@ -301,6 +325,14 @@ label { cursor: pointer; }
   font-size: 11px;
 }
 .btn-file-label:hover { background: var(--border2); }
+
+/* Workout profile canvas */
+.workout-profile-canvas {
+  display: block;
+  width: 100%;
+  height: 72px;
+  cursor: default;
+}
 
 /* ── Main display grid ─────────────────────────────── */
 .main-display {
