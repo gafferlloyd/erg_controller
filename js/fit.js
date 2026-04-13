@@ -97,16 +97,20 @@ function buildRecordDef() {
     { fieldDef: 3,   size: 1, baseType: 0x02 }, // heart_rate uint8
     { fieldDef: 7,   size: 2, baseType: 0x84 }, // power uint16
     { fieldDef: 4,   size: 1, baseType: 0x02 }, // cadence uint8
+    { fieldDef: 6,   size: 2, baseType: 0x84 }, // speed uint16 (scale 1000 = mm/s)
   ]);
 }
 
-function buildRecordData(fitTs, hr, power, cadence) {
+function buildRecordData(fitTs, hr, power, cadence, speed) {
+  // FIT speed: m/s × 1000 stored as uint16; 0xFFFF = invalid
+  const speedMms = (speed != null) ? Math.min(0xFFFE, Math.round(speed / 3.6 * 1000)) : 0xFFFF;
   return [
     dataHeader(1),
     ...u32(fitTs),
     hr      != null ? (hr      & 0xFF)  : 0xFF,
     ...( power   != null ? u16(power)   : [0xFF, 0xFF] ),
     cadence != null ? (cadence & 0xFF)  : 0xFF,
+    ...u16(speedMms),
   ];
 }
 
@@ -120,14 +124,16 @@ function buildSessionDef() {
     { fieldDef: 254, size: 2, baseType: 0x84 }, // message_index uint16
     { fieldDef: 253, size: 4, baseType: 0x86 }, // timestamp uint32
     { fieldDef: 2,   size: 4, baseType: 0x86 }, // start_time uint32
-    { fieldDef: 7,   size: 4, baseType: 0x86 }, // total_elapsed_time uint32 (scaled ×1000 ms)
-    { fieldDef: 8,   size: 4, baseType: 0x86 }, // total_timer_time uint32 (×1000)
+    { fieldDef: 7,   size: 4, baseType: 0x86 }, // total_elapsed_time uint32 (ms)
+    { fieldDef: 8,   size: 4, baseType: 0x86 }, // total_timer_time uint32 (ms)
     { fieldDef: 5,   size: 1, baseType: 0x00 }, // sport uint8 (2 = cycling)
     { fieldDef: 6,   size: 1, baseType: 0x00 }, // sub_sport uint8 (6 = indoor)
     { fieldDef: 16,  size: 1, baseType: 0x02 }, // avg_heart_rate uint8
     { fieldDef: 20,  size: 2, baseType: 0x84 }, // avg_power uint16
     { fieldDef: 34,  size: 2, baseType: 0x84 }, // normalized_power uint16
     { fieldDef: 11,  size: 2, baseType: 0x84 }, // total_calories uint16
+    { fieldDef: 9,   size: 4, baseType: 0x86 }, // total_distance uint32 (scale 100 = cm)
+    { fieldDef: 14,  size: 2, baseType: 0x84 }, // avg_speed uint16 (scale 1000 = mm/s)
   ]);
 }
 
@@ -139,6 +145,13 @@ function buildSessionData(startTs, endTs, sampleArr) {
   const avgHR  = hrVals.length ? Math.round(hrVals.reduce((a, s) => a + s.hr, 0) / hrVals.length) : 0;
   const durMs  = sampleArr.length * 1000;
   const cal    = estimateCalories(sampleArr);
+
+  // Distance: integrate speed (km/h → m/s × 1 s per sample)
+  const totalDistM  = sampleArr.reduce((acc, s) => acc + (s.speed != null ? s.speed / 3.6 : 0), 0);
+  const distCm      = Math.round(totalDistM * 100);
+  const spdVals     = sampleArr.filter(s => s.speed != null && s.speed > 0);
+  const avgSpdKmh   = spdVals.length ? spdVals.reduce((a, s) => a + s.speed, 0) / spdVals.length : 0;
+  const avgSpdMms   = Math.round(avgSpdKmh / 3.6 * 1000);
 
   return [
     dataHeader(2),
@@ -153,6 +166,8 @@ function buildSessionData(startTs, endTs, sampleArr) {
     ...u16(avgPwr),
     ...u16(np),
     ...u16(cal),
+    ...u32(distCm),          // total_distance in cm
+    ...u16(avgSpdMms),       // avg_speed in mm/s
   ];
 }
 
@@ -213,7 +228,7 @@ function buildFitFile(sampleArr, startMs) {
   // Records — one per sample
   sampleArr.forEach((s, i) => {
     const ts = startTs + i;
-    messages.push(buildRecordData(ts, s.hr, s.power, s.cadence));
+    messages.push(buildRecordData(ts, s.hr, s.power, s.cadence, s.speed));
   });
 
   // Session + Activity

@@ -27,6 +27,7 @@ let hrLive        = false;
 let lastHR        = null;
 let lastPower     = null;
 let lastCadence   = null;
+let lastSpeed     = null;   // km/h (from FTMS Indoor, always present)
 
 // ── HRV — R-R interval accumulation ──────────────────────────────────────────
 // FTMS HR characteristic flag bit 4 signals RR-interval presence.
@@ -104,7 +105,7 @@ async function ftmsHandshake() {
   if (ergHandshakeDone) {
     await writeCPBytes([0x07]);
     log('[TX/FTMS] 07 Start/Resume (re-arm)', 'tx');
-    if (servoActive) sendPower(ergSetpoint);
+    if (servoActive || ergActive) sendPower(ergSetpoint);
     return;
   }
   await writeCPBytes([0x00]);
@@ -116,8 +117,8 @@ async function ftmsHandshake() {
 
 function onCPS(e) {
   const v = e.target.value;
-  lastPower   = v.getInt16(2, true);
-  lastCadence = readCadenceFromCPS(v);
+  lastPower = v.getInt16(2, true);
+  // lastCadence and lastSpeed come from FTMS Indoor — do not overwrite here
   onNewPower(lastPower, lastCadence);
 }
 
@@ -139,16 +140,18 @@ function onFTMSIndoor(e) {
   const v     = e.target.value;
   const flags = v.getUint16(0, true);
   let offset  = 2;
-  offset += 2;                              // instantaneous speed (always present)
-  if (flags & 0x0002) offset += 2;         // average speed
-  if (flags & 0x0004) {
+  lastSpeed = v.getUint16(offset, true) * 0.01;  // always present, units: 0.01 km/h
+  offset += 2;
+  if (flags & 0x0002) offset += 2;               // average speed
+  if (flags & 0x0004) {                           // instantaneous cadence
     if (offset + 1 < v.byteLength) {
       lastCadence = Math.round(v.getUint16(offset, true) / 2);
     }
     offset += 2;
   }
-  if (flags & 0x0008) offset += 3;         // total distance
-  if (flags & 0x0010) offset += 2;         // resistance level
+  if (flags & 0x0008) offset += 2;               // average cadence (uint16)
+  if (flags & 0x0010) offset += 3;               // total distance (uint24)
+  if (flags & 0x0020) offset += 2;               // resistance level
   if (flags & 0x0040 && offset + 1 < v.byteLength) {
     lastPower = v.getInt16(offset, true);
   }
@@ -191,7 +194,7 @@ function onCPResponse(e) {
       log('FTMS Request Control OK', 'ok');
       writeCPBytes([0x07]).then(() => {
         log('[TX/FTMS] 07 Start/Resume', 'tx');
-        if (pendingServoPowerSend && servoActive) {
+        if (pendingServoPowerSend && (servoActive || ergActive)) {
           pendingServoPowerSend = false;
           sendPower(ergSetpoint);
         }

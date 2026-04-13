@@ -1,20 +1,22 @@
 'use strict';
 
 // ── Session state ─────────────────────────────────────────────────────────────
-let sessionActive = false;
-let sessionStart  = null;
-let sampleTimer   = null;
+let sessionActive   = false;
+let sessionStart    = null;
+let sampleTimer     = null;
+let sessionDistance = 0;    // metres, accumulated from speed samples
 
 // Timestamped samples — one per second while session is active.
-// { t: ms_epoch, hr: bpm|null, power: W|null, cadence: rpm|null, rmssd: ms|null }
+// { t, hr, power, cadence, speed (km/h), rmssd }
 const samples = [];
 
 // ── Session control ───────────────────────────────────────────────────────────
 
 function startSession() {
   if (sessionActive) return;
-  samples.length = 0;
-  sessionStart   = Date.now();
+  samples.length  = 0;
+  sessionDistance = 0;
+  sessionStart    = Date.now();
   sessionActive  = true;
   sampleTimer    = setInterval(takeSample, 1000);
   log('Session started', 'ok');
@@ -31,11 +33,13 @@ function stopSession() {
 }
 
 function takeSample() {
+  if (lastSpeed != null) sessionDistance += lastSpeed / 3.6;  // km/h → m/s, ×1 s
   samples.push({
     t:       Date.now(),
     hr:      lastHR,
     power:   lastPower,
     cadence: lastCadence,
+    speed:   lastSpeed,
     rmssd:   currentRMSSD,
   });
   onSampleTaken();      // ui.js callback — updates metrics display

@@ -181,7 +181,7 @@ label { cursor: pointer; }
   display: grid;
   grid-template-columns: 160px 1fr 130px;
   gap: 6px;
-  height: 260px;
+  height: 290px;
 }
 
 .overview-panel, .chart-panel {
@@ -210,6 +210,7 @@ label { cursor: pointer; }
 .cv-block.cad  .cv-val { color: var(--blue2); }
 .cv-block.tgt  .cv-val { color: var(--purple); }
 .cv-block.hrv  .cv-val { color: var(--green2); }
+.cv-block.spd  .cv-val { color: var(--amber); }
 
 /* ── Metrics grid ──────────────────────────────────── */
 .metrics-grid {

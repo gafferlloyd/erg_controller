@@ -78,6 +78,7 @@ function onNewHR(hr) {
 function onNewPower(power, cadence) {
   setVal('cv-power',   power   ?? '—');
   setVal('cv-cadence', cadence ?? '—');
+  setVal('cv-speed',   lastSpeed != null ? lastSpeed.toFixed(1) : '—');
 }
 
 // ── ERG confirmed / control lost ─────────────────────────────────────────────
@@ -184,6 +185,13 @@ function updateSessionMetrics() {
   setText('mt-avgcad',  avgCad  != null ? `${avgCad}`  : '—');
   setText('mt-avgcad2', avgCad2 != null ? `${avgCad2}` : '—');
   setText('mt-cadrng',  minCad  != null ? `${minCad} – ${maxCad} rpm` : '—');
+
+  // Speed and Distance
+  const spdAll  = all.filter(s => s.speed != null && s.speed > 0);
+  const avgSpd  = spdAll.length ? (spdAll.reduce((a, s) => a + s.speed, 0) / spdAll.length).toFixed(1) : null;
+  const distKm  = (sessionDistance / 1000).toFixed(2);
+  setText('mt-avgspd', avgSpd ?? '—');
+  setText('mt-dist',   distKm);
 
   // Efficiency
   setText('mt-eff',    calcEfficiency(all)    ?? '—');

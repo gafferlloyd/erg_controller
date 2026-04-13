@@ -188,7 +188,7 @@ function stopHeartbeat() {
 }
 
 async function runHeartbeat() {
-  if (!servoActive || !(wahooCP || ftmsCP)) return;
+  if (!(servoActive || ergActive) || !(wahooCP || ftmsCP)) return;
   heartbeatCount++;
   document.getElementById('m-hb').textContent = heartbeatCount;
 
