@@ -319,8 +319,9 @@ function startPowerErg() {
 function stopPowerErg() {
   ergActive = false;
   stopHeartbeat();
+  // Release resistance — switch KICKR to flat-road simulation (same as MyWhoosh handback)
   if (wahooCP) writeChar(wahooCP, [0x41, 0x00, 0x00]).catch(() => {});
-  else         writeCPBytes([0x08]).catch(() => {});
+  else         writeCPBytes([0x11, 0x00, 0x00, 0x14, 0x00, 0x28, 0x33]).catch(() => {});
   updateErgIndicator('idle');
   log('Power ERG stopped', 'warn');
 }

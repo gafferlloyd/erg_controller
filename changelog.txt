@@ -1,3 +1,12 @@
+## v1.1.3 — 2026-04-13
+
+- Fixed ERG release in stopServo(), pauseServo(), stopPowerErg(): replaced
+  malformed opcode 0x08 (Stop, missing required parameter) with opcode 0x11
+  (Set Indoor Bike Simulation Parameters) with flat-road values [0x11, 0x00,
+  0x00, 0x14, 0x00, 0x28, 0x33] — confirmed from GATT capture of MyWhoosh
+  handing back control; transitions KICKR from ERG to slope/simulation mode
+  cleanly without a hard stop
+
 ## v1.1.2 — 2026-04-13
 
 - Fixed cadence recording: onCPS was resetting lastCadence to null every second
