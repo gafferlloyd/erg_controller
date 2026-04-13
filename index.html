@@ -6,14 +6,14 @@
   <title>ERG Controller</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="show-recorder">
+<body class="show-passive">
 
 <!-- ══════════════════════════════════════════════════
      HEADER: mode tabs + connection pills + ERG status
      ══════════════════════════════════════════════════ -->
 <header class="app-header">
   <div class="mode-tabs" role="tablist">
-    <button class="mode-tab active" data-mode="recorder">RECORDER</button>
+    <button class="mode-tab active" data-mode="passive">PASSIVE</button>
     <button class="mode-tab"        data-mode="hr-servo">HR SERVO</button>
     <button class="mode-tab"        data-mode="power-erg">POWER ERG</button>
   </div>
@@ -22,13 +22,11 @@
     <div class="pill" id="pill-trainer">
       <span class="pill-icon">🚴</span>
       <span class="dot" id="pdot-trainer"></span>
-      <span id="plbl-trainer">No trainer</span>
       <button id="btn-connect-trainer">Connect</button>
     </div>
     <div class="pill" id="pill-hr">
       <span class="pill-icon">❤️</span>
       <span class="dot" id="pdot-hr"></span>
-      <span id="plbl-hr">No HR monitor</span>
       <button id="btn-connect-hr">Connect</button>
     </div>
     <div class="erg-indicator" id="erg-indicator">
@@ -46,9 +44,9 @@
 </header>
 
 <!-- ══════════════════════════════════════════════════
-     WORKOUT BAR (hidden in recorder mode)
+     WORKOUT BAR (hidden in passive mode)
      ══════════════════════════════════════════════════ -->
-<div class="workout-bar no-recorder" id="workout-bar">
+<div class="workout-bar no-passive" id="workout-bar">
   <div class="segment-info">
     <span id="seg-name">No workout loaded</span>
     <span id="seg-remaining" style="color:var(--muted)">—</span>

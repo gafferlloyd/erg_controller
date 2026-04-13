@@ -324,7 +324,7 @@ label { cursor: pointer; }
 .hr-power-panel canvas {
   display: block;
   width: 100%;
-  height: 140px;
+  aspect-ratio: 1 / 1;
 }
 
 /* ── Drag-and-drop ─────────────────────────────────── */
@@ -387,7 +387,7 @@ label { cursor: pointer; }
 /* ── Mode visibility ───────────────────────────────── */
 .hr-servo-only, .power-erg-only { display: none; }
 
-.show-recorder  .recorder-only  { display: flex; }
+.show-passive   .passive-only   { display: flex; }
 .show-hr-servo  .hr-servo-only  { display: flex; }
 .show-power-erg .power-erg-only { display: flex; }
-.show-recorder  .no-recorder    { display: none !important; }
+.show-passive   .no-passive     { display: none !important; }

@@ -1,11 +1,15 @@
 'use strict';
 
 // ── Mode management ───────────────────────────────────────────────────────────
-// currentMode: 'recorder' | 'hr-servo' | 'power-erg'
-let currentMode = 'recorder';
+// currentMode: 'passive' | 'hr-servo' | 'power-erg'
+let currentMode = 'passive';
 
 function setMode(mode) {
   currentMode = mode;
+  if (mode === 'passive') {
+    if (servoActive) stopServo();
+    if (ergActive)   stopPowerErg();
+  }
   document.body.className = `show-${mode}`;
   document.querySelectorAll('.mode-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === mode);
@@ -115,6 +119,8 @@ function onSessionStopped() {
   drawPowerCurve();
   drawHRPower();
   updateSessionMetrics();
+  downloadFit();
+  downloadLog();
 }
 
 let _timerInterval = null;
@@ -363,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
   wireErgSetpoint();
   wireTargetHR();
   wireResize();
-  setMode('recorder');
+  setMode('passive');
   updateServoBtn();
   updateErgIndicator('idle');
   setText('session-timer', '00:00:00');

@@ -1,3 +1,12 @@
+## v1.1.4 — 2026-04-13
+
+- Renamed "Recorder" mode to "Passive" throughout (tab label, CSS classes, JS)
+- Switching to Passive mode now automatically stops HR Servo and Power ERG if active
+- Connection pills simplified to emoji + dot + Connect button only (no device name text)
+- Power Curve and HR vs Power canvases now render at 1:1 aspect ratio (aspect-ratio: 1/1)
+- Stop Session now automatically downloads .fit and .log files immediately
+- Confirmed from GATT capture: MyWhoosh re-sends power target every ~5 s; default HB=5s correct
+
 ## v1.1.3 — 2026-04-13
 
 - Fixed ERG release in stopServo(), pauseServo(), stopPowerErg(): replaced
