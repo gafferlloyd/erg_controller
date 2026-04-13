@@ -1,0 +1,12 @@
+## v1.1.0 — 2026-04-13
+
+- Default values updated: RestHR 43, MaxHR 173, FTP 250
+- Doubled font sizes across all data displays and settings panels
+- Connection pills now show 🚴 (trainer) and ❤️ (HR monitor) emoji identifiers
+- Start Session / Stop Session buttons moved to the top header bar
+- Session and Last 2 Min metric tables merged into a single Stats panel;
+  Avg Power, Avg HR, and Avg Cadence now show session/2-min values side by side
+  with min–max range on sub-rows; IF and TSS remain session-only
+- Added Avg Cadence (session and 2 min) as a new metric row
+- Added HR vs Power scatter plot (js/hrpower.js), shown side by side with
+  Power Curve in all modes; dots fade from muted (oldest) to bright (newest)

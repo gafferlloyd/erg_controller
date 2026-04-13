@@ -3,8 +3,8 @@
 // ── Profile object ────────────────────────────────────────────────────────────
 // Persisted to localStorage between sessions.
 const profile = {
-  restHR:  50,
-  maxHR:   180,
+  restHR:  43,
+  maxHR:   173,
   ftp:     250,
   modelA:  0.35,   // HR = modelA × Power + modelB
   modelB:  60,

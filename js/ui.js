@@ -110,6 +110,7 @@ function onSessionStopped() {
   drawOverview();
   drawRolling();
   drawPowerCurve();
+  drawHRPower();
   updateSessionMetrics();
 }
 
@@ -132,9 +133,9 @@ function onSampleTaken() {
   const target = (servoActive || ergActive) ? ergSetpoint : null;
   pushChartPoint(s.hr, s.power, np, s.cadence, target);
 
-  // Refresh metrics every 5 samples; power curve every 30 s
+  // Refresh metrics every 5 samples; charts every 30 s
   if (samples.length % 5  === 0) updateSessionMetrics();
-  if (samples.length % 30 === 0) drawPowerCurve();
+  if (samples.length % 30 === 0) { drawPowerCurve(); drawHRPower(); }
 }
 
 // ── Metrics panel ─────────────────────────────────────────────────────────────
@@ -143,32 +144,58 @@ function updateSessionMetrics() {
   const all  = samples;
   const last = recentSamples(120);
 
+  // NP
   const np     = calcNP(all);
   const npLast = calcNP(last);
-  const IF     = calcIF(all, profile.ftp);
-  const tss    = calcTSS(all, profile.ftp);
-  const dcpl   = calcDecoupling(all);
+  setText('mt-np',  np     != null ? `${np}`     : '—');
+  setText('mt-np2', npLast != null ? `${npLast}` : '—');
 
-  setText('mt-np',    np    != null ? `${np}W`    : '—');
-  setText('mt-np2',   npLast != null ? `${npLast}W` : '—');
-  setText('mt-if',    IF    ?? '—');
-  setText('mt-tss',   tss   ?? '—');
-  setText('mt-dcpl',  dcpl  != null ? `${dcpl}%` : '—');
-  setText('mt-eff',   calcEfficiency(all)    ?? '—');
-  setText('mt-npeff', calcNPEfficiency(all)  ?? '—');
-  setText('mt-eff2',  calcEfficiency(last)   ?? '—');
-  setText('mt-npeff2',calcNPEfficiency(last) ?? '—');
+  // Avg Power + min/max
+  const pwAll  = all.filter(s => s.power != null && s.power > 0);
+  const pwLast = last.filter(s => s.power != null && s.power > 0);
+  const avgPw  = pwAll.length  ? Math.round(pwAll.reduce((a, s) => a + s.power, 0)  / pwAll.length)  : null;
+  const avgPw2 = pwLast.length ? Math.round(pwLast.reduce((a, s) => a + s.power, 0) / pwLast.length) : null;
+  const minPw  = pwAll.length  ? Math.min(...pwAll.map(s => s.power)) : null;
+  const maxPw  = pwAll.length  ? Math.max(...pwAll.map(s => s.power)) : null;
+  setText('mt-avgpw',  avgPw  != null ? `${avgPw}`  : '—');
+  setText('mt-avgpw2', avgPw2 != null ? `${avgPw2}` : '—');
+  setText('mt-pwrng',  minPw  != null ? `${minPw} – ${maxPw} W` : '—');
 
+  // Avg HR + min/max
   const hrAll  = all.filter(s => s.hr > 0);
-  const hr2    = last.filter(s => s.hr > 0);
-  const avgHR  = hrAll.length ? Math.round(hrAll.reduce((a, s) => a + s.hr, 0) / hrAll.length) : null;
-  const avgHR2 = hr2.length  ? Math.round(hr2.reduce((a, s) => a + s.hr, 0)  / hr2.length)  : null;
-  setText('mt-avghr',  avgHR  ?? '—');
-  setText('mt-avghr2', avgHR2 ?? '—');
+  const hrLast = last.filter(s => s.hr > 0);
+  const avgHR  = hrAll.length  ? Math.round(hrAll.reduce((a, s) => a + s.hr, 0)  / hrAll.length)  : null;
+  const avgHR2 = hrLast.length ? Math.round(hrLast.reduce((a, s) => a + s.hr, 0) / hrLast.length) : null;
+  const minHR  = hrAll.length  ? Math.min(...hrAll.map(s => s.hr)) : null;
+  const maxHR  = hrAll.length  ? Math.max(...hrAll.map(s => s.hr)) : null;
+  setText('mt-avghr',  avgHR  != null ? `${avgHR}`  : '—');
+  setText('mt-avghr2', avgHR2 != null ? `${avgHR2}` : '—');
+  setText('mt-hrrng',  minHR  != null ? `${minHR} – ${maxHR} bpm` : '—');
 
-  const pwAll = all.filter(s => s.power != null && s.power > 0);
-  const avgPw = pwAll.length ? Math.round(pwAll.reduce((a, s) => a + s.power, 0) / pwAll.length) : null;
-  setText('mt-avgpw', avgPw ?? '—');
+  // Avg Cadence + min/max
+  const cadAll  = all.filter(s => s.cadence != null && s.cadence > 0);
+  const cadLast = last.filter(s => s.cadence != null && s.cadence > 0);
+  const avgCad  = cadAll.length  ? Math.round(cadAll.reduce((a, s) => a + s.cadence, 0)  / cadAll.length)  : null;
+  const avgCad2 = cadLast.length ? Math.round(cadLast.reduce((a, s) => a + s.cadence, 0) / cadLast.length) : null;
+  const minCad  = cadAll.length  ? Math.min(...cadAll.map(s => s.cadence)) : null;
+  const maxCad  = cadAll.length  ? Math.max(...cadAll.map(s => s.cadence)) : null;
+  setText('mt-avgcad',  avgCad  != null ? `${avgCad}`  : '—');
+  setText('mt-avgcad2', avgCad2 != null ? `${avgCad2}` : '—');
+  setText('mt-cadrng',  minCad  != null ? `${minCad} – ${maxCad} rpm` : '—');
+
+  // Efficiency
+  setText('mt-eff',    calcEfficiency(all)    ?? '—');
+  setText('mt-eff2',   calcEfficiency(last)   ?? '—');
+  setText('mt-npeff',  calcNPEfficiency(all)  ?? '—');
+  setText('mt-npeff2', calcNPEfficiency(last) ?? '—');
+
+  // Session-only
+  setText('mt-if',  calcIF(all, profile.ftp)  ?? '—');
+  setText('mt-tss', calcTSS(all, profile.ftp) ?? '—');
+
+  // HRV & HR
+  const dcpl = calcDecoupling(all);
+  setText('mt-dcpl',  dcpl != null ? `${dcpl}%` : '—');
   setText('mt-rmssd', currentRMSSD != null ? `${currentRMSSD}` : '—');
 }
 

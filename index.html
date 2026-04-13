@@ -20,11 +20,13 @@
 
   <div class="conn-row">
     <div class="pill" id="pill-trainer">
+      <span class="pill-icon">🚴</span>
       <span class="dot" id="pdot-trainer"></span>
       <span id="plbl-trainer">No trainer</span>
       <button id="btn-connect-trainer">Connect</button>
     </div>
     <div class="pill" id="pill-hr">
+      <span class="pill-icon">❤️</span>
       <span class="dot" id="pdot-hr"></span>
       <span id="plbl-hr">No HR monitor</span>
       <button id="btn-connect-hr">Connect</button>
@@ -33,6 +35,11 @@
       <span class="erg-dot idle" id="erg-dot"></span>
       <span id="erg-label">ERG IDLE</span>
     </div>
+  </div>
+
+  <div class="session-ctl">
+    <button id="btn-start-session">&#9654; Start Session</button>
+    <button id="btn-stop-session" disabled>&#9632; Stop Session</button>
   </div>
 </header>
 
@@ -98,39 +105,30 @@
      METRICS GRID
      ══════════════════════════════════════════════════ -->
 <div class="metrics-grid">
-  <div class="metric-col">
-    <div class="metric-head">Session</div>
+  <div class="metric-col wide">
+    <div class="metric-head">Stats <span class="mh-sub">session · 2 min</span></div>
     <table class="metric-table">
-      <tr><td class="mk">NP</td>       <td class="mv" id="mt-np">—</td>    <td class="mu">W</td></tr>
-      <tr><td class="mk">Avg Power</td><td class="mv" id="mt-avgpw">—</td> <td class="mu">W</td></tr>
-      <tr><td class="mk">IF</td>       <td class="mv" id="mt-if">—</td>    <td class="mu"></td></tr>
-      <tr><td class="mk">TSS</td>      <td class="mv" id="mt-tss">—</td>   <td class="mu"></td></tr>
-      <tr><td class="mk">Avg HR</td>   <td class="mv" id="mt-avghr">—</td> <td class="mu">bpm</td></tr>
-    </table>
-  </div>
-  <div class="metric-col">
-    <div class="metric-head">Last 2 min</div>
-    <table class="metric-table">
-      <tr><td class="mk">NP</td>       <td class="mv" id="mt-np2">—</td>    <td class="mu">W</td></tr>
-      <tr><td class="mk">Avg HR</td>   <td class="mv" id="mt-avghr2">—</td> <td class="mu">bpm</td></tr>
-      <tr><td class="mk">W/bpm</td>    <td class="mv" id="mt-eff2">—</td>   <td class="mu"></td></tr>
-      <tr><td class="mk">NP/bpm</td>   <td class="mv" id="mt-npeff2">—</td> <td class="mu"></td></tr>
-    </table>
-  </div>
-  <div class="metric-col">
-    <div class="metric-head">Efficiency</div>
-    <table class="metric-table">
-      <tr><td class="mk">W/bpm</td>      <td class="mv" id="mt-eff">—</td>   <td class="mu"></td></tr>
-      <tr><td class="mk">NP/bpm</td>     <td class="mv" id="mt-npeff">—</td> <td class="mu"></td></tr>
-      <tr><td class="mk">Decouple</td>   <td class="mv" id="mt-dcpl">—</td>  <td class="mu">%</td></tr>
+      <tr class="mh-row"><td></td><td class="mc">session</td><td class="mc">2 min</td><td></td></tr>
+      <tr><td class="mk">NP</td>      <td class="mv"  id="mt-np">—</td>     <td class="mv2" id="mt-np2">—</td>    <td class="mu">W</td></tr>
+      <tr><td class="mk">Avg Pwr</td> <td class="mv"  id="mt-avgpw">—</td>  <td class="mv2" id="mt-avgpw2">—</td> <td class="mu">W</td></tr>
+      <tr><td></td><td class="mv-rng" colspan="2" id="mt-pwrng">—</td><td></td></tr>
+      <tr><td class="mk">Avg HR</td>  <td class="mv"  id="mt-avghr">—</td>  <td class="mv2" id="mt-avghr2">—</td> <td class="mu">bpm</td></tr>
+      <tr><td></td><td class="mv-rng" colspan="2" id="mt-hrrng">—</td><td></td></tr>
+      <tr><td class="mk">Avg Cad</td> <td class="mv"  id="mt-avgcad">—</td> <td class="mv2" id="mt-avgcad2">—</td><td class="mu">rpm</td></tr>
+      <tr><td></td><td class="mv-rng" colspan="2" id="mt-cadrng">—</td><td></td></tr>
+      <tr><td class="mk">W/bpm</td>   <td class="mv"  id="mt-eff">—</td>    <td class="mv2" id="mt-eff2">—</td>   <td class="mu"></td></tr>
+      <tr><td class="mk">NP/bpm</td>  <td class="mv"  id="mt-npeff">—</td>  <td class="mv2" id="mt-npeff2">—</td> <td class="mu"></td></tr>
+      <tr><td class="mk">IF</td>      <td class="mv"  id="mt-if">—</td>     <td class="mv2">—</td>                <td class="mu"></td></tr>
+      <tr><td class="mk">TSS</td>     <td class="mv"  id="mt-tss">—</td>    <td class="mv2">—</td>                <td class="mu"></td></tr>
     </table>
   </div>
   <div class="metric-col">
     <div class="metric-head">HRV &amp; HR</div>
     <table class="metric-table">
-      <tr><td class="mk">RMSSD</td>  <td class="mv" id="mt-rmssd">—</td>   <td class="mu">ms</td></tr>
-      <tr><td class="mk">HR Zone</td><td class="mv" id="mt-hrzone">—</td>  <td class="mu"></td></tr>
-      <tr><td class="mk">%HRR</td>   <td class="mv" id="mt-hrr">—</td>     <td class="mu">%</td></tr>
+      <tr><td class="mk">RMSSD</td>   <td class="mv" id="mt-rmssd">—</td>  <td class="mu">ms</td></tr>
+      <tr><td class="mk">Zone</td>    <td class="mv" id="mt-hrzone">—</td> <td class="mu"></td></tr>
+      <tr><td class="mk">%HRR</td>    <td class="mv" id="mt-hrr">—</td>    <td class="mu">%</td></tr>
+      <tr><td class="mk">Decouple</td><td class="mv" id="mt-dcpl">—</td>   <td class="mu">%</td></tr>
     </table>
   </div>
 </div>
@@ -207,8 +205,8 @@
 <div class="panel" id="panel-profile">
   <span class="panel-head">Profile</span>
   <div class="profile-grid">
-    <label>Rest HR   <input type="number" id="prof-rest"    value="50"   min="30"  max="80"  step="1">  bpm</label>
-    <label>Max HR    <input type="number" id="prof-max"     value="180"  min="100" max="230" step="1">  bpm</label>
+    <label>Rest HR   <input type="number" id="prof-rest"    value="43"   min="30"  max="80"  step="1">  bpm</label>
+    <label>Max HR    <input type="number" id="prof-max"     value="173"  min="100" max="230" step="1">  bpm</label>
     <label>FTP       <input type="number" id="prof-ftp"     value="250"  min="50"  max="600" step="5">  W</label>
     <label>Model A   <input type="number" id="prof-model-a" value="0.35" min="0.1" max="1"   step="0.01"> bpm/W</label>
     <label>Model B   <input type="number" id="prof-model-b" value="60"   min="20"  max="100" step="1">  bpm&#64;0W</label>
@@ -218,19 +216,23 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════
-     POWER CURVE (shown once session has data)
+     CHARTS ROW: power curve + HR vs power
      ══════════════════════════════════════════════════ -->
-<div class="power-curve-panel" id="power-curve-panel">
-  <div class="metric-head">Power Curve &nbsp;<span style="color:var(--blue2)">&#9644; MMP</span> &nbsp;<span style="color:var(--orange)">&#8943; NP (t&gt;2min)</span></div>
-  <canvas id="power-curve-canvas"></canvas>
+<div class="charts-row">
+  <div class="power-curve-panel" id="power-curve-panel">
+    <div class="metric-head">Power Curve &nbsp;<span style="color:var(--blue2)">&#9644; MMP</span> &nbsp;<span style="color:var(--orange)">&#8943; NP (t&gt;2min)</span></div>
+    <canvas id="power-curve-canvas"></canvas>
+  </div>
+  <div class="hr-power-panel" id="hr-power-panel">
+    <div class="metric-head">HR vs Power</div>
+    <canvas id="hr-power-canvas"></canvas>
+  </div>
 </div>
 
 <!-- ══════════════════════════════════════════════════
      ACTION BAR
      ══════════════════════════════════════════════════ -->
 <div class="action-bar">
-  <button id="btn-start-session">&#9654; Start Session</button>
-  <button id="btn-stop-session" disabled>&#9632; Stop Session</button>
   <button id="btn-dl-csv" disabled>&#11015; CSV</button>
   <button id="btn-dl-fit" disabled>&#11015; FIT</button>
   <button id="btn-dl-log">&#11015; Log</button>
@@ -256,6 +258,7 @@
 <script src="js/pid.js"></script>
 <script src="js/workout.js"></script>
 <script src="js/chart.js"></script>
+<script src="js/hrpower.js"></script>
 <script src="js/fit.js"></script>
 <script src="js/ui.js"></script>
 
