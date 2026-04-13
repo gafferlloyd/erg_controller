@@ -28,6 +28,8 @@
   .err  { color: #f85149; }
   .info { color: #8b949e; }
   .parse{ color: #79c0ff; }
+  .mark { color: #fff; background: #388bfd; padding: 1px 6px; }
+  .key  { color: #ff7b72; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -36,6 +38,7 @@
   <button id="btn-connect" onclick="connectAndExplore()">Connect &amp; Explore</button>
   <button id="btn-disconnect" onclick="disconnect()">Disconnect</button>
   <button onclick="downloadLog()">⬇ Download log</button>
+  <button onclick="insertMark()">⚑ Mark</button>
   <button onclick="clearLog()">Clear</button>
 </div>
 <div id="status">Not connected</div>
@@ -47,12 +50,28 @@
 // ── Log ──────────────────────────────────────────────────────────────────────
 const _buf = [];
 
+function ts() {
+  const d = new Date();
+  return d.toTimeString().slice(0, 8) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+}
+
 function log(msg, cls = 'info') {
-  const ts = new Date().toTimeString().slice(0, 8);
-  _buf.push(`[${ts}] ${msg}`);
+  const t = ts();
+  _buf.push(`[${t}] ${msg}`);
   const el = document.getElementById('log');
   const d  = document.createElement('div');
-  d.innerHTML = `<span class="ts">[${ts}]</span> <span class="${cls}">${escHtml(msg)}</span>`;
+  d.innerHTML = `<span class="ts">[${t}]</span> <span class="${cls}">${escHtml(msg)}</span>`;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+function insertMark() {
+  const t = ts();
+  const label = `══ MARK ${t} ══`;
+  _buf.push(`[${t}] ${label}`);
+  const el = document.getElementById('log');
+  const d  = document.createElement('div');
+  d.innerHTML = `<span class="mark">${escHtml(label)}</span>`;
   el.appendChild(d);
   el.scrollTop = el.scrollHeight;
 }
@@ -153,8 +172,9 @@ function parseNotification(charUuid, value) {
     if (b.length > offset+1) { parts.push(`speed=${(value.getUint16(offset,true)/100).toFixed(2)}km/h`); offset+=2; }
     if (flags & 0x0002) { if(b.length>offset+1){parts.push(`avgSpeed=${(value.getUint16(offset,true)/100).toFixed(2)}km/h`);} offset+=2; }
     if (flags & 0x0004) { if(b.length>offset+1){parts.push(`cadence=${(value.getUint16(offset,true)/2).toFixed(1)}rpm`);} offset+=2; }
-    if (flags & 0x0008) { offset+=3; }
-    if (flags & 0x0010) { offset+=2; }
+    if (flags & 0x0008) { offset+=2; }  // avg cadence uint16
+    if (flags & 0x0010) { offset+=3; }  // total distance uint24
+    if (flags & 0x0020) { offset+=2; }  // resistance level
     if (flags & 0x0040) { if(b.length>offset+1){parts.push(`power=${value.getInt16(offset,true)}W`);} offset+=2; }
     return `FTMS Indoor: ${parts.join('  ')}  | raw: ${raw}`;
   }
@@ -185,13 +205,17 @@ function parseNotification(charUuid, value) {
       0xFF:'ControlPermissionLost',
     };
     const s = statusNames[b[0]] || `0x${b[0].toString(16)}`;
-    // For TargetPowerChanged (0x08), decode the wattage from bytes 1-2
     let extra = '';
     if (b[0] === 0x08 && b.length >= 3) {
       const watts = (b[2] << 8) | b[1];
       extra = `  → ${watts}W`;
+    } else if (b[0] === 0x07 && b.length >= 3) {
+      const lvl = (b[2] << 8) | b[1];
+      extra = `  → ${lvl}`;
     }
-    return `FTMS Status: ${s}${extra}  | raw: ${raw}`;
+    const key = (b[0] === 0x02 || b[0] === 0x03 || b[0] === 0x19 || b[0] === 0xFF);
+    const prefix = key ? '*** ' : '';
+    return { text: `FTMS Status: ${prefix}${s}${extra}  | raw: ${raw}`, key };
   }
 
   // FTMS Training Status
@@ -297,7 +321,9 @@ async function connectAndExplore() {
         try {
           chr.addEventListener('characteristicvaluechanged', (e) => {
             const parsed = parseNotification(chr.uuid, e.target.value);
-            log(`  [NOTIFY ${label(chr.uuid).slice(0,30)}]  ${parsed}`, 'rx');
+            const text   = typeof parsed === 'object' ? parsed.text : parsed;
+            const cls    = (typeof parsed === 'object' && parsed.key) ? 'key' : 'rx';
+            log(`  [NOTIFY ${label(chr.uuid).slice(0,30)}]  ${text}`, cls);
           });
           await chr.startNotifications();
           log(`        → subscribed to notifications`, 'ok');
