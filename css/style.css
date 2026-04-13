@@ -64,14 +64,21 @@ body {
   min-width: 182px;
 }
 
-/* Text spans that grow in/out during expansion */
+/* Mode tabs and session buttons are flex so sb-text aligns without
+   the vertical-shift caused by inline-block baseline quirks */
+.left-col .mode-tab,
+.left-col .session-ctl button {
+  display: flex;
+  align-items: center;
+}
+
+/* Text spans that grow in/out during expansion.
+   No display:inline-block — they live in flex or flex-adjacent context. */
 .left-col .sb-text {
-  display: inline-block;
   overflow: hidden;
   max-width: 0;
   opacity: 0;
   white-space: nowrap;
-  vertical-align: baseline;
   transition: max-width 0.18s ease, opacity 0.14s ease 0.06s;
 }
 .left-col:hover .sb-text {

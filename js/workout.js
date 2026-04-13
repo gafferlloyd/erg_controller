@@ -190,6 +190,20 @@ class WorkoutPlayer {
 
   get isPaused() { return !this.timer && !this.done; }
 
+  skip() {
+    if (this.done) return;
+    this.segIdx++;
+    this.segElapsed = 0;
+    if (this.segIdx >= this.segments.length) {
+      this._finish();
+    } else {
+      this._applyTarget();
+      log(`Skipped → ${this.currentSegment.label}`, 'info');
+      updateWorkoutBar(this);
+      updateWorkoutProfileCursor(this);
+    }
+  }
+
   _tick() {
     this.segElapsed++;
     this.totalElapsed++;
@@ -292,12 +306,21 @@ function toggleWorkoutPause() {
   else                        workoutPlayer.pause();
 }
 
+function skipWorkoutSegment() {
+  if (!workoutPlayer) return;
+  workoutPlayer.skip();
+}
+
 function updateWorkoutPauseBtn() {
-  const btn = document.getElementById('btn-pause-workout');
-  if (!btn) return;
   const paused = workoutPlayer ? workoutPlayer.isPaused : false;
-  btn.textContent = paused ? '▶ Continue' : '⏸ Pause';
-  btn.disabled    = !workoutPlayer || workoutPlayer.done;
+  const done   = !workoutPlayer || workoutPlayer.done;
+  const btnP = document.getElementById('btn-pause-workout');
+  if (btnP) {
+    btnP.textContent = paused ? '▶ Continue' : '⏸ Pause';
+    btnP.disabled    = done;
+  }
+  const btnS = document.getElementById('btn-skip-workout');
+  if (btnS) btnS.disabled = done;
 }
 
 // ── Power ERG (direct, no PID) ────────────────────────────────────────────────

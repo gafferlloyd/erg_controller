@@ -1,3 +1,17 @@
+## v1.1.7 — 2026-04-13
+
+- Fixed sidebar sb-text superscript: mode tabs and session buttons now use
+  display:flex + align-items:center so text spans are flex items (no more
+  inline-block baseline-shift artefact)
+- Stats table column order corrected: session | range | 2 min (range was
+  previously in the rightmost column, after 2 min)
+- Power ERG target bar: added ±10W and ±50W adjustment buttons (same layout
+  as HR Servo ±1/±5 buttons); adjustErg() wired in ui.js
+- Workout: added ⏭ Skip button — advances immediately to the start of the
+  next segment, re-applies its target, and updates the profile cursor;
+  skip button disabled when no workout active
+- PID sliders/state panel moved below Power Curve + HR vs Power charts
+
 ## v1.1.6 — 2026-04-13
 
 - Left sidebar collapses to 58px (icons + status) and expands to 182px on hover;

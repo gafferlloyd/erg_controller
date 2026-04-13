@@ -89,10 +89,15 @@
       <!-- Power ERG target -->
       <div class="power-erg-only target-section">
         <div class="target-adjust">
-          <input type="number" id="erg-setpoint" value="150" min="0" max="2000" step="5" style="width:64px">
+          <button class="target-btn" id="btn-erg-down50">&#8722;50</button>
+          <button class="target-btn" id="btn-erg-down10">&#8722;10</button>
           <div class="target-value-wrap">
             <span class="target-big target-big-erg" id="erg-setpoint-display">150W</span>
+            <span class="target-unit">W</span>
           </div>
+          <button class="target-btn" id="btn-erg-up10">+10</button>
+          <button class="target-btn" id="btn-erg-up50">+50</button>
+          <input type="number" id="erg-setpoint" value="150" min="0" max="2000" step="5" style="width:56px">
         </div>
         <div class="target-controls">
           <button class="ctrl-btn" id="btn-start-power-erg" disabled>&#9654; Start ERG</button>
@@ -114,6 +119,7 @@
           <label for="workout-file" class="btn-file-label">Load</label>
           <button id="btn-start-workout" disabled>&#9654; Start</button>
           <button id="btn-pause-workout" disabled>&#9208; Pause</button>
+          <button id="btn-skip-workout"  disabled>&#9197; Skip</button>
           <button id="btn-stop-workout">&#9632; Stop</button>
         </div>
       </div>
@@ -162,93 +168,105 @@
 
     <!-- STATS ══════════════════════════════════════════ -->
     <div class="metric-col">
-      <div class="metric-head">Stats <span class="mh-sub">session · 2 min · range</span></div>
+      <div class="metric-head">Stats <span class="mh-sub">session · range · 2 min</span></div>
       <table class="metric-table">
         <tr class="mh-row">
           <td></td>
           <td class="mc">session</td>
-          <td class="mc">2 min</td>
           <td class="mc">range</td>
+          <td class="mc">2 min</td>
           <td></td>
         </tr>
         <tr>
           <td class="mk">NP</td>
           <td class="mv"  id="mt-np">—</td>
-          <td class="mv2" id="mt-np2">—</td>
           <td class="mv-rng"></td>
+          <td class="mv2" id="mt-np2">—</td>
           <td class="mu">W</td>
         </tr>
         <tr>
           <td class="mk">Avg Pwr</td>
           <td class="mv"  id="mt-avgpw">—</td>
-          <td class="mv2" id="mt-avgpw2">—</td>
           <td class="mv-rng" id="mt-pwrng">—</td>
+          <td class="mv2" id="mt-avgpw2">—</td>
           <td class="mu">W</td>
         </tr>
         <tr>
           <td class="mk">Avg HR</td>
           <td class="mv"  id="mt-avghr">—</td>
-          <td class="mv2" id="mt-avghr2">—</td>
           <td class="mv-rng" id="mt-hrrng">—</td>
+          <td class="mv2" id="mt-avghr2">—</td>
           <td class="mu">bpm</td>
         </tr>
         <tr>
           <td class="mk">Avg Cad</td>
           <td class="mv"  id="mt-avgcad">—</td>
-          <td class="mv2" id="mt-avgcad2">—</td>
           <td class="mv-rng" id="mt-cadrng">—</td>
+          <td class="mv2" id="mt-avgcad2">—</td>
           <td class="mu">rpm</td>
         </tr>
         <tr>
           <td class="mk">Avg Spd</td>
           <td class="mv"  id="mt-avgspd">—</td>
-          <td class="mv2"></td>
           <td class="mv-rng"></td>
+          <td class="mv2"></td>
           <td class="mu">km/h</td>
         </tr>
         <tr>
           <td class="mk">Distance</td>
           <td class="mv"  id="mt-dist">—</td>
-          <td class="mv2"></td>
           <td class="mv-rng"></td>
+          <td class="mv2"></td>
           <td class="mu">km</td>
         </tr>
         <tr>
           <td class="mk">W/bpm</td>
           <td class="mv"  id="mt-eff">—</td>
-          <td class="mv2" id="mt-eff2">—</td>
           <td class="mv-rng"></td>
+          <td class="mv2" id="mt-eff2">—</td>
           <td class="mu"></td>
         </tr>
         <tr>
           <td class="mk">NP/bpm</td>
           <td class="mv"  id="mt-npeff">—</td>
-          <td class="mv2" id="mt-npeff2">—</td>
           <td class="mv-rng"></td>
+          <td class="mv2" id="mt-npeff2">—</td>
           <td class="mu"></td>
         </tr>
         <tr>
           <td class="mk">Decouple</td>
           <td class="mv"  id="mt-dcpl">—</td>
-          <td class="mv2"></td>
           <td class="mv-rng"></td>
+          <td class="mv2"></td>
           <td class="mu">%</td>
         </tr>
         <tr>
           <td class="mk">IF</td>
           <td class="mv"  id="mt-if">—</td>
-          <td class="mv2"></td>
           <td class="mv-rng"></td>
+          <td class="mv2"></td>
           <td class="mu"></td>
         </tr>
         <tr>
           <td class="mk">TSS</td>
           <td class="mv"  id="mt-tss">—</td>
-          <td class="mv2"></td>
           <td class="mv-rng"></td>
+          <td class="mv2"></td>
           <td class="mu"></td>
         </tr>
       </table>
+    </div>
+
+    <!-- CHARTS ROW ═════════════════════════════════════ -->
+    <div class="charts-row">
+      <div class="power-curve-panel" id="power-curve-panel">
+        <div class="metric-head">Power Curve &nbsp;<span style="color:var(--blue2)">&#9644; MMP</span> &nbsp;<span style="color:var(--orange)">&#8943; NP (t&gt;2min)</span></div>
+        <canvas id="power-curve-canvas"></canvas>
+      </div>
+      <div class="hr-power-panel" id="hr-power-panel">
+        <div class="metric-head">HR vs Power</div>
+        <canvas id="hr-power-canvas"></canvas>
+      </div>
     </div>
 
     <!-- PID PANEL (HR Servo only) ══════════════════════ -->
@@ -276,18 +294,6 @@
           <tr><td class="sk">hb</td>     <td class="sv2" id="m-hb">—</td></tr>
           <tr><td class="sk">next</td>   <td class="sv2" id="st-next">—</td></tr>
         </table>
-      </div>
-    </div>
-
-    <!-- CHARTS ROW ═════════════════════════════════════ -->
-    <div class="charts-row">
-      <div class="power-curve-panel" id="power-curve-panel">
-        <div class="metric-head">Power Curve &nbsp;<span style="color:var(--blue2)">&#9644; MMP</span> &nbsp;<span style="color:var(--orange)">&#8943; NP (t&gt;2min)</span></div>
-        <canvas id="power-curve-canvas"></canvas>
-      </div>
-      <div class="hr-power-panel" id="hr-power-panel">
-        <div class="metric-head">HR vs Power</div>
-        <canvas id="hr-power-canvas"></canvas>
       </div>
     </div>
 

@@ -301,6 +301,16 @@ function wireTargetHR() {
   inp.addEventListener('change', () => setTarget(parseInt(inp.value) || 145));
 }
 
+// ── ERG power adjust ─────────────────────────────────────────────────────────
+
+function adjustErg(delta) {
+  ergSetpoint = Math.max(0, Math.min(2000, ergSetpoint + delta));
+  const inp = document.getElementById('erg-setpoint');
+  if (inp) inp.value = ergSetpoint;
+  setText('erg-setpoint-display', `${ergSetpoint}W`);
+  if (ergActive) sendPower(ergSetpoint).catch(e => log(`ERG adjust: ${e.message}`, 'warn'));
+}
+
 // ── Global button wiring ──────────────────────────────────────────────────────
 
 function wireButtons() {
@@ -309,6 +319,7 @@ function wireButtons() {
   bindClick('btn-servo',           () => toggleServo());
   bindClick('btn-pause-servo',     () => toggleServoPause());
   bindClick('btn-pause-workout',   () => toggleWorkoutPause());
+  bindClick('btn-skip-workout',    () => skipWorkoutSegment());
   bindClick('btn-warmup',          () => toggleWarmup());
   bindClick('btn-start-power-erg', () => startPowerErg());
   bindClick('btn-stop-power-erg',  () => stopPowerErg());
@@ -324,6 +335,11 @@ function wireButtons() {
   bindClick('btn-hr-down', () => adjustTarget(-1));
   bindClick('btn-hr-up5',  () => adjustTarget(+5));
   bindClick('btn-hr-down5',() => adjustTarget(-5));
+
+  bindClick('btn-erg-up10',   () => adjustErg(+10));
+  bindClick('btn-erg-down10', () => adjustErg(-10));
+  bindClick('btn-erg-up50',   () => adjustErg(+50));
+  bindClick('btn-erg-down50', () => adjustErg(-50));
 
   document.querySelectorAll('.mode-tab').forEach(btn => {
     btn.addEventListener('click', () => setMode(btn.dataset.mode));
