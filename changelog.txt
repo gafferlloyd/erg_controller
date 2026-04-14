@@ -1,3 +1,34 @@
+## v1.1.9 — 2026-04-14
+
+- KICKR BIKE SHIFT BLE protocol fully decoded from GATT capture (gatt_explorer
+  as sole connected device): gear state on char a026e03a (service a026ee0d),
+  button press on char a026e03c; no app-layer init write required — CCCD
+  subscription alone delivers notifications
+- Gear state: 6-byte CHANGE packet (type 01) and 12-byte STATE heartbeat (type 07);
+  rear index 0 = 34T largest cog (easiest), index 11 = 11T (hardest); chainring
+  index 0 = 36T inner, 1 = 52T outer; Shimano Ultegra 2×12
+- Button press: 3-byte format, 16-bit big-endian bitmask (10 buttons mapped),
+  bit 7 of byte 2 = press vs. release
+- gatt_explorer.html: OPT_SERVICES expanded to include ee01–ee0d; KNOWN labels
+  and parseNotification() decoders added for gear state and button press chars
+- _kickr_shift_guide.html: full protocol reference document created
+
+## v1.1.8 — 2026-04-14
+
+- Stats section replaced with two fixed-height stat-blocks (WORKOUT / RECENT),
+  each containing a smart-packed grid of clickable metric boxes; click any box
+  to cycle through the metric library (NP, Avg Pwr, Avg HR, Avg Cad, Avg Spd,
+  Distance, W/bpm, NP/bpm, Decouple, IF, TSS, HRV); empty slot cycles back to start
+- Smart packing: grid columns/rows chosen to minimise wasted cells and maximise
+  aspect ratio (~1.6:1 per box); layout rerenders on window resize
+- HRV (RMSSD) added to metric library and surfaced in both WORKOUT and RECENT grids
+- Layout controls added to sidebar: independent font-scale sliders (0.5–4×) for
+  workout and recent grids, configurable box counts, configurable recent window
+  duration; all settings persisted to localStorage (erg_layout_v1)
+- Priority lists in sidebar show current metric assignment order per grid
+- js/layout.js: new module — METRICS library, smart-pack algorithm, renderStatGrid,
+  setStatBox (API for ui.js), applyScale, save/load config
+
 ## v1.1.7 — 2026-04-13
 
 - Fixed sidebar sb-text superscript: mode tabs and session buttons now use
