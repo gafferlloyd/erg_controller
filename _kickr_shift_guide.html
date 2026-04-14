@@ -536,8 +536,12 @@ trainer's resistance curve.</p>
   </tr>
   <tr>
     <td>ELEMNT BOLT compatibility — why does it fail to connect when GATT explorer holds the connection?</td>
-    <td>Medium</td>
-    <td>The Garmin Edge 530 connects passively without issue. ELEMNT may require exclusive BLE central role or send a specific pairing sequence the KICKR honours only for one client at a time. Needs further investigation if ELEMNT-in-parallel behaviour is desired.</td>
+    <td><strong>RESOLVED (by design)</strong></td>
+    <td>
+      The Garmin Edge 530 is a pure listener — it never attempts to take control, so the KICKR accepts it alongside any other connection.<br><br>
+      The ELEMNT BOLT always connects in <em>potential controller</em> mode. Although it initially joins as passive, a single button press would attempt to take ownership of the trainer. The ELEMNT therefore refuses to establish even a passive connection if the KICKR already has a controller — by design, as a safety measure to prevent two potential controllers from competing for ownership.<br><br>
+      <strong>Consequence:</strong> gatt_explorer (which holds the FTMS control channel) and ELEMNT BOLT are mutually exclusive. This is not a problem for button/gear integration — gatt_explorer alone is sufficient to receive <code>a026e03a</code> and <code>a026e03c</code> notifications.
+    </td>
   </tr>
 </table>
 
