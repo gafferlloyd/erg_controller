@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>KICKR BIKE SHIFT — Programmer's Quick Reference</title>
+<style>
+  body { font-family: sans-serif; max-width: 820px; margin: 2em auto; padding: 0 1em; color: #222; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3em; }
+  h2 { color: #1a5276; margin-top: 2em; }
+  h3 { color: #1a5276; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th { background: #1a5276; color: #fff; padding: 6px 10px; text-align: left; }
+  td { border: 1px solid #ccc; padding: 5px 10px; }
+  tr:nth-child(even) { background: #f5f7fa; }
+  .note { border-left: 4px solid #2980b9; background: #eaf4fb; padding: 0.6em 1em; margin: 1em 0; }
+  .empirical { border-left: 4px solid #27ae60; background: #eafaf1; padding: 0.6em 1em; margin: 1em 0; }
+  .inferred { border-left: 4px solid #e67e22; background: #fef9e7; padding: 0.6em 1em; margin: 1em 0; }
+  .negative { border-left: 4px solid #c0392b; background: #fdf2f2; padding: 0.6em 1em; margin: 1em 0; }
+  code { background: #eee; padding: 1px 4px; border-radius: 3px; font-family: monospace; }
+  pre { background: #1e1e1e; color: #d4d4d4; padding: 1em; border-radius: 5px; overflow-x: auto; font-size: 0.9em; }
+  .badge-spec     { color: #2980b9; font-weight: bold; }
+  .badge-empirical{ color: #27ae60; font-weight: bold; }
+  .badge-inferred { color: #e67e22; font-weight: bold; }
+  .badge-negative { color: #c0392b; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>KICKR BIKE SHIFT — Programmer's Quick Reference</h1>
+
+<p style="color:#555">
+  Based on: Wahoo KICKR BIKE SHIFT (FTMS-capable) &nbsp;|&nbsp;
+  Captured with: custom GATT Explorer (passive BLE listener) &nbsp;|&nbsp;
+  Date: April 2026
+</p>
+
+<div class="note">
+  <strong>📘 BLUETOOTH SPEC —</strong> This device implements the Bluetooth SIG Fitness Machine Service (FTMS)
+  profile (Specification version 1.0). Items marked <strong>SPEC</strong> are derived from the published standard.
+  Items marked <strong>EMPIRICAL</strong> are confirmed from live GATT captures.
+  Items marked <strong>INFERRED</strong> are working assumptions not yet verified by direct capture.
+  Items marked <strong>NEGATIVE</strong> are things we attempted but confirmed do NOT work.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>1. BLE Services</h2>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL (2026-04-14) —</span>
+  9 primary services confirmed by <code>getPrimaryServices()</code> on KICKR BIKE SHIFT B7C3 (FW 1.21.18).
+</div>
+
+<table>
+  <tr><th>Service</th><th>UUID</th><th>Purpose</th></tr>
+  <tr><td>Fitness Machine (FTMS)</td><td>0x1826</td><td>Primary ERG control and data</td></tr>
+  <tr><td>Cycling Power (CPS)</td><td>0x1818</td><td>Power &amp; cadence, read-only</td></tr>
+  <tr><td>Heart Rate</td><td>0x180D</td><td>HR monitor (separate device)</td></tr>
+  <tr><td><strong>Wahoo Info Svc (gear/buttons)</strong></td><td>a026ee0d-0a7d-4ab3-97fa-f1500f9feb8b</td><td>Gear state + button press notifications — <strong>confirmed present on KICKR BIKE SHIFT</strong></td></tr>
+  <tr><td>Wahoo Grade Svc</td><td>a026ee0b-0a7d-4ab3-97fa-f1500f9feb8b</td><td>Grade/lock char (a026e037); no notifications seen in testing</td></tr>
+  <tr><td>Wahoo Fitness Svc (SHIFT)</td><td>a026ee01-0a7d-4ab3-97fa-f1500f9feb8b</td><td>Wahoo-app init/command channel (e002, e004, e03b); no events visible without app-layer init write</td></tr>
+  <tr><td>Wahoo Fitness Svc 6</td><td>a026ee06-0a7d-4ab3-97fa-f1500f9feb8b</td><td>Chars e018, e023 (writeNoResp|notify); purpose unknown</td></tr>
+  <tr><td>Device Information</td><td>0x180A</td><td>Manufacturer: Wahoo Fitness; FW: 1.21.18</td></tr>
+  <tr><td>Generic Access</td><td>0x1800</td><td>Device name, appearance</td></tr>
+  <tr><td>Generic Attribute</td><td>0x1801</td><td>Service changed (subscribe fails on KICKR)</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>2. Key Characteristics (FTMS service)</h2>
+
+<table>
+  <tr><th>Characteristic</th><th>UUID</th><th>Properties</th></tr>
+  <tr><td>FTMS Indoor Bike Data</td><td>0x2AD2</td><td>NOTIFY</td></tr>
+  <tr><td>FTMS Control Point</td><td>0x2AD9</td><td>WRITE + INDICATE</td></tr>
+  <tr><td>FTMS Machine Status</td><td>0x2ADA</td><td>NOTIFY</td></tr>
+  <tr><td>CPS Measurement</td><td>0x2A63</td><td>NOTIFY (CPS service)</td></tr>
+  <tr><td>FTMS Feature</td><td>0x2ACC</td><td>READ — value: <code>02 40 00 00 08 60 00 00</code></td></tr>
+  <tr><td>FTMS Supported Resistance Range</td><td>0x2AD8</td><td>READ — value: <code>00 00 c4 09 01 00</code></td></tr>
+</table>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL —</span> FTMS Control Point <em>indications</em> are delivered
+  only to the device that wrote the command. A passive listener subscribed to notifications on 0x2AD9
+  will <em>not</em> receive CP responses — confirmed by absence of CP indication entries in passive GATT
+  captures despite active subscription.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>3. Wahoo Proprietary Characteristics</h2>
+
+<h3>3a. Wahoo Info Service (a026ee0d) — gear state + button presses</h3>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL (2026-04-14) —</span>
+  Confirmed present on KICKR BIKE SHIFT. These characteristics fire <strong>without any app-layer init write</strong>
+  — BLE CCCD subscription alone is sufficient. No ELEMNT BOLT required.
+</div>
+
+<table>
+  <tr><th>Characteristic</th><th>UUID</th><th>Properties</th><th>Role</th></tr>
+  <tr><td>Gear State</td><td>a026e03a-…</td><td>notify</td><td>Gear position + gear count. Fires on change and periodically.</td></tr>
+  <tr><td>Button Press</td><td>a026e03c-…</td><td>notify</td><td>Button press &amp; release events. All 10 buttons (6 game controller + 4 shifters) encoded as 16-bit bitmask.</td></tr>
+  <tr><td>Char 39</td><td>a026e039-…</td><td>writeNoResp | notify</td><td>Purpose unknown; subscribed but no notifications observed during gear/button testing.</td></tr>
+</table>
+
+<h3>3b. Wahoo Grade Service (a026ee0b)</h3>
+<table>
+  <tr><th>Characteristic</th><th>UUID</th><th>Properties</th><th>Role</th></tr>
+  <tr><td>Grade/Lock</td><td>a026e037-…</td><td>writeNoResp | notify</td><td>Subscribed; no notifications seen in testing. May be used by Wahoo app for grade/lock configuration.</td></tr>
+</table>
+
+<h3>3c. Wahoo Fitness Service (a026ee01) — Wahoo-app init channel</h3>
+<table>
+  <tr><th>Characteristic</th><th>UUID</th><th>Properties</th><th>Role</th></tr>
+  <tr><td>Wahoo Char 02</td><td>a026e002-…</td><td>writeNoResp | notify</td><td>Main app command/response channel; requires app-layer init write from Wahoo/ELEMNT app to unlock</td></tr>
+  <tr><td>Wahoo Char 04</td><td>a026e004-…</td><td>notify</td><td>Event broadcast channel</td></tr>
+  <tr><td>Wahoo Char 3B</td><td>a026e03b-…</td><td>writeNoResp | notify</td><td>KICKR SHIFT-specific; purpose unknown</td></tr>
+</table>
+
+<div class="negative">
+  <span class="badge-negative">✗ NEGATIVE —</span>
+  Wahoo Char 02 (e002), Char 04 (e004), and Char 3B (e03b) produced <strong>zero notifications</strong>
+  in all recordings, even after the gatt_explorer was the primary connected device.
+  Gear and button events do <em>not</em> appear on these characteristics without the Wahoo app-layer init write.
+  These are <em>not</em> needed for gear/button integration — use <code>a026ee0d</code> instead.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>4. Gear State Protocol (a026e03a)</h2>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL (2026-04-14) —</span>
+  Recording: <code>gatt_2026-04-14T13-14-23.txt</code>.
+  Configuration: 2×12 (2 chainrings, 12-speed cassette).
+  KICKR BIKE SHIFT B7C3, FW 1.21.18.
+</div>
+
+<h3>Packet Format</h3>
+<p>Two packet variants are emitted on <code>a026e03a</code>:</p>
+
+<table>
+  <tr><th>Type</th><th>byte[0]</th><th>Length</th><th>Trigger</th></tr>
+  <tr><td><strong>CHANGE</strong></td><td><code>0x01</code></td><td>6 bytes</td><td>Immediately on each gear shift</td></tr>
+  <tr><td>STATE</td><td><code>0x07</code></td><td>12 bytes</td><td>Periodic heartbeat (~1 s)</td></tr>
+</table>
+
+<p>Both variants share the same payload at bytes 2–5:</p>
+<pre><code>byte[0]  = type (0x01=CHANGE, 0x07=STATE)
+byte[1]  = 0x00 (always)
+byte[2]  = frontGearIndex    (0-based; 0 = small ring)
+byte[3]  = rearGearIndex     (0-based; 0 = smallest cog)
+byte[4]  = frontGearCount    (total chainrings, e.g. 2)
+byte[5]  = rearGearCount     (total sprockets, e.g. 12)
+byte[6..11] = 0x00 (STATE only, padding)</code></pre>
+
+<p>On connection, the KICKR immediately pushes the current gear state before any rider action.</p>
+
+<h3>Observed gear sequence (cassette up ×3, down ×3, chainring toggle ×2)</h3>
+<table>
+  <tr><th>Event</th><th>Raw (6-byte CHANGE)</th><th>Decoded</th></tr>
+  <tr><td>Initial (boot)</td><td><code>07 00 00 00 02 0c …</code></td><td>front=0/2  rear=0/12</td></tr>
+  <tr><td>Cassette up ×1</td><td><code>01 00 00 01 02 0c</code></td><td>front=0/2  rear=1/12</td></tr>
+  <tr><td>Cassette up ×2</td><td><code>01 00 00 02 02 0c</code></td><td>front=0/2  rear=2/12</td></tr>
+  <tr><td>Cassette up ×3</td><td><code>01 00 00 03 02 0c</code></td><td>front=0/2  rear=3/12</td></tr>
+  <tr><td>Cassette down ×1</td><td><code>01 00 00 02 02 0c</code></td><td>front=0/2  rear=2/12</td></tr>
+  <tr><td>Cassette down ×2</td><td><code>01 00 00 01 02 0c</code></td><td>front=0/2  rear=1/12</td></tr>
+  <tr><td>Cassette down ×3</td><td><code>01 00 00 00 02 0c</code></td><td>front=0/2  rear=0/12</td></tr>
+  <tr><td>Big ring (up)</td><td><code>01 00 01 00 02 0c</code></td><td>front=1/2  rear=0/12</td></tr>
+  <tr><td>Small ring (down)</td><td><code>01 00 00 00 02 0c</code></td><td>front=0/2  rear=0/12</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>5. Button Press Protocol (a026e03c)</h2>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL (2026-04-14) —</span>
+  Recording: <code>gatt_2026-04-14T13-14-23.txt</code>.
+  All 10 buttons decoded (6 game controller + 4 shifter buttons).
+</div>
+
+<h3>Packet Format</h3>
+<p>All button events are 3 bytes on <code>a026e03c</code>:</p>
+<pre><code>byte[0]  = button bitmask high byte
+byte[1]  = button bitmask low byte
+byte[2]  = seq | 0x80   (press event, high bit set)
+           seq           (release event, high bit clear)</code></pre>
+
+<p>The 16-bit bitmask (bytes 0–1, big-endian) encodes which button(s) were actuated.
+Each button occupies exactly one bit — simultaneous presses would set multiple bits.</p>
+
+<h3>Button Bitmask Map</h3>
+<table>
+  <tr><th>16-bit mask</th><th>Bytes (hex)</th><th>Button</th><th>Notes</th></tr>
+  <tr><td><code>0x0001</code></td><td><code>00 01</code></td><td>RIGHT-FRONT (RF)</td><td>Right hood, front paddle</td></tr>
+  <tr><td><code>0x0002</code></td><td><code>00 02</code></td><td>Cassette Up</td><td>Right shifter — harder gear (smaller cog)</td></tr>
+  <tr><td><code>0x0004</code></td><td><code>00 04</code></td><td>Cassette Down</td><td>Right shifter — easier gear (larger cog)</td></tr>
+  <tr><td><code>0x0008</code></td><td><code>00 08</code></td><td>RIGHT-THUMB (RT)</td><td>Right hood, thumb button</td></tr>
+  <tr><td><code>0x0200</code></td><td><code>02 00</code></td><td>LEFT-FRONT (LF)</td><td>Left hood, front paddle</td></tr>
+  <tr><td><code>0x0400</code></td><td><code>04 00</code></td><td>LEFT-REAR (LR)</td><td>Left hood, rear paddle</td></tr>
+  <tr><td><code>0x0800</code></td><td><code>08 00</code></td><td>Chainring Down</td><td>Left shifter — small ring</td></tr>
+  <tr><td><code>0x1000</code></td><td><code>10 00</code></td><td>Chainring Up</td><td>Left shifter — big ring</td></tr>
+  <tr><td><code>0x2000</code></td><td><code>20 00</code></td><td>LEFT-THUMB (LT)</td><td>Left hood, thumb button</td></tr>
+  <tr><td><code>0x8000</code></td><td><code>80 00</code></td><td>RIGHT-REAR (RR)</td><td>Right hood, rear paddle</td></tr>
+</table>
+
+<h3>Sequence byte</h3>
+<p>The lower 7 bits of byte[2] are a monotonically increasing counter, tracking event count per button independently.
+The counter value at any point also appears in the periodic 14-byte state heartbeat (see §5a).</p>
+
+<h3>Example events</h3>
+<table>
+  <tr><th>Raw</th><th>Decoded</th></tr>
+  <tr><td><code>00 02 a3</code></td><td>CassetteUp PRESS   seq=0x23</td></tr>
+  <tr><td><code>00 02 23</code></td><td>CassetteUp release seq=0x23</td></tr>
+  <tr><td><code>00 04 c6</code></td><td>CassetteDown PRESS   seq=0x46</td></tr>
+  <tr><td><code>10 00 85</code></td><td>ChainUp (big ring) PRESS   seq=0x05</td></tr>
+  <tr><td><code>08 00 86</code></td><td>ChainDown (small ring) PRESS   seq=0x06</td></tr>
+  <tr><td><code>20 00 8c</code></td><td>LEFT-THUMB PRESS   seq=0x0c</td></tr>
+  <tr><td><code>20 00 0c</code></td><td>LEFT-THUMB release seq=0x0c</td></tr>
+  <tr><td><code>04 00 8b</code></td><td>LEFT-REAR PRESS   seq=0x0b</td></tr>
+  <tr><td><code>02 00 8b</code></td><td>LEFT-FRONT PRESS  seq=0x0b</td></tr>
+  <tr><td><code>00 08 8b</code></td><td>RIGHT-THUMB PRESS seq=0x0b</td></tr>
+  <tr><td><code>80 00 8b</code></td><td>RIGHT-REAR PRESS  seq=0x0b</td></tr>
+  <tr><td><code>00 01 8b</code></td><td>RIGHT-FRONT PRESS seq=0x0b</td></tr>
+</table>
+
+<h3>5a. Periodic Button State Packet (14 bytes)</h3>
+<p>A 14-byte heartbeat is also sent periodically on <code>a026e03c</code>:</p>
+<pre><code>ff 0f 01 09 09 [b5] [b6] 0b 01 09 09 [b11] [b12] 0a</code></pre>
+<p>byte[11] tracks cumulative Cassette Up events; byte[12] tracks Cassette Down events;
+bytes [5] and [6] track chainring events. These increment with each button press and match
+the sequence counter in the 3-byte event packets.</p>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>6. FTMS Control Point Opcodes (write to 0x2AD9)</h2>
+
+<table>
+  <tr><th>Bytes (hex)</th><th>Opcode</th><th>Notes</th></tr>
+  <tr><td><code>00</code></td><td>Request Control</td><td>Must be first command</td></tr>
+  <tr><td><code>07</code></td><td>Start / Resume</td><td>Activates ERG mode</td></tr>
+  <tr><td><code>05 WW WW</code></td><td>Set Target Power</td><td>Watts as <strong>int16 little-endian</strong></td></tr>
+  <tr><td><code>11 WW WW GG GG RR CC</code></td><td>Set Indoor Bike Simulation Params</td><td>See section 7</td></tr>
+  <tr><td><code>08 PP</code></td><td>Stop / Pause</td><td>Requires a 1-byte parameter (0x01=Stop, 0x02=Pause). <strong style="color:red">Do not send without parameter byte.</strong></td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>7. Set Indoor Bike Simulation Parameters (opcode 0x11)</h2>
+
+<table>
+  <tr><th>Bytes</th><th>Field</th><th>Units</th><th>Example</th></tr>
+  <tr><td><code>WW WW</code></td><td>Wind speed</td><td>int16 LE, 0.001 m/s</td><td><code>00 00</code> = 0 m/s</td></tr>
+  <tr><td><code>GG GG</code></td><td>Grade</td><td>int16 LE, 0.01 %</td><td><code>14 00</code> = 0.20 %</td></tr>
+  <tr><td><code>RR</code></td><td>Crr (rolling resistance)</td><td>uint8, 0.0001 units</td><td><code>28</code> = 0.0040</td></tr>
+  <tr><td><code>CC</code></td><td>CwA (wind resistance)</td><td>uint8, 0.01 kg/m²</td><td><code>33</code> = 0.51 kg/m²</td></tr>
+</table>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL —</span> ERG release sequence confirmed from GATT capture
+  of MyWhoosh handing back control — both on ERG ON/OFF toggle and at ZWO file end:
+  <pre>→ 11 00 00 14 00 28 33   (flat road, 0.20% grade)</pre>
+  Every handback event produced a 0x12 Machine Status notification with these exact bytes.
+  This transitions the KICKR from ERG mode to slope/simulation mode without a hard stop.
+  Using opcode 0x08 without a parameter byte misbehaves on this device.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>8. Machine Status Notifications (0x2ADA)</h2>
+
+<table>
+  <tr><th>First byte</th><th>Meaning</th><th>Confidence</th></tr>
+  <tr><td><code>07</code></td><td>Target Resistance Level Changed</td><td>Spec</td></tr>
+  <tr><td><code>08 WW WW</code></td><td>Target Power Changed (int16 LE watts)</td><td>Empirical</td></tr>
+  <tr><td><code>12 …</code></td><td>Indoor Bike Simulation Params Changed</td><td>Empirical</td></tr>
+  <tr><td><code>19</code></td><td><strong>Control Permission Lost</strong> (another device took control)</td><td>Empirical</td></tr>
+  <tr><td><code>02</code></td><td>Stopped by Safety Key</td><td>Spec</td></tr>
+  <tr><td><code>03</code></td><td>Started / Resumed by User</td><td>Spec</td></tr>
+</table>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL —</span> Opcode 0x19 (Control Permission Lost) is reliably
+  broadcast when a second application (e.g. MyWhoosh) takes over ERG control. Use this as the trigger
+  to update UI and stop sending power commands.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>9. ELEMNT BOLT Control Modes — Empirical Findings</h2>
+
+<p>The ELEMNT BOLT exposes three trainer control modes. All commands go to FTMS Control Point (0x2AD9).
+Results are broadcast by the KICKR as Machine Status notifications (0x2ADA) visible to all subscribers.</p>
+
+<h3>9a. Resistance Mode</h3>
+
+<p>The ELEMNT encodes resistance level N as a grade value sent via opcode 0x11 (Set Indoor Bike Simulation Params).</p>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL —</span>
+  Recording: <code>gatt_resistancelevel_upfewtimes_downfewtimes.txt</code><br>
+  Resistance levels 2→8 then 8→2, all observed as Machine Status 0x12 (IndoorBikeSimParamsChanged).
+</div>
+
+<table>
+  <tr><th>Resistance Level (ELEMNT)</th><th>Grade (0.01% units)</th><th>Grade (%)</th><th>Crr</th><th>CwA</th></tr>
+  <tr><td>2</td><td>100</td><td>1.00%</td><td>0x28 (0.0040)</td><td>0x3c (0.60 kg/m²)</td></tr>
+  <tr><td>3</td><td>150</td><td>1.50%</td><td>0x28</td><td>0x3c</td></tr>
+  <tr><td>4</td><td>200</td><td>2.00%</td><td>0x28</td><td>0x3c</td></tr>
+  <tr><td>5</td><td>250</td><td>2.50%</td><td>0x28</td><td>0x3c</td></tr>
+  <tr><td>6</td><td>300</td><td>3.00%</td><td>0x28</td><td>0x3c</td></tr>
+  <tr><td>7</td><td>350</td><td>3.50%</td><td>0x28</td><td>0x3c</td></tr>
+  <tr><td>8</td><td>400</td><td>4.00%</td><td>0x28</td><td>0x3c</td></tr>
+</table>
+
+<p><strong>Formula:</strong> <code>grade_raw = level × 50</code> (units: 0.01%, so <code>grade_pct = level × 0.5%</code>).
+Crr and CwA are held constant at ELEMNT defaults.</p>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL —</span>
+  Resistance mode heartbeat: <strong>~3 seconds</strong>. The ELEMNT re-sends opcode 0x11 every ~3 s
+  while holding a level, confirmed by repeated identical Machine Status 0x12 notifications.
+</div>
+
+<h3>9b. Power Servo Mode (ERG)</h3>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL —</span>
+  Recording: <code>gatt_40Wto50Wthen1min.txt</code><br>
+  Session: passive → resistance mode → power servo. 40W briefly, then 50W held for ~1 minute.
+</div>
+
+<p>Machine Status sequence observed during mode transitions and ERG operation:</p>
+<pre>
+← 12 00 00 64 00 28 3c   IndoorBikeSimParamsChanged (grade=1.00%) — ELEMNT briefly enters sim mode
+← 08 28 00               TargetPowerChanged → 40W   (ERG engaged)
+← 08 28 00               TargetPowerChanged → 40W   +4.0s (establishing)
+← 08 28 00               TargetPowerChanged → 40W   +3.1s (establishing)
+← 08 32 00               TargetPowerChanged → 50W   (level changed)
+← 08 32 00               TargetPowerChanged → 50W   +20.6s  ← steady-state heartbeat
+← 08 32 00               TargetPowerChanged → 50W   +20.8s
+← 08 32 00               TargetPowerChanged → 50W   +20.7s
+</pre>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL —</span>
+  ELEMNT BOLT power servo heartbeat (steady state): <strong>~20.7 seconds</strong>
+  (three intervals: 20.6 s, 20.8 s, 20.7 s — extremely consistent).
+  Initial burst is faster (~3–4 s) while ERG is being established, then transitions to ~20 s.
+</div>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL —</span>
+  The ELEMNT sends a SimParams packet (opcode 0x11, grade=1.00%) immediately before engaging ERG.
+  This briefly enters slope/simulation mode, then the first TargetPower command transitions to ERG.
+  MyWhoosh does NOT do this — it goes straight to the 0x00/0x07/0x05 handshake.
+</div>
+
+<div class="note">
+  <strong>Heartbeat comparison:</strong><br>
+  MyWhoosh ERG heartbeat: <strong>~5 seconds</strong> (empirically confirmed).<br>
+  ELEMNT BOLT ERG heartbeat: <strong>~20.7 seconds</strong>.<br>
+  Both are accepted by the KICKR. Our erg_controller uses 5 s to match MyWhoosh.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>10. ERG Control Flow (erg_controller / MyWhoosh sequence)</h2>
+
+<pre>
+→ 00                    Request Control
+← 80 00 01              CP Indication: Response OK (opcode 0x00 succeeded)
+→ 07                    Start / Resume
+← 80 07 01              CP Indication: Response OK
+→ 05 WW WW              Set Target Power
+← 80 05 01              CP Indication: Response OK — ERG is now active
+</pre>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL —</span> Confirmed from GATT capture: MyWhoosh re-sends
+  the same Set Target Power command (0x05) every <strong>~5 seconds</strong> throughout a segment,
+  even when the value does not change. A 128 W target was re-asserted at a steady 5-second cadence
+  over a 3-minute hold. Implement a 5-second heartbeat.
+</div>
+
+<div class="inferred">
+  <span class="badge-inferred">⚠ INFERRED / UNCONFIRMED —</span> Re-arm every ~40 seconds: sending
+  0x07 (Start/Resume) followed by 0x05 appears to recover ERG after control gaps. Whether this is
+  strictly required or merely defensive has not been verified by direct capture of the KICKR's
+  internal state machine.
+</div>
+
+<h3>Releasing ERG (returning to free ride)</h3>
+<pre>→ 11 00 00 14 00 28 33   Set Indoor Bike Simulation Params (flat road)</pre>
+<p>See section 7. This is the method confirmed from MyWhoosh captures.
+Do <strong>not</strong> use opcode 0x08 without its required parameter byte.</p>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>11. FTMS Indoor Bike Data (0x2AD2) Packet Layout</h2>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL —</span> Layout confirmed from live packet decode.
+  KICKR BIKE SHIFT observed flag values: <code>flags = 0x0044</code>
+  (bits 2 and 6 set = InstCadence + InstPower).
+</div>
+
+<table>
+  <tr><th>Offset</th><th>Size</th><th>Field</th><th>Units / Notes</th></tr>
+  <tr><td>0–1</td><td>2</td><td>Flags (uint16 LE)</td><td>Bit field — always present</td></tr>
+  <tr><td>2–3</td><td>2</td><td>Instantaneous Speed</td><td><strong>Always present.</strong> uint16 LE, 0.01 km/h</td></tr>
+  <tr><td>+2 if bit 1</td><td>2</td><td>Average Speed</td><td>uint16 LE, 0.01 km/h</td></tr>
+  <tr><td>+2 if bit 2</td><td>2</td><td>Instantaneous Cadence</td><td>uint16 LE, 0.5 rpm — <strong>divide by 2</strong></td></tr>
+  <tr><td>+2 if bit 3</td><td>2</td><td>Average Cadence</td><td>uint16 LE, 0.5 rpm</td></tr>
+  <tr><td>+3 if bit 4</td><td>3</td><td>Total Distance</td><td>uint24 LE, metres</td></tr>
+  <tr><td>+2 if bit 5</td><td>2</td><td>Resistance Level</td><td>uint16 LE</td></tr>
+  <tr><td>+2 if bit 6</td><td>2</td><td>Instantaneous Power</td><td><strong>int16 LE</strong>, watts (signed)</td></tr>
+</table>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL —</span> Bit 3 (Average Cadence) is 2 bytes, not 3.
+  Bit 4 (Total Distance) is 3 bytes, not 2. Bit 5 (Resistance Level) must be skipped even if not used.
+  These corrections were verified by comparing raw packet bytes with decoded values.
+  The KICKR BIKE SHIFT does not set bits 1, 3, 4, or 5 in normal operation.
+</div>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL —</span> The KICKR BIKE SHIFT does <strong>not</strong>
+  include cadence in CPS packets (the Crank Revolution Data flag is never set). Cadence is available
+  exclusively via the FTMS Indoor Bike Data characteristic. Do not attempt to read cadence from CPS.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>12. CPS Characteristic (0x2A63)</h2>
+
+<table>
+  <tr><th>Offset</th><th>Field</th><th>Notes</th></tr>
+  <tr><td>0–1</td><td>Flags</td><td>uint16 LE</td></tr>
+  <tr><td>2–3</td><td>Instantaneous Power</td><td>int16 LE, watts</td></tr>
+  <tr><td>4+</td><td>Optional fields</td><td>Depend on flags</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>13. Multi-Device Control (Control Permission)</h2>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ EMPIRICAL —</span> When a second BLE central (e.g. MyWhoosh)
+  connects and calls Request Control, the KICKR broadcasts Machine Status opcode 0x19
+  (Control Permission Lost) to all subscribed clients. The original controller must stop
+  sending commands. To reclaim control, re-send the full handshake: 0x00 → 0x07 → 0x05.
+</div>
+
+<div class="inferred">
+  <span class="badge-inferred">⚠ INFERRED / UNCONFIRMED —</span> Whether the KICKR enforces
+  single-controller access at the BLE level (rejecting GATT writes from the displaced controller)
+  or merely notifies via Machine Status has not been directly tested. Treat 0x19 as a hard stop signal.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>14. Simulation Parameters — Configurable Fields</h2>
+
+<p>Opcode 0x11 exposes four physical simulation parameters that can be set independently of ERG mode.
+Setting these with the KICKR in slope/simulation mode (i.e. after releasing ERG) controls the
+trainer's resistance curve.</p>
+
+<table>
+  <tr><th>Parameter</th><th>Bytes</th><th>Resolution</th><th>Typical range</th></tr>
+  <tr><td>Wind speed</td><td>int16 LE</td><td>0.001 m/s</td><td>−30 m/s to +30 m/s</td></tr>
+  <tr><td>Grade</td><td>int16 LE</td><td>0.01 %</td><td>−45 % to +45 %</td></tr>
+  <tr><td>Crr (rolling resistance)</td><td>uint8</td><td>0.0001</td><td>0.001–0.010 (0x0A–0x64)</td></tr>
+  <tr><td>CwA (wind drag area)</td><td>uint8</td><td>0.01 kg/m²</td><td>0.20–1.00 (0x14–0x64)</td></tr>
+</table>
+
+<div class="note">
+  <span class="badge-spec">📘 BLUETOOTH SPEC —</span> Ranges above are from the FTMS specification.
+  Actual KICKR hardware limits have not been tested — the KICKR may silently clamp out-of-range values.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>15. Remaining Open Questions</h2>
+
+<div class="empirical">
+  <span class="badge-empirical">✓ RESOLVED (2026-04-14) —</span>
+  Gear state and button press protocols are fully decoded (see §4 and §5).
+  No app-layer init write is required — subscribing to <code>a026e03a</code> and <code>a026e03c</code>
+  in the <code>a026ee0d</code> service is sufficient.
+</div>
+
+<table>
+  <tr><th>Unknown</th><th>Priority</th><th>Next Step</th></tr>
+  <tr>
+    <td>Wahoo Char 3B (e03b) and Char 02 (e002) purpose</td>
+    <td>Low</td>
+    <td>Not needed for button/gear integration. May be Wahoo-app-specific diagnostics or pairing.</td>
+  </tr>
+  <tr>
+    <td>Char 39 (a026e039) in a026ee0d service</td>
+    <td>Low</td>
+    <td>writeNoResp|notify — no notifications seen. May respond to a write; purpose unknown.</td>
+  </tr>
+  <tr>
+    <td>Chars e018 and e023 in a026ee06 service</td>
+    <td>Low</td>
+    <td>Subscribed but no notifications seen. Purpose unknown.</td>
+  </tr>
+  <tr>
+    <td>Cassette index 0 — smallest or largest cog?</td>
+    <td>Medium</td>
+    <td>Rear index increases as resistance increases (confirmed: index 0→3 on shifting "harder"). Index 0 = smallest cog (hardest). Count from smallest.</td>
+  </tr>
+  <tr>
+    <td>Button sequence counter — per-button or global?</td>
+    <td>Low</td>
+    <td>
+      Appears per-button: CassetteUp started at seq=0x23, CassetteDown at 0x46, game buttons at 0x0a–0x0c.
+      Likely a rolling counter reset at connection or per button channel.
+      For press detection only the high bit matters; seq can be ignored.
+    </td>
+  </tr>
+  <tr>
+    <td>ELEMNT BOLT compatibility — why does it fail to connect when GATT explorer holds the connection?</td>
+    <td>Medium</td>
+    <td>The Garmin Edge 530 connects passively without issue. ELEMNT may require exclusive BLE central role or send a specific pairing sequence the KICKR honours only for one client at a time. Needs further investigation if ELEMNT-in-parallel behaviour is desired.</td>
+  </tr>
+</table>
+
+<hr style="margin-top: 3em">
+<p style="color:#888; font-size:0.85em">
+  Produced from GATT captures using a custom passive BLE listener (gatt_explorer.html)
+  running alongside MyWhoosh on a Wahoo KICKR BIKE SHIFT.<br>
+  Reference implementation: erg_controller (js/ble.js, js/pid.js, js/workout.js).<br>
+  Updated April 2026 with Wahoo proprietary service findings from gear-shift and button-press recordings.
+</p>
+
+</body>
+</html>

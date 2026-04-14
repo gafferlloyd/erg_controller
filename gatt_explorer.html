@@ -267,19 +267,37 @@ function parseNotification(charUuid, value) {
     return { text: `*** Wahoo Char3B (SHIFT-specific): raw: ${raw}`, key: true };
   }
 
-  // Wahoo Gear State (original KICKR BIKE, a026ee0d service, char a026e03a)
-  // Format (hypothesis): [?] [?] [frontGear] [rearGear] [frontCount] [rearCount] ...
+  // Wahoo Gear State (a026ee0d service, char a026e03a)
+  // byte[0]=0x01 → CHANGE event (6 bytes); byte[0]=0x07 → periodic STATE (12 bytes)
+  // byte[2]=frontGearIdx, byte[3]=rearGearIdx, byte[4]=frontGearCount, byte[5]=rearGearCount
   if (u === 'a026e03a-0a7d-4ab3-97fa-f1500f9feb8b') {
     let info = `raw: ${raw}`;
     if (b.length >= 6) {
-      info = `frontGear=${b[2]}/${b[4]}  rearGear=${b[3]}/${b[5]}  | raw: ${raw}`;
+      const type = b[0] === 0x01 ? 'CHANGE' : b[0] === 0x07 ? 'state' : `type=0x${b[0].toString(16)}`;
+      info = `${type}  front=${b[2]}/${b[4]}  rear=${b[3]}/${b[5]}  | raw: ${raw}`;
     }
-    return { text: `*** Wahoo GearState (BIKE): ${info}`, key: true };
+    return { text: `*** Wahoo GearState: ${info}`, key: b[0] === 0x01 };
   }
 
-  // Wahoo Button Press (original KICKR BIKE, a026ee0d service, char a026e03c)
+  // Wahoo Button Press (a026ee0d service, char a026e03c)
+  // 3 bytes: [maskHi] [maskLo] [seq|0x80=press/0x00=release]
+  // 16-bit button bitmask (big-endian):
+  //   0x0001=RF  0x0002=CassetteUp  0x0004=CassetteDown  0x0008=RT
+  //   0x0200=LF  0x0400=LR  0x0800=ChainDown  0x1000=ChainUp  0x2000=LT  0x8000=RR
   if (u === 'a026e03c-0a7d-4ab3-97fa-f1500f9feb8b') {
-    return { text: `*** Wahoo ButtonPress (BIKE): raw: ${raw}`, key: true };
+    if (b.length < 3) return { text: `*** Wahoo Button (BIKE): raw: ${raw}`, key: true };
+    const mask    = (b[0] << 8) | b[1];
+    const pressed = (b[2] & 0x80) !== 0;
+    const seq     = b[2] & 0x7f;
+    const BTNS = {
+      0x0001: 'RF', 0x0002: 'CassetteUp', 0x0004: 'CassetteDown', 0x0008: 'RT',
+      0x0200: 'LF', 0x0400: 'LR', 0x0800: 'ChainDown', 0x1000: 'ChainUp',
+      0x2000: 'LT', 0x8000: 'RR',
+    };
+    const names = Object.entries(BTNS).filter(([bit]) => mask & Number(bit)).map(([,n]) => n);
+    const btn   = names.length ? names.join('+') : `0x${mask.toString(16).padStart(4,'0')}`;
+    const state = pressed ? 'PRESS' : 'release';
+    return { text: `*** Wahoo Button: ${btn} ${state}  seq=${seq}  | raw: ${raw}`, key: pressed };
   }
 
   // Wahoo Grade/Lock (original KICKR BIKE, a026ee0b service, char a026e037)
