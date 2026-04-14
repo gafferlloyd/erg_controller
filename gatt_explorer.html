@@ -108,11 +108,20 @@ const KNOWN = {
   '00001816-0000-1000-8000-00805f9b34fb': 'Cycling Speed & Cadence',
   '00001818-0000-1000-8000-00805f9b34fb': 'Cycling Power (CPS)',
   '00001826-0000-1000-8000-00805f9b34fb': 'FTMS (Fitness Machine)',
-  // Wahoo custom
-  'a026ee01-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Service',
-  'a026ee02-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Service 2',
-  'a026ee03-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Service 3',
-  'a026ee04-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Service 4',
+  // Wahoo custom services
+  'a026ee01-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Svc (SHIFT)',
+  'a026ee02-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Svc 2',
+  'a026ee03-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Svc 3',
+  'a026ee04-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Svc 4',
+  'a026ee05-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Svc 5',
+  'a026ee06-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Svc 6',
+  'a026ee07-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Svc 7',
+  'a026ee08-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Svc 8',
+  'a026ee09-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Svc 9',
+  'a026ee0a-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Svc A',
+  'a026ee0b-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Grade Svc (BIKE)',
+  'a026ee0c-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Fitness Svc C',
+  'a026ee0d-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Info Svc (BIKE)',
   // Standard characteristics
   '00002a00-0000-1000-8000-00805f9b34fb': 'Device Name',
   '00002a01-0000-1000-8000-00805f9b34fb': 'Appearance',
@@ -130,14 +139,19 @@ const KNOWN = {
   '00002ada-0000-1000-8000-00805f9b34fb': 'FTMS Machine Status',
   '00002ad9-0000-1000-8000-00805f9b34fb': 'FTMS Control Point',
   '00002ad3-0000-1000-8000-00805f9b34fb': 'FTMS Training Status',
-  // Wahoo characteristics
-  'a026e002-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Characteristic 02',
-  'a026e003-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Characteristic 03',
-  'a026e004-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Characteristic 04',
+  // Wahoo characteristics (KICKR BIKE SHIFT — a026ee01 service)
+  'a026e002-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Char 02 (cmd/resp)',
+  'a026e003-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Char 03',
+  'a026e004-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Char 04 (events)',
   'a026e005-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo ERG Control Point',
-  'a026e006-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Characteristic 06',
-  'a026e007-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Characteristic 07',
-  'a026e008-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Characteristic 08',
+  'a026e006-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Char 06',
+  'a026e007-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Char 07',
+  'a026e008-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Char 08',
+  'a026e03b-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Char 3B (SHIFT-specific)',
+  // Wahoo characteristics (original KICKR BIKE — a026ee0d/a026ee0b services)
+  'a026e037-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Grade/Lock (BIKE)',
+  'a026e03a-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Gear State (BIKE)',
+  'a026e03c-0a7d-4ab3-97fa-f1500f9feb8b': 'Wahoo Button Press (BIKE)',
 };
 
 function label(uuid) {
@@ -212,6 +226,16 @@ function parseNotification(charUuid, value) {
     } else if (b[0] === 0x07 && b.length >= 3) {
       const lvl = (b[2] << 8) | b[1];
       extra = `  → ${lvl}`;
+    } else if (b[0] === 0x12 && b.length >= 7) {
+      // IndoorBikeSimParamsChanged: wind(int16 LE) + grade(int16 LE, 0.01%) + crr(u8) + cwa(u8)
+      const wind  = ((b[2] << 8) | b[1]) << 16 >> 16;          // int16
+      const grade = ((b[4] << 8) | b[3]) << 16 >> 16;          // int16
+      const crr   = b[5];
+      const cwa   = b[6];
+      const level = Math.round(grade / 50);  // ELEMNT: level N = N×50 (0.01% units)
+      extra = `  wind=${(wind*0.001).toFixed(2)}m/s  grade=${(grade*0.01).toFixed(2)}%`
+            + `  crr=${(crr*0.0001).toFixed(4)}  cwa=${(cwa*0.01).toFixed(2)}kg/m²`
+            + (level > 0 ? `  [resistLevel≈${level}]` : '');
     }
     const key = (b[0] === 0x02 || b[0] === 0x03 || b[0] === 0x19 || b[0] === 0xFF);
     const prefix = key ? '*** ' : '';
@@ -228,6 +252,44 @@ function parseNotification(charUuid, value) {
     return `Wahoo CP Response: op=0x${b[0].toString(16).padStart(2,'0')}  | raw: ${raw}`;
   }
 
+  // Wahoo Char 02 (cmd/resp channel, KICKR BIKE SHIFT a026ee01 service)
+  if (u === 'a026e002-0a7d-4ab3-97fa-f1500f9feb8b') {
+    return { text: `*** Wahoo Char02 (SHIFT cmd/resp): raw: ${raw}`, key: true };
+  }
+
+  // Wahoo Char 04 (event channel, KICKR BIKE SHIFT a026ee01 service)
+  if (u === 'a026e004-0a7d-4ab3-97fa-f1500f9feb8b') {
+    return { text: `*** Wahoo Char04 (SHIFT event): raw: ${raw}`, key: true };
+  }
+
+  // Wahoo Char 3B (KICKR BIKE SHIFT specific, purpose unknown)
+  if (u === 'a026e03b-0a7d-4ab3-97fa-f1500f9feb8b') {
+    return { text: `*** Wahoo Char3B (SHIFT-specific): raw: ${raw}`, key: true };
+  }
+
+  // Wahoo Gear State (original KICKR BIKE, a026ee0d service, char a026e03a)
+  // Format (hypothesis): [?] [?] [frontGear] [rearGear] [frontCount] [rearCount] ...
+  if (u === 'a026e03a-0a7d-4ab3-97fa-f1500f9feb8b') {
+    let info = `raw: ${raw}`;
+    if (b.length >= 6) {
+      info = `frontGear=${b[2]}/${b[4]}  rearGear=${b[3]}/${b[5]}  | raw: ${raw}`;
+    }
+    return { text: `*** Wahoo GearState (BIKE): ${info}`, key: true };
+  }
+
+  // Wahoo Button Press (original KICKR BIKE, a026ee0d service, char a026e03c)
+  if (u === 'a026e03c-0a7d-4ab3-97fa-f1500f9feb8b') {
+    return { text: `*** Wahoo ButtonPress (BIKE): raw: ${raw}`, key: true };
+  }
+
+  // Wahoo Grade/Lock (original KICKR BIKE, a026ee0b service, char a026e037)
+  // Magic: fd 33 ...; byte[2] may be lock state
+  if (u === 'a026e037-0a7d-4ab3-97fa-f1500f9feb8b') {
+    const magic = b.length >= 2 ? `${b[0].toString(16).padStart(2,'0')} ${b[1].toString(16).padStart(2,'0')}` : '';
+    const lock  = b.length >= 3 ? `  lockByte=0x${b[2].toString(16).padStart(2,'0')}` : '';
+    return { text: `*** Wahoo Grade/Lock (BIKE): magic=${magic}${lock}  | raw: ${raw}`, key: true };
+  }
+
   // Generic
   return `raw: ${raw}`;
 }
@@ -237,10 +299,21 @@ let gattServer = null;
 
 const OPT_SERVICES = [
   0x1800, 0x1801, 0x180a, 0x180d, 0x1816, 0x1818, 0x1826,
+  // KICKR BIKE SHIFT services
   'a026ee01-0a7d-4ab3-97fa-f1500f9feb8b',
   'a026ee02-0a7d-4ab3-97fa-f1500f9feb8b',
   'a026ee03-0a7d-4ab3-97fa-f1500f9feb8b',
   'a026ee04-0a7d-4ab3-97fa-f1500f9feb8b',
+  // Additional Wahoo services (may be exposed by KICKR BIKE SHIFT or original KICKR BIKE)
+  'a026ee05-0a7d-4ab3-97fa-f1500f9feb8b',
+  'a026ee06-0a7d-4ab3-97fa-f1500f9feb8b',
+  'a026ee07-0a7d-4ab3-97fa-f1500f9feb8b',
+  'a026ee08-0a7d-4ab3-97fa-f1500f9feb8b',
+  'a026ee09-0a7d-4ab3-97fa-f1500f9feb8b',
+  'a026ee0a-0a7d-4ab3-97fa-f1500f9feb8b',
+  'a026ee0b-0a7d-4ab3-97fa-f1500f9feb8b',  // Wahoo Grade Svc (original KICKR BIKE)
+  'a026ee0c-0a7d-4ab3-97fa-f1500f9feb8b',
+  'a026ee0d-0a7d-4ab3-97fa-f1500f9feb8b',  // Wahoo Info Svc (original KICKR BIKE, gear/button chars)
 ];
 
 async function connectAndExplore() {
@@ -335,7 +408,8 @@ async function connectAndExplore() {
   }
 
   log('\n══ Enumeration complete — listening for notifications ══', 'ok');
-  log('Now connect myWhoosh on the iPad and control the trainer.', 'info');
+  log('For ERG capture: connect myWhoosh on the iPad and control the trainer.', 'info');
+  log('For gear/button capture: connect the ELEMNT BOLT NOW — its handshake unlocks Wahoo Char notifications.', 'info');
 }
 
 async function disconnect() {
