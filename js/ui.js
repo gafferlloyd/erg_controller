@@ -150,67 +150,69 @@ function onSampleTaken() {
 
 function updateSessionMetrics() {
   const all  = samples;
-  const last = recentSamples(120);
+  const last = recentSamples(getRecentWindowSecs());
+
+  const sw = (v, unit) => v != null ? `${v}` : '—';
 
   // NP
   const np     = calcNP(all);
   const npLast = calcNP(last);
-  setText('mt-np',  np     != null ? `${np}`     : '—');
-  setText('mt-np2', npLast != null ? `${npLast}` : '—');
+  setStatBox('workout', 'np',     sw(np));
+  setStatBox('recent',  'np',     sw(npLast));
 
-  // Avg Power + min/max
+  // Avg Power
   const pwAll  = all.filter(s => s.power != null && s.power > 0);
   const pwLast = last.filter(s => s.power != null && s.power > 0);
-  const avgPw  = pwAll.length  ? Math.round(pwAll.reduce((a, s) => a + s.power, 0)  / pwAll.length)  : null;
+  const avgPw  = pwAll.length  ? Math.round(pwAll.reduce((a, s)  => a + s.power, 0) / pwAll.length)  : null;
   const avgPw2 = pwLast.length ? Math.round(pwLast.reduce((a, s) => a + s.power, 0) / pwLast.length) : null;
-  const minPw  = pwAll.length  ? Math.min(...pwAll.map(s => s.power)) : null;
-  const maxPw  = pwAll.length  ? Math.max(...pwAll.map(s => s.power)) : null;
-  setText('mt-avgpw',  avgPw  != null ? `${avgPw}`  : '—');
-  setText('mt-avgpw2', avgPw2 != null ? `${avgPw2}` : '—');
-  setText('mt-pwrng',  minPw  != null ? `${minPw} – ${maxPw} W` : '—');
+  setStatBox('workout', 'avgpwr', sw(avgPw));
+  setStatBox('recent',  'avgpwr', sw(avgPw2));
 
-  // Avg HR + min/max
+  // Avg HR
   const hrAll  = all.filter(s => s.hr > 0);
   const hrLast = last.filter(s => s.hr > 0);
-  const avgHR  = hrAll.length  ? Math.round(hrAll.reduce((a, s) => a + s.hr, 0)  / hrAll.length)  : null;
+  const avgHR  = hrAll.length  ? Math.round(hrAll.reduce((a, s)  => a + s.hr, 0) / hrAll.length)  : null;
   const avgHR2 = hrLast.length ? Math.round(hrLast.reduce((a, s) => a + s.hr, 0) / hrLast.length) : null;
-  const minHR  = hrAll.length  ? Math.min(...hrAll.map(s => s.hr)) : null;
-  const maxHR  = hrAll.length  ? Math.max(...hrAll.map(s => s.hr)) : null;
-  setText('mt-avghr',  avgHR  != null ? `${avgHR}`  : '—');
-  setText('mt-avghr2', avgHR2 != null ? `${avgHR2}` : '—');
-  setText('mt-hrrng',  minHR  != null ? `${minHR} – ${maxHR} bpm` : '—');
+  setStatBox('workout', 'avghr', sw(avgHR));
+  setStatBox('recent',  'avghr', sw(avgHR2));
 
-  // Avg Cadence + min/max
+  // Avg Cadence
   const cadAll  = all.filter(s => s.cadence != null && s.cadence > 0);
   const cadLast = last.filter(s => s.cadence != null && s.cadence > 0);
-  const avgCad  = cadAll.length  ? Math.round(cadAll.reduce((a, s) => a + s.cadence, 0)  / cadAll.length)  : null;
+  const avgCad  = cadAll.length  ? Math.round(cadAll.reduce((a, s)  => a + s.cadence, 0) / cadAll.length)  : null;
   const avgCad2 = cadLast.length ? Math.round(cadLast.reduce((a, s) => a + s.cadence, 0) / cadLast.length) : null;
-  const minCad  = cadAll.length  ? Math.min(...cadAll.map(s => s.cadence)) : null;
-  const maxCad  = cadAll.length  ? Math.max(...cadAll.map(s => s.cadence)) : null;
-  setText('mt-avgcad',  avgCad  != null ? `${avgCad}`  : '—');
-  setText('mt-avgcad2', avgCad2 != null ? `${avgCad2}` : '—');
-  setText('mt-cadrng',  minCad  != null ? `${minCad} – ${maxCad} rpm` : '—');
+  setStatBox('workout', 'avgcad', sw(avgCad));
+  setStatBox('recent',  'avgcad', sw(avgCad2));
 
-  // Speed and Distance
-  const spdAll  = all.filter(s => s.speed != null && s.speed > 0);
-  const avgSpd  = spdAll.length ? (spdAll.reduce((a, s) => a + s.speed, 0) / spdAll.length).toFixed(1) : null;
-  const distKm  = (sessionDistance / 1000).toFixed(2);
-  setText('mt-avgspd', avgSpd ?? '—');
-  setText('mt-dist',   distKm);
+  // Speed and Distance (workout only)
+  const spdAll = all.filter(s => s.speed != null && s.speed > 0);
+  const avgSpd = spdAll.length ? (spdAll.reduce((a, s) => a + s.speed, 0) / spdAll.length).toFixed(1) : null;
+  const distKm = (sessionDistance / 1000).toFixed(2);
+  setStatBox('workout', 'avgspd', sw(avgSpd));
+  setStatBox('workout', 'dist',   distKm);
 
-  // Efficiency
-  setText('mt-eff',    calcEfficiency(all)    ?? '—');
-  setText('mt-eff2',   calcEfficiency(last)   ?? '—');
-  setText('mt-npeff',  calcNPEfficiency(all)  ?? '—');
-  setText('mt-npeff2', calcNPEfficiency(last) ?? '—');
+  // Efficiency (W/bpm and NP/bpm)
+  const wpbpm  = calcEfficiency(all);
+  const wpbpm2 = calcEfficiency(last);
+  const npbpm  = calcNPEfficiency(all);
+  const npbpm2 = calcNPEfficiency(last);
+  setStatBox('workout', 'wpbpm',  sw(wpbpm));
+  setStatBox('recent',  'wpbpm',  sw(wpbpm2));
+  setStatBox('workout', 'npbpm',  sw(npbpm));
+  setStatBox('recent',  'npbpm',  sw(npbpm2));
 
   // Session-only
-  setText('mt-if',  calcIF(all, profile.ftp)  ?? '—');
-  setText('mt-tss', calcTSS(all, profile.ftp) ?? '—');
+  setStatBox('workout', 'if',  sw(calcIF(all, profile.ftp)));
+  setStatBox('workout', 'tss', sw(calcTSS(all, profile.ftp)));
 
   // Decoupling
   const dcpl = calcDecoupling(all);
-  setText('mt-dcpl',  dcpl != null ? `${dcpl}%` : '—');
+  setStatBox('workout', 'dcpl', dcpl != null ? `${dcpl}` : '—');
+
+  // HRV — use current live RMSSD value
+  const hrvTxt = currentRMSSD != null ? `${currentRMSSD}` : '—';
+  setStatBox('workout', 'hrv', hrvTxt);
+  setStatBox('recent',  'hrv', hrvTxt);
 }
 
 // ── DOM text helpers ──────────────────────────────────────────────────────────

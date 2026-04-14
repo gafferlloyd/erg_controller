@@ -53,6 +53,37 @@
       <span id="prof-status" class="prof-status"></span>
     </div>
 
+    <div class="sidebar-section sb-only">
+      <div class="sidebar-head">Layout</div>
+      <div class="profile-row"><label>Scale W</label>
+        <input type="range" id="cfg-scale-wk" min="0.5" max="4.0" step="0.05" value="1.0" style="flex:1">
+        <span id="cfg-scale-wk-val" style="min-width:36px;text-align:right">1.00×</span>
+      </div>
+      <div class="profile-row"><label>Scale R</label>
+        <input type="range" id="cfg-scale-rc" min="0.5" max="4.0" step="0.05" value="1.0" style="flex:1">
+        <span id="cfg-scale-rc-val" style="min-width:36px;text-align:right">1.00×</span>
+      </div>
+      <div class="profile-row"><label>Window</label>
+        <input type="number" id="cfg-window" min="1" max="60" step="1" value="2"><span>min</span>
+      </div>
+      <div class="profile-row"><label>W boxes</label>
+        <input type="number" id="cfg-wboxes" min="1" max="12" step="1" value="12">
+      </div>
+      <div class="profile-row"><label>R boxes</label>
+        <input type="number" id="cfg-rboxes" min="1" max="12" step="1" value="7">
+      </div>
+      <button id="btn-save-layout" class="full-btn" style="margin-top:5px">Save Layout</button>
+      <span id="layout-status" class="prof-status"></span>
+      <div style="margin-top:6px">
+        <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px">Workout order</div>
+        <div id="prio-workout"></div>
+      </div>
+      <div style="margin-top:6px">
+        <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px">Recent order</div>
+        <div id="prio-recent"></div>
+      </div>
+    </div>
+
   </aside>
 
   <!-- ═══════════════════════════════════════════════════
@@ -167,94 +198,21 @@
     </div>
 
     <!-- STATS ══════════════════════════════════════════ -->
-    <div class="metric-col">
-      <div class="metric-head">Stats <span class="mh-sub">session · range · 2 min</span></div>
-      <table class="metric-table">
-        <tr class="mh-row">
-          <td></td>
-          <td class="mc">session</td>
-          <td class="mc">range</td>
-          <td class="mc">2 min</td>
-          <td></td>
-        </tr>
-        <tr>
-          <td class="mk">NP</td>
-          <td class="mv"  id="mt-np">—</td>
-          <td class="mv-rng"></td>
-          <td class="mv2" id="mt-np2">—</td>
-          <td class="mu">W</td>
-        </tr>
-        <tr>
-          <td class="mk">Avg Pwr</td>
-          <td class="mv"  id="mt-avgpw">—</td>
-          <td class="mv-rng" id="mt-pwrng">—</td>
-          <td class="mv2" id="mt-avgpw2">—</td>
-          <td class="mu">W</td>
-        </tr>
-        <tr>
-          <td class="mk">Avg HR</td>
-          <td class="mv"  id="mt-avghr">—</td>
-          <td class="mv-rng" id="mt-hrrng">—</td>
-          <td class="mv2" id="mt-avghr2">—</td>
-          <td class="mu">bpm</td>
-        </tr>
-        <tr>
-          <td class="mk">Avg Cad</td>
-          <td class="mv"  id="mt-avgcad">—</td>
-          <td class="mv-rng" id="mt-cadrng">—</td>
-          <td class="mv2" id="mt-avgcad2">—</td>
-          <td class="mu">rpm</td>
-        </tr>
-        <tr>
-          <td class="mk">Avg Spd</td>
-          <td class="mv"  id="mt-avgspd">—</td>
-          <td class="mv-rng"></td>
-          <td class="mv2"></td>
-          <td class="mu">km/h</td>
-        </tr>
-        <tr>
-          <td class="mk">Distance</td>
-          <td class="mv"  id="mt-dist">—</td>
-          <td class="mv-rng"></td>
-          <td class="mv2"></td>
-          <td class="mu">km</td>
-        </tr>
-        <tr>
-          <td class="mk">W/bpm</td>
-          <td class="mv"  id="mt-eff">—</td>
-          <td class="mv-rng"></td>
-          <td class="mv2" id="mt-eff2">—</td>
-          <td class="mu"></td>
-        </tr>
-        <tr>
-          <td class="mk">NP/bpm</td>
-          <td class="mv"  id="mt-npeff">—</td>
-          <td class="mv-rng"></td>
-          <td class="mv2" id="mt-npeff2">—</td>
-          <td class="mu"></td>
-        </tr>
-        <tr>
-          <td class="mk">Decouple</td>
-          <td class="mv"  id="mt-dcpl">—</td>
-          <td class="mv-rng"></td>
-          <td class="mv2"></td>
-          <td class="mu">%</td>
-        </tr>
-        <tr>
-          <td class="mk">IF</td>
-          <td class="mv"  id="mt-if">—</td>
-          <td class="mv-rng"></td>
-          <td class="mv2"></td>
-          <td class="mu"></td>
-        </tr>
-        <tr>
-          <td class="mk">TSS</td>
-          <td class="mv"  id="mt-tss">—</td>
-          <td class="mv-rng"></td>
-          <td class="mv2"></td>
-          <td class="mu"></td>
-        </tr>
-      </table>
+    <div class="stats-area">
+      <div class="stat-block">
+        <div class="stat-block-head">
+          <span>Workout</span>
+          <span id="wk-grid-info" style="opacity:0.5"></span>
+        </div>
+        <div class="stat-grid" id="grid-workout"></div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-block-head">
+          <span id="recent-head-label">2 min window</span>
+          <span id="rc-grid-info" style="opacity:0.5"></span>
+        </div>
+        <div class="stat-grid" id="grid-recent"></div>
+      </div>
     </div>
 
     <!-- CHARTS ROW ═════════════════════════════════════ -->
@@ -329,6 +287,7 @@
 <script src="js/chart.js"></script>
 <script src="js/hrpower.js"></script>
 <script src="js/fit.js"></script>
+<script src="js/layout.js"></script>
 <script src="js/ui.js"></script>
 
 </body>

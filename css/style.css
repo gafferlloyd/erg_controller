@@ -379,38 +379,72 @@ label { cursor: pointer; }
 .cv-block.spd  .cv-val { color: var(--amber); }
 
 /* ── Stats / metric panel ──────────────────────────── */
-.metric-col {
+:root {
+  --wk-val-size:  36px; --wk-lbl-size:  12px; --wk-unit-size:  13px;
+  --rc-val-size:  36px; --rc-lbl-size:  12px; --rc-unit-size:  13px;
+}
+.stats-area { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+
+.stat-block {
+  height: 180px;
   background: var(--surface);
   border: 1px solid var(--border);
-  padding: 6px 10px;
-  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
-.metric-head {
+.stat-block-head {
   font-size: 9px;
   letter-spacing: 0.12em;
   color: var(--muted);
   text-transform: uppercase;
-  margin-bottom: 5px;
+  padding: 3px 8px;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 3px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
 }
-.mh-sub {
-  font-size: 9px;
-  color: var(--muted);
-  text-transform: none;
-  letter-spacing: 0;
+.stat-grid {
+  flex: 1;
+  display: grid;
+  overflow: hidden;
 }
-.metric-table { width: 100%; border-collapse: collapse; }
-.metric-table td { padding: 1px 0; }
-.metric-table .mk  { color: var(--muted); font-size: 10px; white-space: nowrap; }
-.metric-table .mv  { font-size: 15px; font-weight: bold; text-align: right; padding: 0 6px; }
-.metric-table .mv2 { font-size: 13px; font-weight: bold; text-align: right; padding: 0 6px; color: var(--muted); }
-.metric-table .mu  { color: var(--muted); font-size: 9px; }
-.metric-table .mc  { font-size: 9px; color: var(--muted); text-align: right; padding: 0 6px;
-                     text-transform: uppercase; letter-spacing: 0.06em; }
-.metric-table .mv-rng { font-size: 9px; color: var(--muted); text-align: center; padding: 0 8px;
-                        white-space: nowrap; }
-.mh-row td { padding-bottom: 3px; }
+.stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  cursor: pointer;
+  padding: 2px;
+  gap: 2px;
+  overflow: hidden;
+  text-align: center;
+}
+.stat-box:hover { background: rgba(255,255,255,0.05); }
+.stat-empty { opacity: 0.15; cursor: pointer; }
+.stat-lbl  { color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; line-height: 1; }
+.stat-val  { display: flex; align-items: baseline; gap: 2px; font-weight: bold; line-height: 1; }
+.stat-num  { }
+.stat-unit { color: var(--muted); }
+
+#grid-workout .stat-lbl  { font-size: var(--wk-lbl-size); }
+#grid-workout .stat-val  { font-size: var(--wk-val-size); }
+#grid-workout .stat-unit { font-size: var(--wk-unit-size); }
+#grid-recent  .stat-lbl  { font-size: var(--rc-lbl-size); }
+#grid-recent  .stat-val  { font-size: var(--rc-val-size); }
+#grid-recent  .stat-unit { font-size: var(--rc-unit-size); }
+
+.sv-np   .stat-num { color: #e87c31; }
+.sv-pwr  .stat-num { color: var(--orange); }
+.sv-hr   .stat-num { color: var(--red2); }
+.sv-cad  .stat-num { color: var(--blue2); }
+.sv-hrv  .stat-num { color: var(--green2); }
+
+.prio-item { display: flex; gap: 6px; align-items: center; padding: 1px 0; }
+.prio-num  { color: var(--muted); font-size: 9px; width: 12px; text-align: right; }
+.prio-name { font-size: 10px; }
 
 /* ── PID panel ──────────────────────────────────────── */
 .panel {
