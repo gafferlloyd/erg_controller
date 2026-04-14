@@ -146,8 +146,8 @@
 <p>Both variants share the same payload at bytes 2–5:</p>
 <pre><code>byte[0]  = type (0x01=CHANGE, 0x07=STATE)
 byte[1]  = 0x00 (always)
-byte[2]  = frontGearIndex    (0-based; 0 = small ring)
-byte[3]  = rearGearIndex     (0-based; 0 = smallest cog)
+byte[2]  = frontGearIndex    (0-based; 0 = small/inner ring, lower ratio)
+byte[3]  = rearGearIndex     (0-based; 0 = LARGEST cog, EASIEST gear)
 byte[4]  = frontGearCount    (total chainrings, e.g. 2)
 byte[5]  = rearGearCount     (total sprockets, e.g. 12)
 byte[6..11] = 0x00 (STATE only, padding)</code></pre>
@@ -156,16 +156,40 @@ byte[6..11] = 0x00 (STATE only, padding)</code></pre>
 
 <h3>Observed gear sequence (cassette up ×3, down ×3, chainring toggle ×2)</h3>
 <table>
-  <tr><th>Event</th><th>Raw (6-byte CHANGE)</th><th>Decoded</th></tr>
-  <tr><td>Initial (boot)</td><td><code>07 00 00 00 02 0c …</code></td><td>front=0/2  rear=0/12</td></tr>
-  <tr><td>Cassette up ×1</td><td><code>01 00 00 01 02 0c</code></td><td>front=0/2  rear=1/12</td></tr>
-  <tr><td>Cassette up ×2</td><td><code>01 00 00 02 02 0c</code></td><td>front=0/2  rear=2/12</td></tr>
-  <tr><td>Cassette up ×3</td><td><code>01 00 00 03 02 0c</code></td><td>front=0/2  rear=3/12</td></tr>
-  <tr><td>Cassette down ×1</td><td><code>01 00 00 02 02 0c</code></td><td>front=0/2  rear=2/12</td></tr>
-  <tr><td>Cassette down ×2</td><td><code>01 00 00 01 02 0c</code></td><td>front=0/2  rear=1/12</td></tr>
-  <tr><td>Cassette down ×3</td><td><code>01 00 00 00 02 0c</code></td><td>front=0/2  rear=0/12</td></tr>
-  <tr><td>Big ring (up)</td><td><code>01 00 01 00 02 0c</code></td><td>front=1/2  rear=0/12</td></tr>
-  <tr><td>Small ring (down)</td><td><code>01 00 00 00 02 0c</code></td><td>front=0/2  rear=0/12</td></tr>
+  <tr><th>Event</th><th>Raw (6-byte CHANGE)</th><th>Decoded</th><th>Gear (Shimano Ultegra 36/52 × 11-34)</th></tr>
+  <tr><td>Initial (boot)</td><td><code>07 00 00 00 02 0c …</code></td><td>front=0/2  rear=0/12</td><td>36T × 34T = ratio 1.06</td></tr>
+  <tr><td>Cassette up ×1 (harder)</td><td><code>01 00 00 01 02 0c</code></td><td>front=0/2  rear=1/12</td><td>36T × 30T = ratio 1.20</td></tr>
+  <tr><td>Cassette up ×2</td><td><code>01 00 00 02 02 0c</code></td><td>front=0/2  rear=2/12</td><td>36T × 27T = ratio 1.33</td></tr>
+  <tr><td>Cassette up ×3</td><td><code>01 00 00 03 02 0c</code></td><td>front=0/2  rear=3/12</td><td>36T × 24T = ratio 1.50</td></tr>
+  <tr><td>Cassette down ×1 (easier)</td><td><code>01 00 00 02 02 0c</code></td><td>front=0/2  rear=2/12</td><td>36T × 27T = ratio 1.33</td></tr>
+  <tr><td>Cassette down ×2</td><td><code>01 00 00 01 02 0c</code></td><td>front=0/2  rear=1/12</td><td>36T × 30T = ratio 1.20</td></tr>
+  <tr><td>Cassette down ×3</td><td><code>01 00 00 00 02 0c</code></td><td>front=0/2  rear=0/12</td><td>36T × 34T = ratio 1.06</td></tr>
+  <tr><td>Big ring / harder (ChainUp)</td><td><code>01 00 01 00 02 0c</code></td><td>front=1/2  rear=0/12</td><td>52T × 34T = ratio 1.53</td></tr>
+  <tr><td>Small ring / easier (ChainDown)</td><td><code>01 00 00 00 02 0c</code></td><td>front=0/2  rear=0/12</td><td>36T × 34T = ratio 1.06</td></tr>
+</table>
+
+<h3>Gear Ratio</h3>
+<p>
+  Wheel rotations per pedal crank revolution = <strong>frontTeeth / rearTeeth</strong>.<br>
+  Hardest (52T / 11T) = 4.73 wheel rotations per crank revolution.<br>
+  Easiest (36T / 34T) = 1.06 wheel rotations per crank revolution.
+</p>
+
+<h3>Tooth count lookup (Shimano Ultegra, empirical)</h3>
+<table>
+  <tr><th>rearGearIndex</th><th>Rear cog teeth</th><th>frontGearIndex</th><th>Chainring teeth</th></tr>
+  <tr><td>0</td><td>34 (largest, easiest)</td><td>0</td><td>36 (inner ring, easier)</td></tr>
+  <tr><td>1</td><td>30</td><td>1</td><td>52 (outer ring, harder)</td></tr>
+  <tr><td>2</td><td>27</td><td></td><td></td></tr>
+  <tr><td>3</td><td>24</td><td></td><td></td></tr>
+  <tr><td>4</td><td>21</td><td></td><td></td></tr>
+  <tr><td>5</td><td>19</td><td></td><td></td></tr>
+  <tr><td>6</td><td>17</td><td></td><td></td></tr>
+  <tr><td>7</td><td>15</td><td></td><td></td></tr>
+  <tr><td>8</td><td>14</td><td></td><td></td></tr>
+  <tr><td>9</td><td>13</td><td></td><td></td></tr>
+  <tr><td>10</td><td>12</td><td></td><td></td></tr>
+  <tr><td>11</td><td>11 (smallest, hardest)</td><td></td><td></td></tr>
 </table>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -498,8 +522,8 @@ trainer's resistance curve.</p>
   </tr>
   <tr>
     <td>Cassette index 0 — smallest or largest cog?</td>
-    <td>Medium</td>
-    <td>Rear index increases as resistance increases (confirmed: index 0→3 on shifting "harder"). Index 0 = smallest cog (hardest). Count from smallest.</td>
+    <td><strong>RESOLVED</strong></td>
+    <td>Index 0 = largest cog (34T, easiest). Index 11 = smallest cog (11T, hardest). CassetteUp increases index → smaller cog → harder. Shimano Ultegra 11-34: 34-30-27-24-21-19-17-15-14-13-12-11T at indices 0–11.</td>
   </tr>
   <tr>
     <td>Button sequence counter — per-button or global?</td>
