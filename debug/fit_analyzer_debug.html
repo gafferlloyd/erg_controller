@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIT Analyzer — Debug</title>
+  <style>
+    body { font-family: monospace; font-size: 12px; background: #0d1117; color: #c9d1d9; padding: 16px; }
+    h2   { color: #79c0ff; margin-bottom: 8px; }
+    pre  { background: #161b22; border: 1px solid #21262d; padding: 10px; overflow-x: auto;
+           white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+    .ok  { color: #56d364; } .err { color: #f85149; } .warn { color: #e3b341; }
+    label { cursor: pointer; border: 1px solid #30363d; padding: 6px 14px;
+            background: #161b22; display: inline-block; margin-bottom: 12px; }
+    label:hover { background: #30363d; }
+    input[type=file] { display: none; }
+    table { border-collapse: collapse; font-size: 11px; }
+    td, th { border: 1px solid #21262d; padding: 3px 8px; text-align: right; }
+    th { color: #79c0ff; }
+  </style>
+</head>
+<body>
+<h2>FIT Reader + Calc — Debug</h2>
+<label>Load .fit file <input type="file" id="fit-in" accept=".fit"></label>
+<pre id="out">Drop a file above to test the reader and calc modules.</pre>
+<div id="sample-table"></div>
+
+<script src="../js/fit_reader.js"></script>
+<script src="../js/fit_calc.js"></script>
+<script>
+document.getElementById('fit-in').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const out = document.getElementById('out');
+  const tbl = document.getElementById('sample-table');
+  out.textContent = `Parsing ${file.name} (${(file.size/1024).toFixed(1)} kB)…`;
+
+  try {
+    const buf  = await file.arrayBuffer();
+    const t0   = performance.now();
+    const fit  = parseFit(buf);
+    const t1   = performance.now();
+
+    const { records, isIndoor, hasAltitude, startMs } = fit;
+    const ch   = buildChannels(records, hasAltitude);
+    const sum  = computeSummary(records, isIndoor ? 250 : 297, 68);
+    const t2   = performance.now();
+
+    const lines = [
+      `<span class="ok">Parse OK</span>  ${(t1-t0).toFixed(1)} ms  |  Calc ${(t2-t1).toFixed(1)} ms`,
+      `Records : ${records.length}`,
+      `isIndoor: ${isIndoor}   hasAltitude: ${hasAltitude}`,
+      `startMs : ${new Date(startMs).toISOString()}`,
+      '',
+      'Summary:',
+      ...Object.entries(sum).map(([k,v]) => `  ${k.padEnd(14)} ${v}`),
+    ];
+    out.innerHTML = lines.join('\n');
+
+    // Sample table: first 10 records
+    const cols = ['elapsed','hr','power','cadence','speed','altitude','distance'];
+    tbl.innerHTML =
+      '<h2 style="margin-top:16px">First 10 records</h2>' +
+      '<table><tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>' +
+      records.slice(0, 10).map(r =>
+        '<tr>' + cols.map(c => `<td>${r[c] != null ? r[c] : '—'}</td>`).join('') + '</tr>'
+      ).join('') + '</table>' +
+      `<p style="color:#8b949e;margin-top:8px">… and ${records.length - 10} more rows</p>`;
+
+  } catch (err) {
+    out.innerHTML = `<span class="err">Error: ${err.message}</span>\n${err.stack}`;
+  }
+});
+</script>
+</body>
+</html>
