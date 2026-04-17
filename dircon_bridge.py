@@ -172,28 +172,39 @@ async def main():
     dc = DirconClient(host)
     await dc.connect()
 
-    # ── Start proxy server (MyWhoosh connects here) ───────────────────────────
+    # ── Subscribe to KICKR characteristics BEFORE starting any servers ────────
+    # (starting asyncio servers on Windows can delay event-loop processing and
+    #  cause the first KICKR responses to time out if done before setup)
     proxy = DirconProxyServer(dc)
-    proxy_srv = await proxy.start(port=args.proxy_port)
-
-    # ── Start WebSocket server (index.html connects here) ─────────────────────
     bridge = Bridge(dc, proxy)
     await bridge.setup()
+
+    # ── Start proxy server (MyWhoosh connects here) ───────────────────────────
+    proxy_srv = await proxy.start(port=args.proxy_port)
 
     # ── Advertise on mDNS so MyWhoosh finds us automatically ─────────────────
     zc = None
     try:
         zc = register_mdns(args.name, args.proxy_port)
     except Exception as e:
-        log.warning('mDNS registration failed: %s  (MyWhoosh will not find proxy)', e)
+        log.warning('mDNS registration failed: %r', e)
+        log.warning('MyWhoosh auto-discovery unavailable — '
+                    'select the trainer manually or check Windows Firewall / '
+                    'Bonjour service.')
 
     log.info('WebSocket ready  →  ws://localhost:%d', args.ws_port)
-    log.info('Proxy ready      →  "%s" visible to MyWhoosh on port %d',
+    log.info('Proxy ready      →  "%s" on port %d',
              args.name, args.proxy_port)
 
     try:
         async with serve(bridge.handle_ws, 'localhost', args.ws_port):
             await asyncio.Future()   # run until Ctrl-C
+    except OSError as e:
+        if e.errno in (98, 10048):   # EADDRINUSE (Linux) / WSAEADDRINUSE (Windows)
+            log.error('Port %d is already in use — is another bridge window still open?',
+                      args.ws_port)
+        else:
+            raise
     finally:
         proxy_srv.close()
         if zc:

@@ -153,6 +153,9 @@ def register_mdns(name: str, port: int) -> object:
 
     Returns the Zeroconf instance — keep the reference alive for the
     duration of the programme; call .close() on shutdown.
+
+    Uses IPv4-only mode by default (more reliable on Windows where the
+    IPv6 mDNS socket often fails to bind).
     """
     from zeroconf import ServiceInfo, Zeroconf
     ip = get_local_ip()
@@ -163,7 +166,12 @@ def register_mdns(name: str, port: int) -> object:
         port=port,
         properties={},
     )
-    zc = Zeroconf()
+    # Try IPv4-only first (avoids Windows IPv6 mDNS socket bind failures).
+    try:
+        from zeroconf import IPVersion
+        zc = Zeroconf(ip_version=IPVersion.V4Only)
+    except Exception:
+        zc = Zeroconf()
     zc.register_service(info)
     log.info('mDNS: advertising "%s" at %s:%d', name, ip, port)
     return zc
