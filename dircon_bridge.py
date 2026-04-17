@@ -23,12 +23,18 @@ log = logging.getLogger('dircon')
 # ── mDNS discovery (finds the real KICKR on the network) ─────────────────────
 
 async def discover_kickr(timeout: float = 8.0):
-    """Return the KICKR's IP address via mDNS, or None if not found."""
+    """Return (ip, instance_name, txt_properties) for the KICKR via mDNS.
+
+    instance_name is the bare label before '._wahoo-fitness-tnp._tcp.local.'
+    txt_properties is a dict of bytes→bytes TXT records from the real device.
+    Returns (None, None, {}) if not found.
+    """
     try:
         from zeroconf.asyncio import AsyncZeroconf, AsyncServiceBrowser
         import socket
-        found, addr = asyncio.Event(), [None]
-        loop = asyncio.get_running_loop()
+        found   = asyncio.Event()
+        result  = [None, None, {}]   # [ip, name, props]
+        loop    = asyncio.get_running_loop()
 
         async def _resolve_service(azc, t: str, n: str):
             if found.is_set():
@@ -43,13 +49,17 @@ async def discover_kickr(timeout: float = 8.0):
             raw = info.addresses[0]
             try:
                 if len(raw) == 4:
-                    addr[0] = socket.inet_ntop(socket.AF_INET, raw)
+                    result[0] = socket.inet_ntop(socket.AF_INET, raw)
                 elif len(raw) == 16:
-                    addr[0] = socket.inet_ntop(socket.AF_INET6, raw)
+                    result[0] = socket.inet_ntop(socket.AF_INET6, raw)
                 else:
                     return
             except OSError:
                 return
+            # Strip the service-type suffix to get the bare instance name
+            svc_suffix = '._wahoo-fitness-tnp._tcp.local.'
+            result[1] = n[:-len(svc_suffix)] if n.endswith(svc_suffix) else n
+            result[2] = info.properties or {}
             found.set()
 
         class H:
@@ -69,7 +79,7 @@ async def discover_kickr(timeout: float = 8.0):
             except asyncio.TimeoutError:
                 pass
             await b.async_cancel()
-        return addr[0]
+        return tuple(result)
     except ImportError:
         log.warning('pip install zeroconf  for auto-discovery')
         return None
@@ -153,22 +163,30 @@ async def main():
     ap.add_argument('--host',       default=None,             help='KICKR IP (skip mDNS)')
     ap.add_argument('--proxy-port', type=int, default=36866,  help='DIRCON server port for MyWhoosh')
     ap.add_argument('--ws-port',    type=int, default=8765,   help='WebSocket port for index.html')
-    ap.add_argument('--name',       default='LloydLabs TRNR', help='mDNS trainer name shown in MyWhoosh')
+    ap.add_argument('--name',       default=None,             help='mDNS trainer name (default: copy from KICKR)')
     ap.add_argument('-v', '--verbose', action='store_true')
     args = ap.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format='%(levelname)s  %(message)s')
 
     # ── Connect to real KICKR ─────────────────────────────────────────────────
-    host = args.host
+    host        = args.host
+    kickr_name  = None
+    kickr_props = {}
     if not host:
         log.info('Searching for KICKR via mDNS (up to 8 s)…')
-        host = await discover_kickr()
+        host, kickr_name, kickr_props = await discover_kickr()
     if not host:
         log.error('KICKR not found.  Retry with --host <IP_ADDRESS>')
         return
 
-    log.info('KICKR at %s', host)
+    # Use the name the real KICKR advertises (so MyWhoosh recognises it)
+    # unless the user explicitly overrides with --name.
+    proxy_name = args.name or kickr_name or 'KICKR SHIFT'
+    log.info('KICKR at %s  (mDNS name: %s)', host, kickr_name or '(unknown)')
+    if kickr_props:
+        log.info('KICKR TXT props: %s', kickr_props)
+
     dc = DirconClient(host)
     await dc.connect()
 
@@ -183,9 +201,10 @@ async def main():
     proxy_srv = await proxy.start(port=args.proxy_port)
 
     # ── Advertise on mDNS so MyWhoosh finds us automatically ─────────────────
+    # Pass through the real KICKR's TXT properties so MyWhoosh accepts us.
     zc = None
     try:
-        zc = register_mdns(args.name, args.proxy_port)
+        zc = register_mdns(proxy_name, args.proxy_port, kickr_props)
     except Exception as e:
         log.warning('mDNS registration failed: %r', e)
         log.warning('MyWhoosh auto-discovery unavailable — '
@@ -194,7 +213,7 @@ async def main():
 
     log.info('WebSocket ready  →  ws://localhost:%d', args.ws_port)
     log.info('Proxy ready      →  "%s" on port %d',
-             args.name, args.proxy_port)
+             proxy_name, args.proxy_port)
 
     try:
         async with serve(bridge.handle_ws, 'localhost', args.ws_port):

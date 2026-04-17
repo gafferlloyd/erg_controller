@@ -148,8 +148,11 @@ def get_local_ip() -> str:
     finally:
         s.close()
 
-def register_mdns(name: str, port: int) -> object:
+def register_mdns(name: str, port: int, properties: dict = None) -> object:
     """Advertise 'name' as a DIRCON trainer on the local network via mDNS.
+
+    Pass the real KICKR's TXT properties so MyWhoosh recognises the proxy
+    as a valid Wahoo trainer (it checks ble-service-uuids etc.).
 
     Returns the Zeroconf instance — keep the reference alive for the
     duration of the programme; call .close() on shutdown.
@@ -164,7 +167,7 @@ def register_mdns(name: str, port: int) -> object:
         f'{name}._wahoo-fitness-tnp._tcp.local.',
         addresses=[socket.inet_aton(ip)],
         port=port,
-        properties={},
+        properties=properties or {},
     )
     # Try IPv4-only first (avoids Windows IPv6 mDNS socket bind failures).
     try:
