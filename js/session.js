@@ -10,12 +10,20 @@ let sessionDistance = 0;    // metres, accumulated from speed samples
 // { t, hr, power, cadence, speed (km/h), rmssd }
 const samples = [];
 
+// Raw R-R intervals (ms) accumulated during the session for FIT HRV export.
+const rrSession = [];
+
+function sessionAddRR(rrMs) {
+  if (sessionActive) rrSession.push(rrMs);
+}
+
 // ── Session control ───────────────────────────────────────────────────────────
 
 function startSession() {
   if (sessionActive) return;
-  samples.length  = 0;
-  sessionDistance = 0;
+  samples.length   = 0;
+  rrSession.length = 0;
+  sessionDistance  = 0;
   sessionStart    = Date.now();
   sessionActive  = true;
   sampleTimer    = setInterval(takeSample, 1000);

@@ -42,6 +42,7 @@ function addRRInterval(rrRaw) {
   rrBuffer.push({ t: Date.now(), rr: rrMs });
   pruneRRBuffer();
   currentRMSSD = computeRMSSD(rrBuffer.map(x => x.rr));
+  sessionAddRR(rrMs);   // accumulate for FIT HRV export
 }
 
 function pruneRRBuffer() {

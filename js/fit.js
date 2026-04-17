@@ -171,6 +171,20 @@ function buildSessionData(startTs, endTs, sampleArr) {
   ];
 }
 
+// ── HRV message (global 78) ───────────────────────────────────────────────────
+// One message per R-R interval.  Field 0 (time): uint16, scale=1000, units=s
+// → store the interval in milliseconds directly as a uint16 value.
+
+function buildHrvDef() {
+  return defMsg(4, 78, [
+    { fieldDef: 0, size: 2, baseType: 0x84 }, // time uint16 (ms)
+  ]);
+}
+
+function buildHrvData(rrMs) {
+  return [dataHeader(4), ...u16(rrMs)];
+}
+
 // ── Activity message (global 34) ─────────────────────────────────────────────
 
 function buildActivityDef() {
@@ -230,6 +244,12 @@ function buildFitFile(sampleArr, startMs) {
     const ts = startTs + i;
     messages.push(buildRecordData(ts, s.hr, s.power, s.cadence, s.speed));
   });
+
+  // HRV — raw R-R intervals accumulated during the session
+  if (typeof rrSession !== 'undefined' && rrSession.length) {
+    messages.push(buildHrvDef());
+    rrSession.forEach(rr => messages.push(buildHrvData(rr)));
+  }
 
   // Session + Activity
   messages.push(buildSessionData(startTs, endTs, sampleArr));
