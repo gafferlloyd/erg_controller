@@ -51,6 +51,12 @@ const _dirconFtmsCP = {
 
 // ── Public connect function ───────────────────────────────────────────────────
 
+// Auto-connect when the page loads — if the bridge isn't running the
+// attempt fails silently and the user can still click the WiFi button.
+document.addEventListener('DOMContentLoaded', () => {
+  connectDircon().catch(() => {});
+});
+
 async function connectDircon(wsUrl = DIRCON_WS_DEFAULT) {
   if (_dirconWs) { _dirconWs.close(); _dirconWs = null; }
   setPill('trainer', false, 'WiFi…');

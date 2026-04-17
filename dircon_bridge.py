@@ -1,140 +1,26 @@
 #!/usr/bin/env python3
-"""DIRCON ↔ WebSocket bridge for Wahoo KICKR trainers.
+"""DIRCON proxy bridge — main entry point.
 
-Discovers the KICKR on the local network via mDNS, connects via the
-DIRCON protocol (TCP port 36866), and exposes a local WebSocket server
-so a browser page can send/receive GATT characteristic traffic over
-WiFi instead of Web Bluetooth.
+Connects to the real KICKR via DIRCON (TCP), then:
+  • Accepts MyWhoosh connections as a fake DIRCON trainer ("LloydLabs TRNR")
+    and filters out gradient/simulation commands before they reach the KICKR.
+  • Exposes a local WebSocket server (ws://localhost:8765) so index.html can
+    send ERG power targets and receive live data without Web Bluetooth.
+  • Advertises itself via mDNS so MyWhoosh discovers it automatically.
 
 Install:  pip install websockets zeroconf
-Run:      python dircon_bridge.py [--host KICKR_IP] [--ws-port 8765] [-v]
-
-JSON protocol — client → bridge:
-  {"cmd":"subscribe", "uuid":"2ad2"}
-  {"cmd":"write",     "uuid":"2ad9", "data":[0x00]}
-  {"cmd":"discover"}
-
-JSON protocol — bridge → client:
-  {"type":"status",   "connected":true, "kickr":"192.168.x.x"}
-  {"type":"services", "list":["00001826-..."]}
-  {"type":"notify",   "uuid":"00002ad2-...", "data":[...]}
-  {"type":"error",    "message":"..."}
+Run:      python dircon_bridge.py [--host KICKR_IP] [--proxy-port 36866]
+                                  [--ws-port 8765] [--name "LloydLabs TRNR"] [-v]
 """
 
-import asyncio, struct, json, logging, argparse
-import websockets
-from websockets.server import serve
+import asyncio, json, logging, argparse
+from websockets.asyncio.server import serve
+from dircon_client import DirconClient, AUTO_SUBS, expand
+from dircon_proxy  import DirconProxyServer, register_mdns
 
 log = logging.getLogger('dircon')
 
-# ── Constants ─────────────────────────────────────────────────────────────────
-
-DIRCON_PORT  = 36866
-MSG_DISC_SVC = 0x01
-MSG_DISC_CHR = 0x02
-MSG_READ     = 0x03
-MSG_WRITE    = 0x04
-MSG_SUB      = 0x05
-MSG_NOTIFY   = 0x06
-HDR_LEN      = 6
-
-BLE_BASE  = '0000{:04x}-0000-1000-8000-00805f9b34fb'
-AUTO_SUBS = ['2ad2', '2ada']   # Indoor Bike Data, Machine Status
-
-# ── UUID helpers ──────────────────────────────────────────────────────────────
-
-def expand(u: str) -> str:
-    """Expand a short or full UUID string to canonical 8-4-4-4-12 form."""
-    u = u.lower().strip().replace('-', '')
-    if len(u) <= 8:
-        return BLE_BASE.format(int(u, 16))
-    h = u.zfill(32)
-    return f'{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:]}'
-
-def u2b(u: str) -> bytes:
-    return bytes.fromhex(expand(u).replace('-', ''))
-
-def b2u(b: bytes) -> str:
-    h = b.hex()
-    return f'{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:]}'
-
-# ── DIRCON TCP client ─────────────────────────────────────────────────────────
-
-class DirconClient:
-    """Speaks the DIRCON/WFTNP protocol over a raw TCP socket.
-
-    All request-response operations are serialised by _lock so that a
-    notification arriving mid-request goes through _read_loop cleanly
-    without interfering with the pending response future.
-    """
-
-    def __init__(self, host: str, port: int = DIRCON_PORT):
-        self.host, self.port = host, port
-        self._r = self._w = None
-        self._lock    = asyncio.Lock()          # one request-response in flight
-        self._pending = None                    # asyncio.Future | None
-        self._seq     = 0
-        self.on_notify = None                   # async (uuid_str, bytes) → None
-
-    async def connect(self):
-        self._r, self._w = await asyncio.open_connection(self.host, self.port)
-        asyncio.create_task(self._read_loop())
-        log.info('TCP connected → %s:%d', self.host, self.port)
-
-    async def _send_recv(self, mtype: int, data: bytes = b'',
-                         timeout: float = 5.0) -> bytes:
-        async with self._lock:
-            self._seq = (self._seq + 1) & 0xFF
-            self._pending = asyncio.get_running_loop().create_future()
-            pkt = struct.pack('>BBBBH', 0x01, mtype, self._seq, 0, len(data)) + data
-            self._w.write(pkt)
-            await self._w.drain()
-            try:
-                return await asyncio.wait_for(self._pending, timeout)
-            except asyncio.TimeoutError:
-                log.warning('msg type 0x%02x timed out — server may not ACK this op',
-                            mtype)
-                return b''
-
-    async def _read_loop(self):
-        try:
-            while True:
-                hdr  = await self._r.readexactly(HDR_LEN)
-                _, mt, _, resp, dlen = struct.unpack_from('>BBBBH', hdr)
-                body = await self._r.readexactly(dlen) if dlen else b''
-                log.debug('rx  mt=0x%02x resp=0x%02x len=%d', mt, resp, dlen)
-                if mt == MSG_NOTIFY and len(body) >= 16:
-                    if self.on_notify:
-                        asyncio.create_task(
-                            self.on_notify(b2u(body[:16]), body[16:]))
-                elif self._pending and not self._pending.done():
-                    if resp:
-                        self._pending.set_exception(
-                            RuntimeError(f'DIRCON error resp=0x{resp:02x}'))
-                    else:
-                        self._pending.set_result(body)
-        except asyncio.IncompleteReadError:
-            log.warning('DIRCON TCP connection closed')
-        except Exception as e:
-            log.error('read loop: %s', e)
-        finally:
-            if self._pending and not self._pending.done():
-                self._pending.cancel()
-
-    async def discover_services(self) -> list:
-        d = await self._send_recv(MSG_DISC_SVC)
-        return [b2u(d[i:i+16]) for i in range(0, len(d), 16) if i + 16 <= len(d)]
-
-    async def subscribe(self, uuid: str, enable: bool = True):
-        log.info('subscribe %s  enable=%s', uuid, enable)
-        await self._send_recv(MSG_SUB,
-            u2b(uuid) + bytes([0x01 if enable else 0x00]))
-
-    async def write(self, uuid: str, value: bytes):
-        log.debug('write %s = %s', uuid, value.hex())
-        await self._send_recv(MSG_WRITE, u2b(uuid) + value)
-
-# ── mDNS discovery ────────────────────────────────────────────────────────────
+# ── mDNS discovery (finds the real KICKR on the network) ─────────────────────
 
 async def discover_kickr(timeout: float = 8.0):
     """Return the KICKR's IP address via mDNS, or None if not found."""
@@ -142,19 +28,42 @@ async def discover_kickr(timeout: float = 8.0):
         from zeroconf.asyncio import AsyncZeroconf, AsyncServiceBrowser
         import socket
         found, addr = asyncio.Event(), [None]
+        loop = asyncio.get_running_loop()
+
+        async def _resolve_service(azc, t: str, n: str):
+            if found.is_set():
+                return
+            try:
+                info = await azc.async_get_service_info(t, n, timeout=3000)
+            except Exception as e:
+                log.debug('mDNS resolve %s: %s', n, e)
+                return
+            if not info or not info.addresses:
+                return
+            raw = info.addresses[0]
+            try:
+                if len(raw) == 4:
+                    addr[0] = socket.inet_ntop(socket.AF_INET, raw)
+                elif len(raw) == 16:
+                    addr[0] = socket.inet_ntop(socket.AF_INET6, raw)
+                else:
+                    return
+            except OSError:
+                return
+            found.set()
 
         class H:
+            def __init__(self, azc):
+                self._azc = azc
             def add_service(self, zc, t, n):
-                info = zc.get_service_info(t, n)
-                if info and info.addresses:
-                    addr[0] = socket.inet_ntoa(info.addresses[0])
-                    found.set()
+                if not found.is_set():
+                    loop.create_task(_resolve_service(self._azc, t, n))
             def remove_service(self, *_): pass
             def update_service(self, *_): pass
 
         async with AsyncZeroconf() as azc:
             b = AsyncServiceBrowser(azc.zeroconf,
-                '_wahoo-fitness-tnp._tcp.local.', H())
+                '_wahoo-fitness-tnp._tcp.local.', H(azc))
             try:
                 await asyncio.wait_for(found.wait(), timeout)
             except asyncio.TimeoutError:
@@ -168,17 +77,20 @@ async def discover_kickr(timeout: float = 8.0):
 # ── WebSocket bridge ──────────────────────────────────────────────────────────
 
 class Bridge:
-    def __init__(self, dc: DirconClient):
-        self._dc = dc
+    """WebSocket server — lets index.html send/receive GATT traffic via JSON."""
+
+    def __init__(self, dc: DirconClient, proxy: DirconProxyServer):
+        self._dc    = dc
+        self._proxy = proxy
         self._clients   = set()
         self._subscribed = set()
 
     async def setup(self):
         try:
             svcs = await self._dc.discover_services()
-            log.info('DIRCON services: %s', svcs or '(none / parse error)')
+            log.info('KICKR services: %s', svcs or '(none / parse error)')
         except Exception as e:
-            log.warning('discover_services: %s — continuing anyway', e)
+            log.warning('discover_services: %s — continuing', e)
 
         for uuid in AUTO_SUBS:
             try:
@@ -187,9 +99,14 @@ class Bridge:
             except Exception as e:
                 log.warning('auto-subscribe %s: %s', uuid, e)
 
-        self._dc.on_notify = self._broadcast
+        # Both WebSocket clients and DIRCON (MyWhoosh) clients get every notification.
+        self._dc.on_notify = self._on_notify
 
-    async def _broadcast(self, uuid: str, data: bytes):
+    async def _on_notify(self, uuid: str, data: bytes):
+        await self._broadcast_ws(uuid, data)
+        await self._proxy.broadcast(uuid, data)
+
+    async def _broadcast_ws(self, uuid: str, data: bytes):
         if not self._clients:
             return
         msg = json.dumps({'type': 'notify', 'uuid': uuid, 'data': list(data)})
@@ -232,14 +149,17 @@ class Bridge:
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 async def main():
-    ap = argparse.ArgumentParser(description='DIRCON WebSocket bridge')
-    ap.add_argument('--host',    default=None, help='KICKR IP (skip mDNS)')
-    ap.add_argument('--ws-port', type=int, default=8765)
+    ap = argparse.ArgumentParser(description='DIRCON proxy bridge')
+    ap.add_argument('--host',       default=None,             help='KICKR IP (skip mDNS)')
+    ap.add_argument('--proxy-port', type=int, default=36866,  help='DIRCON server port for MyWhoosh')
+    ap.add_argument('--ws-port',    type=int, default=8765,   help='WebSocket port for index.html')
+    ap.add_argument('--name',       default='LloydLabs TRNR', help='mDNS trainer name shown in MyWhoosh')
     ap.add_argument('-v', '--verbose', action='store_true')
     args = ap.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format='%(levelname)s  %(message)s')
 
+    # ── Connect to real KICKR ─────────────────────────────────────────────────
     host = args.host
     if not host:
         log.info('Searching for KICKR via mDNS (up to 8 s)…')
@@ -248,16 +168,36 @@ async def main():
         log.error('KICKR not found.  Retry with --host <IP_ADDRESS>')
         return
 
-    log.info('Using KICKR at %s', host)
+    log.info('KICKR at %s', host)
     dc = DirconClient(host)
     await dc.connect()
 
-    bridge = Bridge(dc)
+    # ── Start proxy server (MyWhoosh connects here) ───────────────────────────
+    proxy = DirconProxyServer(dc)
+    proxy_srv = await proxy.start(port=args.proxy_port)
+
+    # ── Start WebSocket server (index.html connects here) ─────────────────────
+    bridge = Bridge(dc, proxy)
     await bridge.setup()
 
-    log.info('WebSocket server ready  →  ws://localhost:%d', args.ws_port)
-    async with serve(bridge.handle_ws, 'localhost', args.ws_port):
-        await asyncio.Future()   # run until Ctrl-C
+    # ── Advertise on mDNS so MyWhoosh finds us automatically ─────────────────
+    zc = None
+    try:
+        zc = register_mdns(args.name, args.proxy_port)
+    except Exception as e:
+        log.warning('mDNS registration failed: %s  (MyWhoosh will not find proxy)', e)
+
+    log.info('WebSocket ready  →  ws://localhost:%d', args.ws_port)
+    log.info('Proxy ready      →  "%s" visible to MyWhoosh on port %d',
+             args.name, args.proxy_port)
+
+    try:
+        async with serve(bridge.handle_ws, 'localhost', args.ws_port):
+            await asyncio.Future()   # run until Ctrl-C
+    finally:
+        proxy_srv.close()
+        if zc:
+            zc.close()
 
 if __name__ == '__main__':
     asyncio.run(main())
