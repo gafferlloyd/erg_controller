@@ -1,0 +1,30 @@
+<workout_file>
+  <name>Steady Climbing (27 min)</name>
+  <description>Progressive climb into sustained effort</description>
+  <sportType>bike</sportType>
+  <durationType>time</durationType>
+  <workout>
+
+    <!-- Warmup -->
+    <Warmup Duration="300" PowerLow="0.50" PowerHigh="0.75"/>
+
+    <!-- Gradual climb build -->
+    <Ramp Duration="360" PowerLow="0.75" PowerHigh="0.90"/>
+    
+    <!-- Settle slightly -->
+    <SteadyState Duration="180" Power="0.85"/>
+
+    <!-- Main climb -->
+    <Ramp Duration="480" PowerLow="0.85" PowerHigh="0.95"/>
+
+    <!-- Sustained effort -->
+    <SteadyState Duration="240" Power="0.90"/>
+
+    <!-- Final push -->
+    <SteadyState Duration="120" Power="0.95"/>
+
+    <!-- Cooldown -->
+    <Cooldown Duration="180" PowerLow="0.80" PowerHigh="0.50"/>
+
+  </workout>
+</workout_file>

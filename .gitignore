@@ -1,6 +1,12 @@
-log_*.txt
-*.fit
-*.csv
 change_requests.txt
+
+# Session / runtime output files (root and archive/)
+log_*.txt
 hrservo_*.txt
 gatt_*.txt
+weblog_*.txt
+*_log.txt
+*.wsloc.txt
+*.fit
+*.csv
+archive/

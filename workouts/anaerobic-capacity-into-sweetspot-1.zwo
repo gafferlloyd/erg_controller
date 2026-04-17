@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workout_file>
+    <author>ERG Controller</author>
+    <name>Anaerobic Capacity into Sweet Spot 1</name>
+    <description>Progressive activation through sweet spot and threshold into anaerobic efforts, then consolidation at sweet spot. Ramp up, step-load through SS/THR/Z5, 3x1min anaerobic repeats at 125%, finish with 5min sweet spot block.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="anaerobic"/>
+        <tag name="sweet-spot"/>
+        <tag name="mixed"/>
+    </tags>
+    <workout>
+        <Warmup      Duration="180" PowerLow="0.4500" PowerHigh="0.7500"/>
+        <SteadyState Duration="30"  Power="0.5000" show_avg="1"/>
+        <SteadyState Duration="60"  Power="0.8100" show_avg="1"/>
+        <SteadyState Duration="30"  Power="0.5000" show_avg="1"/>
+        <SteadyState Duration="60"  Power="0.9500" show_avg="1"/>
+        <SteadyState Duration="30"  Power="0.5000" show_avg="1"/>
+        <SteadyState Duration="60"  Power="1.0900" show_avg="1"/>
+        <SteadyState Duration="90"  Power="0.5000" show_avg="1"/>
+        <SteadyState Duration="300" Power="0.7500" show_avg="1"/>
+        <SteadyState Duration="120" Power="0.5000" show_avg="1"/>
+        <IntervalsT  Repeat="3" OnDuration="60" OnPower="1.2500" OffDuration="60" OffPower="0.6500" show_avg="1"/>
+        <SteadyState Duration="300" Power="0.8100" show_avg="1"/>
+        <Cooldown    Duration="180" PowerLow="0.6000" PowerHigh="0.4500"/>
+    </workout>
+</workout_file>

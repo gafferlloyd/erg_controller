@@ -1,0 +1,34 @@
+<workout_file>
+  <name>Anaerobic Capacity into Sweetspot #1</name>
+  <description>AC efforts into Sweetspot</description>
+  <sportType>bike</sportType>
+  <durationType>time</durationType>
+  <workout>
+
+    <!-- Warmup -->
+    <Warmup Duration="180" PowerLow="0.45" PowerHigh="0.75"/>
+
+    <!-- Build block -->
+    <SteadyState Duration="30" Power="0.50"/>
+    <SteadyState Duration="60" Power="0.81"/>
+    <SteadyState Duration="30" Power="0.50"/>
+    <SteadyState Duration="60" Power="0.95"/>
+    <SteadyState Duration="30" Power="0.50"/>
+    <SteadyState Duration="60" Power="1.09"/>
+    <SteadyState Duration="90" Power="0.50"/>
+
+    <!-- Sweetspot prep -->
+    <SteadyState Duration="300" Power="0.75"/>
+    <SteadyState Duration="120" Power="0.50"/>
+
+    <!-- Anaerobic set -->
+    <IntervalsT Repeat="3" OnDuration="60" OffDuration="60" OnPower="1.25" OffPower="0.65"/>
+
+    <!-- Sweetspot finish -->
+    <SteadyState Duration="300" Power="0.81"/>
+
+    <!-- Cooldown -->
+    <Cooldown Duration="180" PowerLow="0.60" PowerHigh="0.45"/>
+
+  </workout>
+</workout_file>

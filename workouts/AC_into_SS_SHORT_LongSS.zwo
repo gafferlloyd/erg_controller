@@ -1,0 +1,30 @@
+<workout_file>
+  <name>AC into Sweetspot (Short, Long SS)</name>
+  <description>Short version with extended sweetspot finish</description>
+  <sportType>bike</sportType>
+  <durationType>time</durationType>
+  <workout>
+
+    <!-- Warmup -->
+    <Warmup Duration="180" PowerLow="0.45" PowerHigh="0.75"/>
+
+    <!-- Build -->
+    <SteadyState Duration="30" Power="0.50"/>
+    <SteadyState Duration="60" Power="0.81"/>
+    <SteadyState Duration="30" Power="0.50"/>
+    <SteadyState Duration="60" Power="0.95"/>
+    <SteadyState Duration="30" Power="0.50"/>
+    <SteadyState Duration="60" Power="1.09"/>
+    <SteadyState Duration="60" Power="0.50"/>
+
+    <!-- Anaerobic set -->
+    <IntervalsT Repeat="3" OnDuration="60" OffDuration="60" OnPower="1.25" OffPower="0.65"/>
+
+    <!-- Longer Sweetspot -->
+    <SteadyState Duration="480" Power="0.81"/>
+
+    <!-- Cooldown -->
+    <Cooldown Duration="120" PowerLow="0.60" PowerHigh="0.45"/>
+
+  </workout>
+</workout_file>
