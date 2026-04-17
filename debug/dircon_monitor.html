@@ -182,7 +182,7 @@ const CP_RESULT = {0x01:'Success', 0x02:'OpUnsupported',
 
 function handleNotify(uuid, data) {
   const u = uuid.replace(/-/g, '').toLowerCase();
-  const u4 = u.slice(-4);
+  const u4 = u.slice(4, 8);   // short UUID is at chars 4-7 of the 32-char hex
 
   // Raw hex always captured
   const hex = data.map(b => b.toString(16).padStart(2, '0')).join(' ');

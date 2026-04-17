@@ -27,10 +27,11 @@ function _synth(data) {
 // Route a DIRCON notification to the matching ble.js handler by UUID suffix.
 function _route(uuid, data) {
   const u = uuid.replace(/-/g, '').toLowerCase();
-  if      (u.endsWith('2ad2')) onFTMSIndoor(_synth(data));    // power/cadence/speed
-  else if (u.endsWith('2ad9')) onCPResponse(_synth(data));    // FTMS CP indication
-  else if (u.endsWith('2ada')) onMachineStatus(_synth(data)); // machine status
-  else if (u.endsWith('2a63')) onCPS(_synth(data));           // CPS power
+  const s = u.slice(4, 8);   // short UUID at chars 4-7 of the 32-char hex
+  if      (s === '2ad2') onFTMSIndoor(_synth(data));    // power/cadence/speed
+  else if (s === '2ad9') onCPResponse(_synth(data));    // FTMS CP indication
+  else if (s === '2ada') onMachineStatus(_synth(data)); // machine status
+  else if (s === '2a63') onCPS(_synth(data));           // CPS power
 }
 
 // ── Fake FTMS CP characteristic ───────────────────────────────────────────────
