@@ -218,6 +218,14 @@ function onMachineStatus(e) {
     const watts = v.getUint16(1, true);
     log(`FTMS ack: Target Power → ${watts}W`, 'ok');
     onErgConfirmed(watts);
+  } else if (op === 0x12) {
+    // Indoor Bike Simulation Parameters Started — another app (e.g. MyWhoosh)
+    // sent a gradient/wind command and the KICKR has switched to simulation mode.
+    // Re-assert ERG target immediately if a servo or manual ERG is active.
+    if (servoActive || ergActive) {
+      log('MyWhoosh gradient intercepted — re-asserting ERG target', 'warn');
+      sendPower(ergSetpoint).catch(e => log(`Re-assert ERG: ${e.message}`, 'warn'));
+    }
   } else if (op === 0x19 || op === 0xFF) {
     log('FTMS Control Permission Lost — another device took over!', 'warn');
     onErgControlLost();
