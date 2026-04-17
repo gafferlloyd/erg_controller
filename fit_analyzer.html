@@ -6,15 +6,13 @@
   <title>FIT Analyzer</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* ── Page overrides ─────────────────────────────────── */
     html, body { overflow: hidden; }
 
-    /* ── Drop zone ──────────────────────────────────────── */
+    /* ── Drop zone ─────────────────────────────────────── */
     #drop-zone {
       flex: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      border: 2px dashed var(--border2);
-      background: var(--surface);
+      border: 2px dashed var(--border2); background: var(--surface);
       cursor: pointer; gap: 12px;
       transition: border-color 0.15s, background 0.15s;
     }
@@ -29,43 +27,54 @@
     }
     #drop-zone label:hover { background: var(--border2); }
 
-    /* ── Chart area ─────────────────────────────────────── */
+    /* ── Chart area ────────────────────────────────────── */
     #chart-area {
-      flex: 1; min-height: 0; display: flex;
-      flex-direction: column; gap: 6px;
+      flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px;
     }
 
-    /* ── Plot panel: canvas + values panel ──────────────── */
-    .plot-panel {
-      flex: 6; min-height: 0;
-      display: grid; grid-template-columns: 1fr 152px;
-      gap: 6px;
+    /* ── Scrollable plot container ─────────────────────── */
+    #plot-scroll {
+      flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+    }
+    #plot-inner {
+      display: grid; grid-template-columns: 1fr 128px;
     }
     #plot-canvas {
-      display: block; width: 100%; height: 100%;
-      background: var(--bg); cursor: crosshair;
-    }
-    .plot-canvas-wrap {
-      background: var(--surface); border: 1px solid var(--border);
-      overflow: hidden; min-height: 0;
+      display: block; width: 100%; background: var(--bg); cursor: crosshair;
     }
 
-    /* ── Values panel ───────────────────────────────────── */
-    .fit-values-panel {
-      display: flex; flex-direction: column; gap: 4px;
-      background: var(--surface); border: 1px solid var(--border);
-      padding: 8px; overflow-y: auto; min-height: 0;
+    /* ── Values column (right of canvas, same height) ──── */
+    #values-col {
+      display: flex; flex-direction: column;
+      background: var(--surface); border-left: 1px solid var(--border);
     }
-    .fit-values-panel .cv-lbl { white-space: nowrap; }
-    #ftp-indicator {
-      font-size: 9px; color: var(--muted); padding: 2px 0;
-      border-bottom: 1px solid var(--border); margin-bottom: 2px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    .val-box {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      border-bottom: 1px solid var(--border);
+      padding: 4px 6px; text-align: center; flex-shrink: 0;
+      overflow: hidden;
+    }
+    .val-box .vb-val   { font-size: 20px; font-weight: bold; line-height: 1.1; }
+    .val-box .vb-range { font-size: 9px; color: var(--muted); min-height: 11px;
+                         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .val-box .vb-lbl   { font-size: 9px; color: var(--muted); text-transform: uppercase;
+                         letter-spacing: 0.07em; }
+    #vb-time-row {
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); font-size: 9px; flex-shrink: 0;
     }
 
-    /* ── Summary area ───────────────────────────────────── */
+    /* ── FTP indicator ─────────────────────────────────── */
+    #ftp-bar {
+      font-size: 9px; color: var(--muted); padding: 2px 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; flex-shrink: 0;
+    }
+
+    /* ── Summary panel ─────────────────────────────────── */
     .summary-panel {
-      flex: 4; min-height: 0;
+      flex-shrink: 0; height: 210px;
       background: var(--surface); border: 1px solid var(--border);
       display: flex; flex-direction: column; overflow: hidden;
     }
@@ -75,30 +84,18 @@
       border-bottom: 1px solid var(--border);
       display: flex; justify-content: space-between; flex-shrink: 0;
     }
-    #sum-grid {
-      flex: 1; display: grid; overflow: hidden;
-    }
+    #sum-grid { flex: 1; display: grid; overflow: hidden; }
 
-    /* ── Stat box colour variants for analyzer ──────────── */
-    .sv-vam  .stat-num { color: var(--amber); }
-    .sv-ef   .stat-num { color: var(--purple); }
-    .sv-tss  .stat-num { color: var(--green2); }
-
-    /* ── Selection mode cv-block (shows avg | min · max) ─── */
-    .cv-block .cv-range {
-      font-size: 9px; color: var(--muted); line-height: 1.3;
-    }
+    .sv-vam .stat-num { color: var(--amber); }
+    .sv-ef  .stat-num { color: var(--purple); }
+    .sv-tss .stat-num { color: var(--green2); }
   </style>
 </head>
 <body>
-
 <div class="page-layout">
 
-  <!-- ═══════════════════════════════════════════════════
-       SIDEBAR — Profile
-       ═══════════════════════════════════════════════════ -->
+  <!-- ═══ SIDEBAR ═══════════════════════════════════════ -->
   <aside class="left-col">
-
     <div class="sidebar-section sb-only">
       <div class="sidebar-head">Profile</div>
       <div class="profile-row"><label>Rest HR</label>
@@ -112,15 +109,12 @@
       <div class="profile-row"><label>FTP in</label>
         <input type="number" id="fa-ftp-in"  value="250" min="50"  max="600" step="5"><span>W</span></div>
     </div>
-
   </aside>
 
-  <!-- ═══════════════════════════════════════════════════
-       MAIN COLUMN
-       ═══════════════════════════════════════════════════ -->
+  <!-- ═══ MAIN ═══════════════════════════════════════════ -->
   <div class="main-col">
 
-    <!-- ── Drop zone (no file loaded) ──────────────────── -->
+    <!-- Drop zone -->
     <div id="drop-zone">
       <span class="drop-icon">&#9099;</span>
       <span class="drop-hint">Drop a .fit file here</span>
@@ -128,53 +122,19 @@
       <input type="file" id="fit-file-input" accept=".fit">
     </div>
 
-    <!-- ── Chart area (shown after file loaded) ─────────── -->
+    <!-- Chart area (hidden until file loaded) -->
     <div id="chart-area" class="hidden">
 
-      <!-- Plot canvas + values panel -->
-      <div class="plot-panel">
-        <div class="plot-canvas-wrap">
+      <div id="ftp-bar">
+        <span id="ftp-indicator">—</span>
+        <span id="ftp-note" style="color:var(--blue2)"></span>
+      </div>
+
+      <!-- Scrollable plot: canvas left, value boxes right -->
+      <div id="plot-scroll">
+        <div id="plot-inner">
           <canvas id="plot-canvas"></canvas>
-        </div>
-
-        <!-- Hover / selection values -->
-        <div class="fit-values-panel" id="values-panel">
-          <div id="ftp-indicator">—</div>
-
-          <div class="cv-block pwr" id="vp-power">
-            <div class="cv-val">—</div>
-            <div class="cv-range"></div>
-            <div class="cv-lbl">Power W</div>
-          </div>
-          <div class="cv-block hr" id="vp-hr">
-            <div class="cv-val">—</div>
-            <div class="cv-range"></div>
-            <div class="cv-lbl">HR bpm</div>
-          </div>
-          <div class="cv-block cad" id="vp-cadence">
-            <div class="cv-val">—</div>
-            <div class="cv-range"></div>
-            <div class="cv-lbl">Cadence rpm</div>
-          </div>
-          <div class="cv-block spd" id="vp-speed">
-            <div class="cv-val">—</div>
-            <div class="cv-range"></div>
-            <div class="cv-lbl">Speed km/h</div>
-          </div>
-          <div class="cv-block" style="--col:var(--purple)" id="vp-wpbpm">
-            <div class="cv-val" style="color:var(--purple)">—</div>
-            <div class="cv-range"></div>
-            <div class="cv-lbl">W/bpm</div>
-          </div>
-          <div class="cv-block" id="vp-vam" style="display:none">
-            <div class="cv-val" style="color:var(--amber)">—</div>
-            <div class="cv-range"></div>
-            <div class="cv-lbl">VAM m/hr</div>
-          </div>
-          <div class="cv-block" id="vp-time">
-            <div class="cv-val" style="color:var(--muted);font-size:14px">—</div>
-            <div class="cv-lbl">Elapsed</div>
-          </div>
+          <div id="values-col"></div>
         </div>
       </div>
 
@@ -182,17 +142,15 @@
       <div class="summary-panel">
         <div class="summary-head">
           <span id="sum-title">Summary</span>
-          <span id="sum-ftpnote" style="color:var(--blue2)"></span>
+          <span id="sum-note" style="color:var(--blue2)"></span>
         </div>
         <div id="sum-grid"></div>
       </div>
 
     </div><!-- /chart-area -->
-
   </div><!-- /main-col -->
 </div><!-- /page-layout -->
 
-<!-- ── Scripts ──────────────────────────────────────────────────────────────── -->
 <script src="js/fit_reader.js"></script>
 <script src="js/fit_calc.js"></script>
 <script src="js/fit_plot.js"></script>
@@ -200,119 +158,89 @@
 <script>
 'use strict';
 
-// ── App state ─────────────────────────────────────────────────────────────────
-let fitData    = null;   // { records, isIndoor, hasAltitude, startMs }
-let fitCh      = null;   // channels from buildChannels()
-let fitSummary = null;
+let fitData     = null;
+let fitChannels = null;
+let fitSummary  = null;
+let currentBands = [];   // band descriptors returned by fitPlot.load()
 
-// ── Drop zone wiring ──────────────────────────────────────────────────────────
+// ── Drop zone ─────────────────────────────────────────────────────────────────
 const dropZone  = document.getElementById('drop-zone');
 const chartArea = document.getElementById('chart-area');
 
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) loadFit(file);
-});
-document.getElementById('fit-file-input').addEventListener('change', e => {
-  if (e.target.files[0]) loadFit(e.target.files[0]);
-});
+dropZone.addEventListener('drop',      e  => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) loadFit(e.dataTransfer.files[0]); });
+document.getElementById('fit-file-input').addEventListener('change', e => { if (e.target.files[0]) loadFit(e.target.files[0]); });
 
 // ── File load ─────────────────────────────────────────────────────────────────
 async function loadFit(file) {
   try {
-    const buf  = await file.arrayBuffer();
+    const buf = await file.arrayBuffer();
     fitData    = parseFit(buf);
     const ftp  = faGetFtp(fitData.isIndoor);
-    fitCh      = buildChannels(fitData.records, fitData.hasAltitude);
-    fitSummary = computeSummary(fitData.records, ftp, fitAnalyzerProfile.weight);
+    fitChannels = buildChannels(fitData.records, fitData.presentFields);
+    fitSummary  = computeSummary(fitData.records, ftp, fitAnalyzerProfile.weight);
 
     dropZone.classList.add('hidden');
     chartArea.classList.remove('hidden');
 
-    // Show/hide VAM panel
-    document.getElementById('vp-vam').style.display =
-      fitData.hasAltitude ? '' : 'none';
+    const typeLabel = fitData.isIndoor ? 'Indoor' : 'Outdoor';
+    document.getElementById('ftp-indicator').textContent = `${typeLabel}  ·  FTP ${ftp}W`;
+    document.getElementById('ftp-note').textContent      = `${file.name}`;
+    document.getElementById('sum-note').textContent      = `${typeLabel} · FTP ${ftp}W`;
 
-    // FTP indicator
-    document.getElementById('ftp-indicator').textContent =
-      `${fitData.isIndoor ? 'Indoor' : 'Outdoor'} FTP: ${ftp}W`;
-    document.getElementById('sum-ftpnote').textContent =
-      `${fitData.isIndoor ? 'Indoor' : 'Outdoor'} · FTP ${ftp}W`;
-
-    fitPlot.load(fitCh, fitData.hasAltitude);
+    currentBands = fitPlot.load(fitChannels);
+    createValueBoxes(currentBands);
     renderSummary(fitSummary);
   } catch (e) {
     alert('Could not parse FIT file:\n' + e.message);
   }
 }
 
-// ── Profile change callback ───────────────────────────────────────────────────
+// ── Profile change ────────────────────────────────────────────────────────────
 function onProfileChange() {
   if (!fitData) return;
-  const ftp = faGetFtp(fitData.isIndoor);
+  const ftp  = faGetFtp(fitData.isIndoor);
   fitSummary = computeSummary(fitData.records, ftp, fitAnalyzerProfile.weight);
   renderSummary(fitSummary);
   document.getElementById('ftp-indicator').textContent =
-    `${fitData.isIndoor ? 'Indoor' : 'Outdoor'} FTP: ${ftp}W`;
+    `${fitData.isIndoor ? 'Indoor' : 'Outdoor'}  ·  FTP ${ftp}W`;
 }
 
-// ── Plot callbacks ────────────────────────────────────────────────────────────
-fitPlot.onHover = function(idx, vals) {
-  const fmt = (v, dp=0) => v != null ? (dp ? v.toFixed(dp) : Math.round(v)) : '—';
-  setVP('vp-power',   fmt(vals.power), '');
-  setVP('vp-hr',      fmt(vals.hr), '');
-  setVP('vp-cadence', fmt(vals.cadence), '');
-  setVP('vp-speed',   fmt(vals.speed, 1), '');
-  setVP('vp-wpbpm',   fmt(vals.wpbpm, 2), '');
-  setVP('vp-vam',     fmt(vals.vam), '');
-  const e = vals.elapsed;
-  document.querySelector('#vp-time .cv-val').textContent =
-    e != null ? fmtElapsed(e) : '—';
-};
-
-fitPlot.onSelect = function(i0, i1, stats) {
-  const dur = fitCh.elapsed[i1] - fitCh.elapsed[i0];
-  const np  = calcNP((fitData.records.slice(i0, i1 + 1)).map(r => r.power ?? 0));
-  const ftp = faGetFtp(fitData.isIndoor);
-
-  setVPStat('vp-power',   stats.power,   'W');
-  setVPStat('vp-hr',      stats.hr,      'bpm');
-  setVPStat('vp-cadence', stats.cadence, 'rpm');
-  setVPStat('vp-speed',   stats.speed,   'km/h');
-  setVPStat('vp-wpbpm',   stats.wpbpm,   '');
-  setVPStat('vp-vam',     stats.vam,     'm/hr');
-  document.querySelector('#vp-time .cv-val').textContent = fmtElapsed(dur);
-
-  // Show NP for selection in the power block
-  if (np) {
-    const extra = document.querySelector('#vp-power .cv-range');
-    if (extra) extra.textContent = `NP ${np}W${ftp ? '  IF '+(np/ftp).toFixed(2) : ''}`;
-  }
-};
-
-// ── Values panel helpers ──────────────────────────────────────────────────────
-function setVP(id, val, rangeText) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.querySelector('.cv-val').textContent   = val;
-  el.querySelector('.cv-range').textContent = rangeText;
+// ── Value box creation ────────────────────────────────────────────────────────
+function createValueBoxes(bandDescriptors) {
+  const col  = document.getElementById('values-col');
+  const BH   = fitPlot.BAND_PX;
+  const TH   = fitPlot.TIME_AXIS_H;
+  col.innerHTML = '';
+  bandDescriptors.forEach(b => {
+    const div = document.createElement('div');
+    div.className   = 'val-box';
+    div.style.height = BH + 'px';
+    div.innerHTML = `
+      <div class="vb-val"  id="vbv-${b.id}" style="color:${b.color}">—</div>
+      <div class="vb-range" id="vbr-${b.id}"></div>
+      <div class="vb-lbl">${b.name}${b.unit ? ' '+b.unit : ''}</div>`;
+    col.appendChild(div);
+  });
+  // Time row aligned with the time axis strip
+  const timeRow = document.createElement('div');
+  timeRow.id = 'vb-time-row';
+  timeRow.style.height = TH + 'px';
+  timeRow.id = 'vb-time';
+  col.appendChild(timeRow);
 }
 
-function setVPStat(id, stat, unit) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (!stat) { setVP(id, '—', ''); return; }
-  el.querySelector('.cv-val').textContent =
-    stat.avg != null ? (Number.isInteger(stat.avg) ? stat.avg : stat.avg) : '—';
-  el.querySelector('.cv-range').textContent =
-    stat.min != null ? `${Math.round(stat.min)}–${Math.round(stat.max)} ${unit}` : '';
+// ── Format helpers ────────────────────────────────────────────────────────────
+function fmtVal(v, id) {
+  if (v == null) return '—';
+  if (['speed','grade','temp','vspeed','thb','smo2','distance'].includes(id)) return v.toFixed(1);
+  if (id === 'wpbpm') return v.toFixed(2);
+  return Math.round(v);
 }
 
 function fmtElapsed(sec) {
+  sec = Math.round(sec);
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   const s = sec % 60;
@@ -321,61 +249,93 @@ function fmtElapsed(sec) {
     : `${m}:${String(s).padStart(2,'0')}`;
 }
 
+// ── Plot callbacks ────────────────────────────────────────────────────────────
+fitPlot.onHover = function(idx, vals) {
+  currentBands.forEach(b => {
+    const vEl = document.getElementById(`vbv-${b.id}`);
+    const rEl = document.getElementById(`vbr-${b.id}`);
+    if (vEl) vEl.textContent = fmtVal(vals[b.id], b.id);
+    if (rEl) rEl.textContent = '';
+  });
+  const tEl = document.getElementById('vb-time');
+  if (tEl) tEl.textContent = vals.elapsed != null ? fmtElapsed(vals.elapsed) : '—';
+};
+
+fitPlot.onSelect = function(i0, i1, stats) {
+  const dur = (fitChannels.elapsed[i1] || 0) - (fitChannels.elapsed[i0] || 0);
+  const ftp = faGetFtp(fitData.isIndoor);
+
+  currentBands.forEach(b => {
+    const s   = stats[b.id];
+    const vEl = document.getElementById(`vbv-${b.id}`);
+    const rEl = document.getElementById(`vbr-${b.id}`);
+    if (!vEl) return;
+    if (s) {
+      vEl.textContent = fmtVal(s.avg, b.id);
+      rEl.textContent = `${fmtVal(s.min, b.id)}–${fmtVal(s.max, b.id)}`;
+    } else {
+      vEl.textContent = '—';
+      if (rEl) rEl.textContent = '';
+    }
+  });
+
+  // Annotate power box with NP and IF for the selection
+  const np = calcNP(fitData.records.slice(i0, i1+1).map(r => r.power ?? 0));
+  const rEl = document.getElementById('vbr-power');
+  if (rEl && np) rEl.textContent = `NP ${np}W${ftp ? ' IF '+(np/ftp).toFixed(2) : ''}`;
+
+  const tEl = document.getElementById('vb-time');
+  if (tEl) tEl.textContent = fmtElapsed(dur);
+};
+
 // ── Summary rendering ─────────────────────────────────────────────────────────
 const SUM_METRICS = [
-  { id: 'duration',    lbl: 'Duration',    cls: '',      fmt: v => fmtElapsed(v),               unit: ''    },
-  { id: 'totalWork',   lbl: 'Work',        cls: '',      fmt: v => v,                            unit: 'kJ'  },
-  { id: 'avgPwr',      lbl: 'Avg Pwr',     cls: 'sv-pwr',fmt: v => v,                            unit: 'W'   },
-  { id: 'np',          lbl: 'NP',          cls: 'sv-np', fmt: v => v,                            unit: 'W'   },
-  { id: 'IF',          lbl: 'IF',          cls: '',      fmt: v => v,                            unit: ''    },
-  { id: 'TSS',         lbl: 'TSS',         cls: 'sv-tss',fmt: v => v,                            unit: ''    },
-  { id: 'wkg',         lbl: 'W/kg',        cls: '',      fmt: v => v,                            unit: ''    },
-  { id: 'avgHR',       lbl: 'Avg HR',      cls: 'sv-hr', fmt: v => v,                            unit: 'bpm' },
-  { id: 'maxHR',       lbl: 'Max HR',      cls: 'sv-hr', fmt: v => v,                            unit: 'bpm' },
-  { id: 'ef',          lbl: 'EF',          cls: 'sv-ef', fmt: v => v,                            unit: 'W/bpm'},
-  { id: 'decoupling',  lbl: 'Decouple',    cls: '',      fmt: v => v,                            unit: '%'   },
-  { id: 'avgCad',      lbl: 'Avg Cad',     cls: 'sv-cad',fmt: v => v,                            unit: 'rpm' },
-  { id: 'distKm',      lbl: 'Distance',    cls: '',      fmt: v => v,                            unit: 'km'  },
-  { id: 'avgSpd',      lbl: 'Avg Spd',     cls: '',      fmt: v => v,                            unit: 'km/h'},
-  { id: 'elevGain',    lbl: 'Elev',        cls: 'sv-vam',fmt: v => v,                            unit: 'm'   },
-  { id: 'avgVAM',      lbl: 'Avg VAM',     cls: 'sv-vam',fmt: v => v,                            unit: 'm/hr'},
-  { id: 'peak1min',    lbl: 'Peak 1min',   cls: 'sv-pwr',fmt: v => v,                            unit: 'W'   },
-  { id: 'peak5min',    lbl: 'Peak 5min',   cls: 'sv-pwr',fmt: v => v,                            unit: 'W'   },
-  { id: 'peak20min',   lbl: 'Peak 20min',  cls: 'sv-pwr',fmt: v => v,                            unit: 'W'   },
+  { id:'duration',   lbl:'Duration',   cls:'',      fmt: v => fmtElapsed(v),   unit:''     },
+  { id:'totalWork',  lbl:'Work',        cls:'',      fmt: v => v,               unit:'kJ'   },
+  { id:'avgPwr',     lbl:'Avg Pwr',     cls:'sv-pwr',fmt: v => v,               unit:'W'    },
+  { id:'np',         lbl:'NP',          cls:'sv-np', fmt: v => v,               unit:'W'    },
+  { id:'IF',         lbl:'IF',          cls:'',      fmt: v => v,               unit:''     },
+  { id:'TSS',        lbl:'TSS',         cls:'sv-tss',fmt: v => v,               unit:''     },
+  { id:'wkg',        lbl:'W/kg',        cls:'',      fmt: v => v,               unit:''     },
+  { id:'avgHR',      lbl:'Avg HR',      cls:'sv-hr', fmt: v => v,               unit:'bpm'  },
+  { id:'maxHR',      lbl:'Max HR',      cls:'sv-hr', fmt: v => v,               unit:'bpm'  },
+  { id:'ef',         lbl:'EF',          cls:'sv-ef', fmt: v => v,               unit:'W/bpm'},
+  { id:'decoupling', lbl:'Decouple',    cls:'',      fmt: v => v,               unit:'%'    },
+  { id:'avgCad',     lbl:'Avg Cad',     cls:'sv-cad',fmt: v => v,               unit:'rpm'  },
+  { id:'distKm',     lbl:'Distance',    cls:'',      fmt: v => v,               unit:'km'   },
+  { id:'avgSpd',     lbl:'Avg Spd',     cls:'',      fmt: v => v,               unit:'km/h' },
+  { id:'elevGain',   lbl:'Elev',        cls:'sv-vam',fmt: v => v,               unit:'m'    },
+  { id:'avgVAM',     lbl:'Avg VAM',     cls:'sv-vam',fmt: v => v,               unit:'m/hr' },
+  { id:'peak1min',   lbl:'Peak 1min',   cls:'sv-pwr',fmt: v => v,               unit:'W'    },
+  { id:'peak5min',   lbl:'Peak 5min',   cls:'sv-pwr',fmt: v => v,               unit:'W'    },
+  { id:'peak20min',  lbl:'Peak 20min',  cls:'sv-pwr',fmt: v => v,               unit:'W'    },
 ];
 
 function renderSummary(s) {
-  const grid = document.getElementById('sum-grid');
-  // Filter to metrics that have data
+  const grid   = document.getElementById('sum-grid');
   const active = SUM_METRICS.filter(m => s[m.id] != null);
-
-  // Smart-pack grid
-  const n  = active.length;
-  const wr = grid.getBoundingClientRect();
-  const w  = wr.width  || 600;
-  const h  = wr.height || 140;
+  const wr     = grid.getBoundingClientRect();
+  const n      = active.length;
+  const w      = wr.width  || 600;
+  const h      = wr.height || 180;
   let best = null, bestScore = Infinity;
-  for (let c = 1; c <= Math.min(n, 8); c++) {
+  for (let c = 1; c <= Math.min(n, 10); c++) {
     const r = Math.ceil(n / c);
-    const waste = c * r - n;
-    const aspect = (w / c) / (h / r);
-    const score  = waste * 3 + Math.abs(aspect - 1.6);
-    if (score < bestScore) { bestScore = score; best = { cols: c, rows: r }; }
+    const score = (c * r - n) * 3 + Math.abs((w/c)/(h/r) - 1.6);
+    if (score < bestScore) { bestScore = score; best = c; }
   }
-  const cols = best ? best.cols : 4;
+  const cols = best || 5;
   grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-  grid.style.gridTemplateRows    = `repeat(${Math.ceil(n / cols)}, 1fr)`;
-
-  grid.innerHTML = active.map(m => {
-    const val  = m.fmt(s[m.id]);
-    return `<div class="stat-box ${m.cls}">
-      <div class="stat-lbl" style="font-size:10px">${m.lbl}</div>
-      <div class="stat-val" style="font-size:22px">
-        <span class="stat-num">${val}</span>
-        <span class="stat-unit" style="font-size:11px">${m.unit}</span>
-      </div>
-    </div>`;
-  }).join('');
+  grid.style.gridTemplateRows    = `repeat(${Math.ceil(n/cols)}, 1fr)`;
+  grid.innerHTML = active.map(m =>
+    `<div class="stat-box ${m.cls}">
+       <div class="stat-lbl" style="font-size:10px">${m.lbl}</div>
+       <div class="stat-val" style="font-size:20px">
+         <span class="stat-num">${m.fmt(s[m.id])}</span>
+         <span class="stat-unit" style="font-size:10px">${m.unit}</span>
+       </div>
+     </div>`
+  ).join('');
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -383,6 +343,5 @@ faLoadProfile();
 faInitProfileListeners();
 fitPlot.init(document.getElementById('plot-canvas'));
 </script>
-
 </body>
 </html>

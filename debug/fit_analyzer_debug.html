@@ -40,24 +40,26 @@ document.getElementById('fit-in').addEventListener('change', async e => {
     const fit  = parseFit(buf);
     const t1   = performance.now();
 
-    const { records, isIndoor, hasAltitude, startMs } = fit;
-    const ch   = buildChannels(records, hasAltitude);
+    const { records, presentFields, isIndoor, hasAltitude, startMs } = fit;
+    const ch   = buildChannels(records, presentFields);
     const sum  = computeSummary(records, isIndoor ? 250 : 297, 68);
     const t2   = performance.now();
 
     const lines = [
       `<span class="ok">Parse OK</span>  ${(t1-t0).toFixed(1)} ms  |  Calc ${(t2-t1).toFixed(1)} ms`,
-      `Records : ${records.length}`,
-      `isIndoor: ${isIndoor}   hasAltitude: ${hasAltitude}`,
-      `startMs : ${new Date(startMs).toISOString()}`,
+      `Records      : ${records.length}`,
+      `isIndoor     : ${isIndoor}   hasAltitude: ${hasAltitude}`,
+      `startMs      : ${new Date(startMs).toISOString()}`,
+      `presentFields: ${presentFields.map(f => f.key).join(', ')}`,
+      `channels     : ${ch.channels.map(c => c.id).join(', ')}`,
       '',
       'Summary:',
       ...Object.entries(sum).map(([k,v]) => `  ${k.padEnd(14)} ${v}`),
     ];
     out.innerHTML = lines.join('\n');
 
-    // Sample table: first 10 records
-    const cols = ['elapsed','hr','power','cadence','speed','altitude','distance'];
+    // Sample table: first 10 records — dynamic columns from presentFields
+    const cols = ['elapsed', ...presentFields.map(f => f.key)];
     tbl.innerHTML =
       '<h2 style="margin-top:16px">First 10 records</h2>' +
       '<table><tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>' +
