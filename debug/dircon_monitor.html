@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DIRCON Monitor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body  { font-family: monospace; font-size: 13px; background: #0d1117;
+            color: #c9d1d9; padding: 16px; margin: 0; }
+    h2    { color: #79c0ff; margin: 0 0 12px; font-size: 15px; }
+
+    /* ── Status bar ─────────────────────────────────────────────────── */
+    #status-bar {
+      display: flex; align-items: center; gap: 10px;
+      background: #161b22; border: 1px solid #21262d;
+      padding: 7px 12px; border-radius: 4px; margin-bottom: 12px;
+    }
+    #status-dot  { width: 10px; height: 10px; border-radius: 50%;
+                   background: #f85149; flex-shrink: 0; }
+    #status-dot.on  { background: #56d364; }
+    #status-text { flex: 1; }
+    #btn-reconnect { background: #21262d; border: 1px solid #30363d;
+                     color: #c9d1d9; padding: 3px 10px; cursor: pointer;
+                     font-family: monospace; font-size: 12px; }
+    #btn-reconnect:hover { background: #30363d; }
+
+    /* ── Live values ────────────────────────────────────────────────── */
+    #live-panel {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+      margin-bottom: 12px;
+    }
+    .stat-box {
+      background: #161b22; border: 1px solid #21262d;
+      border-radius: 4px; padding: 10px 14px; text-align: center;
+    }
+    .stat-box .val  { font-size: 28px; font-weight: bold; color: #79c0ff;
+                      line-height: 1.1; }
+    .stat-box .unit { font-size: 11px; color: #8b949e; margin-top: 2px; }
+    .stat-box .lbl  { font-size: 11px; color: #8b949e; margin-bottom: 4px; }
+
+    /* ── Event log ──────────────────────────────────────────────────── */
+    #events {
+      background: #161b22; border: 1px solid #21262d;
+      padding: 8px 10px; border-radius: 4px; margin-bottom: 10px;
+      min-height: 110px; max-height: 200px; overflow-y: auto;
+    }
+    .ev   { padding: 1px 0; }
+    .ok   { color: #56d364; } .err { color: #f85149; }
+    .info { color: #79c0ff; } .warn { color: #ffd54f; }
+    .ts   { color: #484f58; margin-right: 6px; }
+
+    /* ── Controls ───────────────────────────────────────────────────── */
+    .ctrl-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px;
+                align-items: center; }
+    .ctrl-row strong { color: #8b949e; font-size: 11px;
+                       min-width: 90px; flex-shrink: 0; }
+    button { background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+             padding: 4px 11px; cursor: pointer; font-family: monospace;
+             font-size: 12px; border-radius: 3px; }
+    button:hover { background: #30363d; }
+
+    /* ── Raw hex toggle ─────────────────────────────────────────────── */
+    #raw-wrap  { display: none; }
+    #raw-log   { background: #0d1117; border: 1px solid #21262d;
+                 padding: 7px 10px; border-radius: 4px; max-height: 130px;
+                 overflow-y: auto; font-size: 11px; color: #484f58; }
+  </style>
+</head>
+<body>
+<h2>DIRCON Monitor</h2>
+
+<!-- Status -->
+<div id="status-bar">
+  <div id="status-dot"></div>
+  <span id="status-text">Disconnected</span>
+  <button id="btn-reconnect">Reconnect</button>
+</div>
+
+<!-- Live values -->
+<div id="live-panel">
+  <div class="stat-box">
+    <div class="lbl">Power</div>
+    <div class="val" id="v-pwr">—</div>
+    <div class="unit">W</div>
+  </div>
+  <div class="stat-box">
+    <div class="lbl">Cadence</div>
+    <div class="val" id="v-cad">—</div>
+    <div class="unit">rpm</div>
+  </div>
+  <div class="stat-box">
+    <div class="lbl">Speed</div>
+    <div class="val" id="v-spd">—</div>
+    <div class="unit">km/h</div>
+  </div>
+</div>
+
+<!-- Event log -->
+<div id="events"></div>
+
+<!-- Controls -->
+<div class="ctrl-row">
+  <strong>ERG control</strong>
+  <button id="btn-req-ctrl">Request Control</button>
+  <button id="btn-start">Start/Resume</button>
+  <button id="btn-p100">100 W</button>
+  <button id="btn-p150">150 W</button>
+  <button id="btn-p200">200 W</button>
+  <button id="btn-p250">250 W</button>
+</div>
+<div class="ctrl-row">
+  <strong>Debug</strong>
+  <button id="btn-toggle-raw">Show raw hex</button>
+  <button id="btn-clear">Clear log</button>
+</div>
+
+<!-- Raw hex (hidden by default) -->
+<div id="raw-wrap">
+  <div id="raw-log"></div>
+</div>
+
+<script>
+'use strict';
+
+const WS_URL = 'ws://localhost:8765';
+let ws = null;
+
+// ── DOM refs ────────────────────────────────────────────────────────────────
+const dot      = document.getElementById('status-dot');
+const statusTx = document.getElementById('status-text');
+const evLog    = document.getElementById('events');
+const rawLog   = document.getElementById('raw-log');
+const rawWrap  = document.getElementById('raw-wrap');
+
+// ── Event log (newest first, max 12 entries) ─────────────────────────────
+const MAX_EV = 12;
+function addEvent(text, cls = 'info') {
+  const ts  = new Date().toISOString().slice(11, 19);
+  const row = document.createElement('div');
+  row.className = 'ev';
+  row.innerHTML = `<span class="ts">${ts}</span><span class="${cls}">${text}</span>`;
+  evLog.prepend(row);
+  while (evLog.children.length > MAX_EV) evLog.lastChild.remove();
+}
+
+// ── Raw hex log (newest first, max 40 lines) ─────────────────────────────
+function addRaw(uuid4, hex) {
+  const ts  = new Date().toISOString().slice(11, 23);
+  const row = document.createElement('div');
+  row.textContent = `[${ts}] [${uuid4}] ${hex}`;
+  rawLog.prepend(row);
+  while (rawLog.children.length > 40) rawLog.lastChild.remove();
+}
+
+// ── Live value updaters ──────────────────────────────────────────────────
+function setVal(id, v) { document.getElementById(id).textContent = v; }
+
+function decodeBikeData(bytes) {
+  const v = new DataView(new Uint8Array(bytes).buffer);
+  if (v.byteLength < 4) return;
+  const flags = v.getUint16(0, true);
+  let o = 2;
+  const spd = (v.getUint16(o, true) * 0.01).toFixed(1); o += 2;
+  setVal('v-spd', spd);
+  if (flags & 0x0002) o += 2;          // avg speed
+  if (flags & 0x0004 && o + 1 < v.byteLength) {
+    setVal('v-cad', (v.getUint16(o, true) / 2).toFixed(0)); o += 2;
+  }
+  if (flags & 0x0008) o += 2;          // avg cadence
+  if (flags & 0x0010) o += 3;          // distance
+  if (flags & 0x0020) o += 2;          // resistance
+  if (flags & 0x0040 && o + 1 < v.byteLength) {
+    setVal('v-pwr', v.getInt16(o, true));
+  }
+}
+
+// CP response op names
+const CP_OP = {0x00:'RequestControl', 0x05:'SetTargetPower',
+               0x07:'Start/Resume',   0x08:'Stop/Pause', 0x11:'Simulation(GRADIENT)'};
+const CP_RESULT = {0x01:'Success', 0x02:'OpUnsupported',
+                   0x03:'InvalidParam', 0x04:'OperationFailed'};
+
+function handleNotify(uuid, data) {
+  const u = uuid.replace(/-/g, '').toLowerCase();
+  const u4 = u.slice(-4);
+
+  // Raw hex always captured
+  const hex = data.map(b => b.toString(16).padStart(2, '0')).join(' ');
+  addRaw(u4, hex);
+
+  if (u4 === '2ad2') {
+    decodeBikeData(data);                         // update dials silently
+  } else if (u4 === '2ad9') {
+    if (data[0] === 0x80) {                        // CP indication
+      const op     = data[1];
+      const result = data[2];
+      const opName = CP_OP[op]   ?? `0x${op.toString(16)}`;
+      const resStr = CP_RESULT[result] ?? `0x${result.toString(16)}`;
+      const cls    = result === 0x01 ? 'ok' : 'err';
+      addEvent(`CP ← ${opName}: ${resStr}`, cls);
+      if (op === 0x11) addEvent('FILTER: blocked gradient (op 0x11)', 'warn');
+    } else {
+      addEvent(`CP ← raw: ${hex}`, 'info');
+    }
+  } else if (u4 === '2ada') {
+    const op = data[0];
+    addEvent(`Machine status: op=0x${op.toString(16).padStart(2,'0')}`, 'info');
+  }
+}
+
+// ── WebSocket ────────────────────────────────────────────────────────────
+function connect() {
+  if (ws) { ws.onclose = null; ws.close(); ws = null; }
+  dot.className = '';
+  statusTx.textContent = 'Connecting…';
+
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ cmd: 'subscribe', uuid: '2ad9' }));
+  };
+
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'status' && msg.connected) {
+      dot.className = 'on';
+      statusTx.textContent = `Connected — KICKR at ${msg.kickr}`;
+      addEvent(`Bridge connected (KICKR ${msg.kickr})`, 'ok');
+    } else if (msg.type === 'notify') {
+      handleNotify(msg.uuid, msg.data);
+    } else if (msg.type === 'error') {
+      addEvent(`Bridge error: ${msg.message}`, 'err');
+    } else if (msg.type === 'services') {
+      addEvent(`Services: ${msg.list.length} found`, 'info');
+    }
+  };
+
+  ws.onclose = () => {
+    dot.className = '';
+    statusTx.textContent = 'Disconnected';
+    addEvent('Bridge disconnected', 'err');
+    ws = null;
+  };
+
+  ws.onerror = () => {
+    statusTx.textContent = 'Connection failed — is dircon_bridge.py running?';
+    addEvent('WebSocket error', 'err');
+  };
+}
+
+// ── FTMS CP writes ───────────────────────────────────────────────────────
+function cpWrite(bytes, label) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    addEvent('Not connected', 'err'); return;
+  }
+  addEvent(`→ ${label}`, 'warn');
+  ws.send(JSON.stringify({ cmd: 'write', uuid: '2ad9', data: bytes }));
+}
+
+document.getElementById('btn-req-ctrl').onclick = () => cpWrite([0x00],         'Request Control');
+document.getElementById('btn-start').onclick    = () => cpWrite([0x07],         'Start/Resume');
+document.getElementById('btn-p100').onclick     = () => cpWrite([0x05, 100, 0], 'Set Power 100W');
+document.getElementById('btn-p150').onclick     = () => cpWrite([0x05, 150, 0], 'Set Power 150W');
+document.getElementById('btn-p200').onclick     = () => cpWrite([0x05, 200, 0], 'Set Power 200W');
+document.getElementById('btn-p250').onclick     = () => cpWrite([0x05, 250, 0], 'Set Power 250W');
+
+document.getElementById('btn-reconnect').onclick = connect;
+document.getElementById('btn-clear').onclick = () => {
+  evLog.innerHTML = ''; rawLog.innerHTML = '';
+};
+
+let rawVisible = false;
+document.getElementById('btn-toggle-raw').onclick = () => {
+  rawVisible = !rawVisible;
+  rawWrap.style.display = rawVisible ? 'block' : 'none';
+  document.getElementById('btn-toggle-raw').textContent =
+    rawVisible ? 'Hide raw hex' : 'Show raw hex';
+};
+
+// Auto-connect on load
+connect();
+</script>
+</body>
+</html>
