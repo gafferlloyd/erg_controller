@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DIRCON Bridge — Test</title>
+  <style>
+    body  { font-family: monospace; font-size: 12px; background: #0d1117;
+            color: #c9d1d9; padding: 16px; }
+    h2    { color: #79c0ff; margin-bottom: 8px; }
+    pre   { background: #161b22; border: 1px solid #21262d; padding: 10px;
+            white-space: pre-wrap; max-height: 380px; overflow-y: auto; }
+    button { background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+             padding: 5px 12px; cursor: pointer; margin: 2px; font-family: monospace; }
+    button:hover { background: #30363d; }
+    input[type=text] { background: #161b22; border: 1px solid #30363d;
+                       color: #c9d1d9; padding: 4px 8px; width: 220px;
+                       font-family: monospace; }
+    .ok   { color: #56d364; } .err { color: #f85149; }
+    .info { color: #79c0ff; } .tx  { color: #ffd54f; }
+    .grp  { margin-bottom: 8px; }
+    hr    { border-color: #21262d; }
+  </style>
+</head>
+<body>
+<h2>DIRCON Bridge — Test</h2>
+
+<div class="grp">
+  <input type="text" id="ws-url" value="ws://localhost:8765">
+  <button id="btn-connect">Connect</button>
+  <button id="btn-disconnect">Disconnect</button>
+</div>
+
+<div class="grp">
+  <strong style="color:#79c0ff">Discovery</strong><br>
+  <button data-cmd='{"cmd":"discover"}'>Discover services</button>
+</div>
+
+<div class="grp">
+  <strong style="color:#79c0ff">Subscribe</strong><br>
+  <button data-cmd='{"cmd":"subscribe","uuid":"2ad2"}'>2AD2 Indoor Bike Data</button>
+  <button data-cmd='{"cmd":"subscribe","uuid":"2ad9"}'>2AD9 FTMS CP</button>
+  <button data-cmd='{"cmd":"subscribe","uuid":"2ada"}'>2ADA Machine Status</button>
+</div>
+
+<hr>
+
+<div class="grp">
+  <strong style="color:#79c0ff">FTMS Control Point writes</strong><br>
+  <button id="btn-req-ctrl">0x00 Request Control</button>
+  <button id="btn-start">0x07 Start/Resume</button>
+  <button id="btn-p100">Power 100W</button>
+  <button id="btn-p150">Power 150W</button>
+  <button id="btn-p200">Power 200W</button>
+  <button id="btn-p250">Power 250W</button>
+</div>
+
+<pre id="log">Connect to the bridge first.
+</pre>
+
+<script>
+let ws = null;
+const logEl = document.getElementById('log');
+
+function appendLog(text, cls = '') {
+  const d = new Date().toISOString().slice(11, 23);
+  logEl.innerHTML += `<span class="${cls}">[${d}] ${text}</span>\n`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function send(obj) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    appendLog('Not connected', 'err'); return;
+  }
+  const raw = JSON.stringify(obj);
+  appendLog('TX → ' + raw, 'tx');
+  ws.send(raw);
+}
+
+function decodeBikeData(bytes) {
+  // FTMS Indoor Bike Data (0x2AD2) — quick decode of common fields
+  const v = new DataView(new Uint8Array(bytes).buffer);
+  if (v.byteLength < 4) return '';
+  const flags = v.getUint16(0, true);
+  let o = 2, parts = [];
+  const spd = v.getUint16(o, true) * 0.01; o += 2; parts.push(`spd=${spd.toFixed(1)}km/h`);
+  if (flags & 0x0002) { o += 2; }                             // avg speed
+  if (flags & 0x0004 && o + 1 < v.byteLength) {
+    parts.push(`cad=${(v.getUint16(o, true)/2).toFixed(0)}rpm`); o += 2;
+  }
+  if (flags & 0x0008) o += 2;                                 // avg cadence
+  if (flags & 0x0010) o += 3;                                 // distance
+  if (flags & 0x0020) o += 2;                                 // resistance
+  if (flags & 0x0040 && o + 1 < v.byteLength) {
+    parts.push(`pwr=${v.getInt16(o, true)}W`);
+  }
+  return parts.join('  ');
+}
+
+function connect() {
+  const url = document.getElementById('ws-url').value.trim();
+  ws = new WebSocket(url);
+
+  ws.onopen    = () => appendLog(`WebSocket open → ${url}`, 'ok');
+  ws.onclose   = () => appendLog('WebSocket closed', 'err');
+  ws.onerror   = () => appendLog('WebSocket error', 'err');
+
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'notify') {
+      const hex    = msg.data.map(b => b.toString(16).padStart(2, '0')).join(' ');
+      const suffix = msg.uuid.replace(/-/g,'').toLowerCase().slice(-4);
+      let extra = '';
+      if (suffix === '2ad2') extra = '  ← ' + decodeBikeData(msg.data);
+      else if (suffix === '2ada') extra = `  ← status op=0x${msg.data[0]?.toString(16) ?? '?'}`;
+      else if (suffix === '2ad9' && msg.data[0] === 0x80)
+        extra = `  ← CP resp req=0x${msg.data[1]?.toString(16)} code=${msg.data[2]}`;
+      appendLog(`NOTIFY [${suffix}]: ${hex}${extra}`, 'info');
+    } else {
+      appendLog('RX ← ' + e.data, 'ok');
+    }
+  };
+}
+
+document.getElementById('btn-connect').onclick    = connect;
+document.getElementById('btn-disconnect').onclick = () => ws?.close();
+
+document.querySelectorAll('[data-cmd]').forEach(btn => {
+  btn.onclick = () => send(JSON.parse(btn.dataset.cmd));
+});
+
+function cpWrite(bytes) {
+  send({ cmd: 'write', uuid: '2ad9', data: bytes });
+}
+document.getElementById('btn-req-ctrl').onclick = () => cpWrite([0x00]);
+document.getElementById('btn-start').onclick    = () => cpWrite([0x07]);
+document.getElementById('btn-p100').onclick     = () => cpWrite([0x05, 100, 0]);
+document.getElementById('btn-p150').onclick     = () => cpWrite([0x05, 150, 0]);
+document.getElementById('btn-p200').onclick     = () => cpWrite([0x05, 200, 0]);
+document.getElementById('btn-p250').onclick     = () => cpWrite([0x05, 250, 0]);
+</script>
+</body>
+</html>

@@ -317,6 +317,7 @@ function adjustErg(delta) {
 
 function wireButtons() {
   bindClick('btn-connect-trainer', () => connectDevice('trainer'));
+  bindClick('btn-connect-dircon',  () => connectDircon());
   bindClick('btn-connect-hr',      () => connectDevice('hr'));
   bindClick('btn-servo',           () => toggleServo());
   bindClick('btn-pause-servo',     () => toggleServoPause());
