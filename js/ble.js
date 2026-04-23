@@ -384,20 +384,25 @@ async function connectHR() {
     updateServoBtn();
   });
 
-  setPill('hr', false, 'Connecting…');
-  try {
-    const server = await dev.gatt.connect();
-    const svc    = await server.getPrimaryService(UUID.HR_SERVICE);
-    const chr    = await svc.getCharacteristic(UUID.HR_MEASUREMENT);
-    chr.addEventListener('characteristicvaluechanged', onHRMeasurement);
-    await chr.startNotifications();
-    hrLive = true;
-    setPill('hr', true, dev.name);
-    log(`HR monitor connected: ${dev.name}`, 'ok');
-  } catch (e) {
-    setPill('hr', false, 'Failed');
-    log(`HR connect failed: ${e.message}`, 'err');
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    setPill('hr', false, `Connecting… (${attempt}/3)`);
+    try {
+      const server = await dev.gatt.connect();
+      const svc    = await server.getPrimaryService(UUID.HR_SERVICE);
+      const chr    = await svc.getCharacteristic(UUID.HR_MEASUREMENT);
+      chr.addEventListener('characteristicvaluechanged', onHRMeasurement);
+      await chr.startNotifications();
+      hrLive = true;
+      setPill('hr', true, dev.name);
+      log(`HR monitor connected: ${dev.name}`, 'ok');
+      updateServoBtn();
+      return;
+    } catch (e) {
+      log(`HR connect attempt ${attempt}/3 failed: ${e.message}`, attempt < 3 ? 'warn' : 'err');
+      if (attempt < 3) await new Promise(r => setTimeout(r, 1500));
+    }
   }
+  setPill('hr', false, 'Failed');
   updateServoBtn();
 }
 

@@ -25,10 +25,12 @@ function setPill(role, live, label) {
   const pill = document.getElementById(`pill-${role}`);
   const lbl  = document.getElementById(`plbl-${role}`);
   const dot  = document.getElementById(`pdot-${role}`);
+  const vals = document.getElementById(`pill-${role}-vals`);
   if (!pill) return;
   if (lbl) lbl.textContent = label;
   pill.classList.toggle('live', !!live);
   if (dot) dot.className = `dot${live ? ' live' : ''}`;
+  if (!live && vals) vals.textContent = '';
 }
 
 // ── Servo button ──────────────────────────────────────────────────────────────
@@ -76,12 +78,23 @@ function syncSlider(id) {
 
 function onNewHR(hr) {
   setVal('cv-hr', hr);
+  const vals = document.getElementById('pill-hr-vals');
+  if (vals) {
+    const hrv = currentRMSSD != null ? ` HRV:${currentRMSSD}` : '';
+    vals.textContent = `${hr}bpm${hrv}`;
+  }
 }
 
 function onNewPower(power, cadence) {
   setVal('cv-power',   power   ?? '—');
   setVal('cv-cadence', cadence ?? '—');
   setVal('cv-speed',   lastSpeed != null ? lastSpeed.toFixed(1) : '—');
+  const vals = document.getElementById('pill-trainer-vals');
+  if (vals) {
+    const pw  = power   != null ? `${power}W` : '';
+    const cad = cadence != null ? ` ${cadence}rpm` : '';
+    vals.textContent = pw + cad;
+  }
 }
 
 // ── ERG confirmed / control lost ─────────────────────────────────────────────
