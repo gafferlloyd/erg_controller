@@ -1,4 +1,4 @@
-"""DIRCON proxy server — accepts MyWhoosh connections, filters gradient commands.
+"""DIRCON proxy server — accepts MyWhoosh connections, forwards all traffic.
 
 Imported by dircon_bridge.py; not run directly.
 
@@ -6,35 +6,27 @@ What it does:
   - Listens on TCP port 36866 (the standard DIRCON port) so MyWhoosh can
     discover and connect to it instead of the real KICKR.
   - Proxies all DIRCON traffic transparently to/from the real KICKR via a
-    DirconClient — with one exception:
-      FTMS op 0x11 (Set Indoor Bike Simulation / gradient + wind)
-      is intercepted and a fake success response is returned to the caller.
-      The command is never forwarded to the KICKR, so ERG servo control
-      from index.html is not disrupted by MyWhoosh gradient changes.
-  - Broadcasts all KICKR notifications (power, cadence, speed, etc.) to
-    every connected DIRCON client so MyWhoosh sees live data.
+    DirconClient (MyWhoosh → KICKR: full passthrough, nothing blocked).
+  - Broadcasts all KICKR notifications to every connected DIRCON client.
+    The power field in 2AD2 notifications is remapped by the caller
+    (Bridge._on_notify) before broadcast; all other data is unchanged.
   - Registers the proxy on the local network via mDNS so MyWhoosh can find
-    it by name ("LloydLabs TRNR") just like a real trainer.
-
-Windows firewall note: allow inbound TCP on port 36866 for Python.
+    it by name just like a real trainer.
 """
 
 import asyncio, struct, logging, socket
 from dataclasses import dataclass, field
 from dircon_client import (
     DirconClient,
-    MSG_DISC_SVC, MSG_DISC_CHR, MSG_WRITE, MSG_SUB, MSG_NOTIFY,
+    MSG_DISC_SVC, MSG_DISC_CHR, MSG_READ, MSG_WRITE, MSG_SUB, MSG_NOTIFY,
     HDR_LEN, u2b, b2u,
 )
 
 log = logging.getLogger('dircon.proxy')
 
-FTMS_CP_BYTES  = u2b('2ad9')
-OP_SIMULATION  = 0x11   # Set Indoor Bike Simulation Parameters (gradient + wind)
-
 # ── Per-connection state ──────────────────────────────────────────────────────
 
-@dataclass
+@dataclass(eq=False)
 class _Client:
     reader: asyncio.StreamReader
     writer: asyncio.StreamWriter
@@ -82,29 +74,34 @@ class DirconProxyServer:
     async def _handle(self, c: _Client, mt: int, seq: int, body: bytes):
         try:
             if mt in (MSG_DISC_SVC, MSG_DISC_CHR):
-                # Proxy discovery to real KICKR and relay response.
                 resp = await self._dc.raw_request(mt, body)
+                label = 'DISC_SVC' if mt == MSG_DISC_SVC else 'DISC_CHR'
+                log.info('CAPTURE %s req  body=%s', label, body.hex() if body else '(empty)')
+                log.info('CAPTURE %s resp (%d bytes): %s', label, len(resp), resp.hex())
+                self._send(c.writer, mt, seq, resp)
+
+            elif mt == MSG_READ:
+                resp = await self._dc.raw_request(mt, body)
+                uuid = b2u(body[:16]) if len(body) >= 16 else '?'
+                log.info('CAPTURE READ  uuid=%s  resp=%s', uuid, resp.hex() if resp else '(empty)')
                 self._send(c.writer, mt, seq, resp)
 
             elif mt == MSG_SUB:
-                # Subscription: real KICKR already subscribed in Bridge.setup().
-                # Just acknowledge so MyWhoosh thinks it's subscribed.
+                uuid  = b2u(body[:16]) if len(body) >= 16 else '?'
+                flag  = body[16] if len(body) > 16 else 1
+                log.info('CAPTURE SUB  uuid=%s  enable=%d', uuid, flag)
                 self._send(c.writer, mt, seq, b'')
 
-            elif mt == MSG_WRITE and len(body) >= 17:
-                uuid_b = body[:16]
-                op     = body[16]
-                if uuid_b == FTMS_CP_BYTES and op == OP_SIMULATION:
-                    # Block gradient / wind simulation command.
-                    log.info('FILTER: blocked op 0x11 (gradient) from %s', c.addr)
-                    self._send(c.writer, mt, seq, b'')
-                    # Send fake FTMS CP success indication back to caller.
-                    self._notify(c.writer, '2ad9', bytes([0x80, OP_SIMULATION, 0x01]))
-                else:
-                    await self._dc.write(b2u(uuid_b), body[16:])
-                    self._send(c.writer, mt, seq, b'')
+            elif mt == MSG_WRITE:
+                uuid    = b2u(body[:16]) if len(body) >= 16 else '?'
+                payload = body[16:] if len(body) > 16 else b''
+                log.info('CAPTURE WRITE  uuid=%s  payload=%s', uuid, payload.hex())
+                if len(body) >= 16:
+                    await self._dc.write(b2u(body[:16]), payload)
+                self._send(c.writer, mt, seq, b'')
 
             else:
+                log.info('CAPTURE UNKNOWN  mt=0x%02x  body=%s', mt, body.hex() if body else '(empty)')
                 self._send(c.writer, mt, seq, b'')
 
         except Exception as e:
@@ -126,6 +123,7 @@ class DirconProxyServer:
     async def broadcast(self, uuid: str, data: bytes):
         if not self._clients:
             return
+        log.info('CAPTURE NOTIFY uuid=%s data=%s', uuid, data.hex())
         payload = u2b(uuid) + data
         pkt = struct.pack('>BBBBH', 0x01, MSG_NOTIFY, 0, 0, len(payload)) + payload
         dead = set()
@@ -148,20 +146,22 @@ def get_local_ip() -> str:
     finally:
         s.close()
 
-def register_mdns(name: str, port: int, properties: dict = None) -> object:
+async def register_mdns(name: str, port: int, properties: dict = None, ip: str = None) -> object:
     """Advertise 'name' as a DIRCON trainer on the local network via mDNS.
 
     Pass the real KICKR's TXT properties so MyWhoosh recognises the proxy
     as a valid Wahoo trainer (it checks ble-service-uuids etc.).
 
-    Returns the Zeroconf instance — keep the reference alive for the
-    duration of the programme; call .close() on shutdown.
+    Returns the AsyncZeroconf instance — keep the reference alive for the
+    duration of the programme; call await zc.async_close() on shutdown.
 
-    Uses IPv4-only mode by default (more reliable on Windows where the
-    IPv6 mDNS socket often fails to bind).
+    Uses IPv4-only mode (more reliable on Windows where the IPv6 mDNS
+    socket often fails to bind). Uses AsyncZeroconf to avoid EventLoopBlocked
+    when called from inside an asyncio event loop (Python 3.13+).
     """
-    from zeroconf import ServiceInfo, Zeroconf
-    ip = get_local_ip()
+    from zeroconf import ServiceInfo
+    from zeroconf.asyncio import AsyncZeroconf
+    ip = ip or get_local_ip()
     info = ServiceInfo(
         '_wahoo-fitness-tnp._tcp.local.',
         f'{name}._wahoo-fitness-tnp._tcp.local.',
@@ -169,12 +169,11 @@ def register_mdns(name: str, port: int, properties: dict = None) -> object:
         port=port,
         properties=properties or {},
     )
-    # Try IPv4-only first (avoids Windows IPv6 mDNS socket bind failures).
     try:
         from zeroconf import IPVersion
-        zc = Zeroconf(ip_version=IPVersion.V4Only)
+        azc = AsyncZeroconf(ip_version=IPVersion.V4Only)
     except Exception:
-        zc = Zeroconf()
-    zc.register_service(info)
+        azc = AsyncZeroconf()
+    await azc.async_register_service(info, strict=False)
     log.info('mDNS: advertising "%s" at %s:%d', name, ip, port)
-    return zc
+    return azc

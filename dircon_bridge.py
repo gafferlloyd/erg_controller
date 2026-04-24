@@ -3,7 +3,7 @@
 
 Connects to the real KICKR via DIRCON (TCP), then:
   • Accepts MyWhoosh connections as a fake DIRCON trainer ("LloydLabs TRNR")
-    and filters out gradient/simulation commands before they reach the KICKR.
+    and proxies all commands transparently to the KICKR.
   • Exposes a local WebSocket server (ws://localhost:8765) so index.html can
     send ERG power targets and receive live data without Web Bluetooth.
   • Advertises itself via mDNS so MyWhoosh discovers it automatically.
@@ -14,9 +14,11 @@ Run:      python dircon_bridge.py [--host KICKR_IP] [--proxy-port 36866]
 """
 
 import asyncio, json, logging, argparse
+from pathlib import Path
 from websockets.asyncio.server import serve
 from dircon_client import DirconClient, AUTO_SUBS, expand
 from dircon_proxy  import DirconProxyServer, register_mdns
+from power_map     import PowerMap
 
 log = logging.getLogger('dircon')
 
@@ -89,9 +91,11 @@ async def discover_kickr(timeout: float = 8.0):
 class Bridge:
     """WebSocket server — lets index.html send/receive GATT traffic via JSON."""
 
-    def __init__(self, dc: DirconClient, proxy: DirconProxyServer):
-        self._dc    = dc
-        self._proxy = proxy
+    def __init__(self, dc: DirconClient, proxy: DirconProxyServer,
+                 power_map: PowerMap = None):
+        self._dc        = dc
+        self._proxy     = proxy
+        self._power_map = power_map or PowerMap.IDENTITY
         self._clients   = set()
         self._subscribed = set()
 
@@ -113,8 +117,12 @@ class Bridge:
         self._dc.on_notify = self._on_notify
 
     async def _on_notify(self, uuid: str, data: bytes):
+        log.info('KICKR NOTIFY uuid=%s data=%s', uuid[-8:], data.hex())
+        # WebSocket (index.html / ERG control) receives real KICKR power unchanged.
         await self._broadcast_ws(uuid, data)
-        await self._proxy.broadcast(uuid, data)
+        # DIRCON (MyWhoosh) receives power-remapped 2AD2; all other UUIDs unchanged.
+        dircon_data = self._power_map.remap_ibd(data) if '2ad2' in uuid.lower() else data
+        await self._proxy.broadcast(uuid, dircon_data)
 
     async def _broadcast_ws(self, uuid: str, data: bytes):
         if not self._clients:
@@ -164,6 +172,8 @@ async def main():
     ap.add_argument('--proxy-port', type=int, default=36866,  help='DIRCON server port for MyWhoosh')
     ap.add_argument('--ws-port',    type=int, default=8765,   help='WebSocket port for index.html')
     ap.add_argument('--name',       default=None,             help='mDNS trainer name (default: copy from KICKR)')
+    ap.add_argument('--ip',         default=None,             help='Override advertised mDNS IP (e.g. 192.168.0.105)')
+    ap.add_argument('--lut',        default=None,             help='Power map JSON file (default: power_map.json if present)')
     ap.add_argument('-v', '--verbose', action='store_true')
     args = ap.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
@@ -187,14 +197,29 @@ async def main():
     if kickr_props:
         log.info('KICKR TXT props: %s', kickr_props)
 
+    # ── Load power map LUT ────────────────────────────────────────────────────
+    lut_path = args.lut or 'power_map.json'
+    power_map = PowerMap.IDENTITY
+    if Path(lut_path).exists():
+        try:
+            power_map = PowerMap.load(lut_path)
+        except Exception as e:
+            log.warning('power_map: failed to load %s: %s — using identity', lut_path, e)
+    else:
+        log.info('power_map: %s not found — using identity (1:1) mapping', lut_path)
+
     dc = DirconClient(host)
-    await dc.connect()
+    while True:
+        try:
+            await dc.connect()
+            break
+        except OSError as e:
+            log.info('KICKR not ready (%s) — retrying in 5s…', e.strerror)
+            await asyncio.sleep(5)
 
     # ── Subscribe to KICKR characteristics BEFORE starting any servers ────────
-    # (starting asyncio servers on Windows can delay event-loop processing and
-    #  cause the first KICKR responses to time out if done before setup)
     proxy = DirconProxyServer(dc)
-    bridge = Bridge(dc, proxy)
+    bridge = Bridge(dc, proxy, power_map)
     await bridge.setup()
 
     # ── Start proxy server (MyWhoosh connects here) ───────────────────────────
@@ -204,7 +229,7 @@ async def main():
     # Pass through the real KICKR's TXT properties so MyWhoosh accepts us.
     zc = None
     try:
-        zc = register_mdns(proxy_name, args.proxy_port, kickr_props)
+        zc = await register_mdns(proxy_name, args.proxy_port, kickr_props, ip=args.ip)
     except Exception as e:
         log.warning('mDNS registration failed: %r', e)
         log.warning('MyWhoosh auto-discovery unavailable — '
@@ -227,7 +252,7 @@ async def main():
     finally:
         proxy_srv.close()
         if zc:
-            zc.close()
+            await zc.async_close()
 
 if __name__ == '__main__':
     asyncio.run(main())
