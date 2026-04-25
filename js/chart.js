@@ -22,6 +22,7 @@ const C = {
   hrv:     '#ce93d8',  // light purple — overlaid on HR band
   cadence: '#66bb6a',
   speed:   '#80cbc4',  // teal — overlaid on cadence band
+  gear:    '#ffd54f',  // amber — step function, overlaid on cadence band
   target:  'rgba(255,235,59,0.7)',
   grid:    'rgba(255,255,255,0.08)',
   label:   'rgba(255,255,255,0.45)',
@@ -41,8 +42,8 @@ const HR_ZONES = [
 let _rafId      = null;
 let _dirtyChart = false;
 
-function pushChartPoint(hr, power, np, cadence, target, hrv, speed) {
-  chartData.push({ hr, power, np, cadence, target, hrv, speed });
+function pushChartPoint(hr, power, np, cadence, target, hrv, speed, gear) {
+  chartData.push({ hr, power, np, cadence, target, hrv, speed, gear });
   _dirtyChart = true;
 }
 
@@ -204,6 +205,14 @@ function speedRange(data) {
   return { min: lo, max: hi };
 }
 
+function gearRange(data) {
+  const vals = data.map(d => d.gear).filter(v => v != null);
+  if (!vals.length) return { min: 0, max: 20 };
+  const lo = Math.max(0, Math.min(...vals) - 1);
+  const hi = Math.max(lo + 5, Math.max(...vals) + 1);
+  return { min: lo, max: hi };
+}
+
 // ── Overview chart (full session, compressed) ─────────────────────────────────
 
 function drawOverview() {
@@ -220,6 +229,7 @@ function drawOverview() {
   const cRange = cadenceRange(data);
   const vRange = hrvRange(data);
   const sRange = speedRange(data);
+  const gRange = gearRange(data);
 
   drawHRZoneBands(ctx, w, h, hRange.min, hRange.max);
   drawBandSeparator(ctx, w, h, BAND.hr.top);
@@ -228,25 +238,30 @@ function drawOverview() {
   // Map each data point to an x pixel
   const xs = data.map((_, i) => (i / Math.max(data.length - 1, 1)) * w);
 
-  const pyPower   = data.map(d => d.power   != null ? valToY(d.power,   pRange.min, pRange.max, BAND.power,   h) : null);
-  const pyNP      = data.map(d => d.np       != null ? valToY(d.np,      pRange.min, pRange.max, BAND.power,   h) : null);
   const pyHR      = data.map(d => d.hr       != null ? valToY(d.hr,      hRange.min, hRange.max, BAND.hr,      h) : null);
   const pyHRV     = data.map(d => d.hrv      != null ? valToY(d.hrv,     vRange.min, vRange.max, BAND.hr,      h) : null);
+  const pyPower   = data.map(d => d.power    != null ? valToY(d.power,   pRange.min, pRange.max, BAND.power,   h) : null);
+  const pyNP      = data.map(d => d.np       != null ? valToY(d.np,      pRange.min, pRange.max, BAND.power,   h) : null);
+  const pyTarget  = data.map(d => d.target   != null ? valToY(d.target,  pRange.min, pRange.max, BAND.power,   h) : null);
   const pyCadence = data.map(d => d.cadence  != null ? valToY(d.cadence, cRange.min, cRange.max, BAND.cadence, h) : null);
   const pySpeed   = data.map(d => d.speed    != null ? valToY(d.speed,   sRange.min, sRange.max, BAND.cadence, h) : null);
-  const pyTarget  = data.map(d => d.target   != null ? valToY(d.target,  pRange.min, pRange.max, BAND.power,   h) : null);
+  const pyGear    = data.map(d => d.gear     != null ? valToY(d.gear,    gRange.min, gRange.max, BAND.cadence, h) : null);
 
-  // Dashed target line
+  // HR band: HR + HRV
+  drawLine(ctx, xs, pyHR,      C.hr,      1);
+  drawLine(ctx, xs, pyHRV,     C.hrv,     1);
+
+  // Power band: target (dashed), power, NP
   ctx.setLineDash([4, 4]);
   drawLine(ctx, xs, pyTarget, C.target, 1);
   ctx.setLineDash([]);
-
   drawLine(ctx, xs, pyPower,   C.power,   1);
   drawLine(ctx, xs, pyNP,      C.np,      1.5);
-  drawLine(ctx, xs, pyHR,      C.hr,      1);
-  drawLine(ctx, xs, pyHRV,     C.hrv,     1);
+
+  // Cadence band: cadence, speed, gear (step function)
   drawLine(ctx, xs, pyCadence, C.cadence, 1);
   drawLine(ctx, xs, pySpeed,   C.speed,   1);
+  drawLine(ctx, xs, pyGear,    C.gear,    1);
 
   // Time axis labels
   ctx.fillStyle = C.label;
@@ -277,6 +292,7 @@ function drawRolling() {
   const cRange = cadenceRange(data);
   const vRange = hrvRange(data);
   const sRange = speedRange(data);
+  const gRange = gearRange(data);
 
   drawHRZoneBands(ctx, w, h, hRange.min, hRange.max);
   drawBandSeparator(ctx, w, h, BAND.hr.top);
@@ -287,13 +303,14 @@ function drawRolling() {
   const offset = (ROLLING_SECS - data.length) * step;
   const xs = data.map((_, i) => offset + i * step);
 
-  const pyPower   = data.map(d => d.power   != null ? valToY(d.power,   pRange.min, pRange.max, BAND.power,   h) : null);
-  const pyNP      = data.map(d => d.np       != null ? valToY(d.np,      pRange.min, pRange.max, BAND.power,   h) : null);
   const pyHR      = data.map(d => d.hr       != null ? valToY(d.hr,      hRange.min, hRange.max, BAND.hr,      h) : null);
   const pyHRV     = data.map(d => d.hrv      != null ? valToY(d.hrv,     vRange.min, vRange.max, BAND.hr,      h) : null);
+  const pyPower   = data.map(d => d.power    != null ? valToY(d.power,   pRange.min, pRange.max, BAND.power,   h) : null);
+  const pyNP      = data.map(d => d.np       != null ? valToY(d.np,      pRange.min, pRange.max, BAND.power,   h) : null);
+  const pyTarget  = data.map(d => d.target   != null ? valToY(d.target,  pRange.min, pRange.max, BAND.power,   h) : null);
   const pyCadence = data.map(d => d.cadence  != null ? valToY(d.cadence, cRange.min, cRange.max, BAND.cadence, h) : null);
   const pySpeed   = data.map(d => d.speed    != null ? valToY(d.speed,   sRange.min, sRange.max, BAND.cadence, h) : null);
-  const pyTarget  = data.map(d => d.target   != null ? valToY(d.target,  pRange.min, pRange.max, BAND.power,   h) : null);
+  const pyGear    = data.map(d => d.gear     != null ? valToY(d.gear,    gRange.min, gRange.max, BAND.cadence, h) : null);
 
   // Grid ticks for power band
   const pTicks = niceTicks(pRange.min, pRange.max, 4);
@@ -302,17 +319,21 @@ function drawRolling() {
   const hTicks = niceTicks(hRange.min, hRange.max, 3);
   drawBandGrid(ctx, w, h, BAND.hr, hTicks, v => `${v}`, C.grid);
 
-  // Dashed target line
+  // HR band: HR + HRV
+  drawLine(ctx, xs, pyHR,      C.hr,      1.5);
+  drawLine(ctx, xs, pyHRV,     C.hrv,     1.5);
+
+  // Power band: target (dashed), power, NP
   ctx.setLineDash([4, 4]);
   drawLine(ctx, xs, pyTarget, C.target, 1.5);
   ctx.setLineDash([]);
-
   drawLine(ctx, xs, pyPower,   C.power,   1.5);
   drawLine(ctx, xs, pyNP,      C.np,      2);
-  drawLine(ctx, xs, pyHR,      C.hr,      1.5);
-  drawLine(ctx, xs, pyHRV,     C.hrv,     1.5);
+
+  // Cadence band: cadence, speed, gear (step function)
   drawLine(ctx, xs, pyCadence, C.cadence, 1.5);
   drawLine(ctx, xs, pySpeed,   C.speed,   1.5);
+  drawLine(ctx, xs, pyGear,    C.gear,    1.5);
 
   // "Now" marker
   ctx.strokeStyle = 'rgba(255,255,255,0.25)';
@@ -322,11 +343,11 @@ function drawRolling() {
   ctx.lineTo(w - 1, h);
   ctx.stroke();
 
-  // Legend (top-right)
+  // Legend (top-right) — grouped by band
   const legend = [
-    ['Power', C.power], ['NP', C.np],
     ['HR', C.hr], ['HRV', C.hrv],
-    ['Cad', C.cadence], ['Spd', C.speed],
+    ['Pwr', C.power], ['NP', C.np],
+    ['Cad', C.cadence], ['Spd', C.speed], ['Gear', C.gear],
   ];
   ctx.font      = '9px monospace';
   ctx.textAlign = 'right';

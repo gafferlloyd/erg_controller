@@ -152,7 +152,7 @@ function onSampleTaken() {
 
   // Push to chart
   const target = (servoActive || ergActive) ? ergSetpoint : null;
-  pushChartPoint(s.hr, s.power, np, s.cadence, target, currentRMSSD, lastSpeed);
+  pushChartPoint(s.hr, s.power, np, s.cadence, target, currentRMSSD, lastSpeed, lastResistance);
 
   // Refresh metrics every 5 samples; charts every 30 s
   if (samples.length % 5  === 0) updateSessionMetrics();
