@@ -102,9 +102,22 @@ class Bridge:
         self._dc        = dc
         self._proxy     = proxy
         self._power_map = power_map or PowerMap.IDENTITY
-        self._hr        = BleHrClient(self._on_notify, hr_name_hints)
+        # One BleHrClient per name hint so all devices connect simultaneously.
+        hints = hr_name_hints or []
+        if hints:
+            self._hr_clients = [BleHrClient(self._on_notify, [h]) for h in hints]
+        else:
+            self._hr_clients = [BleHrClient(self._on_notify, None)]
         self._clients   = set()
         self._subscribed = set()
+
+    @property
+    def _hr(self):
+        """Return first connected HR client (for status message compat)."""
+        for c in self._hr_clients:
+            if c.device_name:
+                return c
+        return self._hr_clients[0]
 
     async def setup(self):
         try:
@@ -121,8 +134,9 @@ class Bridge:
                 log.warning('auto-subscribe %s: %s', uuid, e)
 
         self._dc.on_notify = self._on_notify
-        asyncio.ensure_future(self._hr.run())
-        log.info('BLE HR scanner started')
+        for client in self._hr_clients:
+            asyncio.ensure_future(client.run())
+        log.info('BLE HR scanners started (%d)', len(self._hr_clients))
 
     async def _on_notify(self, uuid: str, data: bytes):
         log.info('NOTIFY uuid=%s data=%s', uuid[-8:], data.hex())
@@ -147,9 +161,11 @@ class Bridge:
 
     async def handle_ws(self, ws):
         self._clients.add(ws)
+        connected_hr = [c.device_name for c in self._hr_clients if c.device_name]
         await ws.send(json.dumps({
             'type': 'status', 'connected': True,
-            'kickr': self._dc.host, 'hr': self._hr.device_name,
+            'kickr': self._dc.host,
+            'hr': ', '.join(connected_hr) if connected_hr else None,
         }))
         log.info('WS client connected  (total: %d)', len(self._clients))
         try:
