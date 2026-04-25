@@ -12,7 +12,7 @@
 //
 // Usage: call connectDircon() instead of connectTrainer().
 
-const DIRCON_WS_DEFAULT = 'ws://localhost:8765';
+const DIRCON_WS_DEFAULT = 'ws://127.0.0.1:8765';
 
 let _dirconWs = null;
 
@@ -80,10 +80,21 @@ async function connectDircon(wsUrl = DIRCON_WS_DEFAULT) {
         trainerLive = true;
         setPill('trainer', true, `WiFi ${msg.kickr}`);
         log(`DIRCON connected: ${msg.kickr}`, 'ok');
+        if (msg.hr) {
+          hrLive = true;
+          setPill('hr', true, msg.hr);
+          log(`HR connected: ${msg.hr}`, 'ok');
+        }
         ftmsHandshake();
         updateServoBtn();
         resolve();
       } else if (msg.type === 'notify') {
+        const s = msg.uuid.replace(/-/g, '').toLowerCase().slice(4, 8);
+        if (s === '2a37' && !hrLive) {
+          hrLive = true;
+          setPill('hr', true, 'Bridge');
+          log('HR live via bridge', 'ok');
+        }
         _route(msg.uuid, msg.data);
       } else if (msg.type === 'error') {
         log(`DIRCON: ${msg.message}`, 'err');
@@ -95,8 +106,10 @@ async function connectDircon(wsUrl = DIRCON_WS_DEFAULT) {
       ftmsCP                = null;
       ergHandshakeDone      = false;
       pendingServoPowerSend = false;
+      hrLive                = false;
       _dirconWs = null;
       setPill('trainer', false, 'WiFi disconnected');
+      setPill('hr', false, 'Disconnected');
       log('DIRCON disconnected', 'warn');
       updateServoBtn();
     });
