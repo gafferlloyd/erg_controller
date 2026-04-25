@@ -270,7 +270,7 @@ async def main():
              proxy_name, args.proxy_port)
 
     try:
-        async with serve(bridge.handle_ws, 'localhost', args.ws_port):
+        async with serve(bridge.handle_ws, '0.0.0.0', args.ws_port):
             await asyncio.Future()   # run until Ctrl-C
     except OSError as e:
         if e.errno in (98, 10048):   # EADDRINUSE (Linux) / WSAEADDRINUSE (Windows)

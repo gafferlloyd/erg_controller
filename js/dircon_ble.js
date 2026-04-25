@@ -12,7 +12,12 @@
 //
 // Usage: call connectDircon() instead of connectTrainer().
 
-const DIRCON_WS_DEFAULT = 'ws://127.0.0.1:8765';
+// Use the serving host so the page works from any machine on the LAN.
+// Map 'localhost' → '127.0.0.1' to avoid IPv6 (::1) on Linux.
+const DIRCON_WS_DEFAULT = (() => {
+  const h = window.location.hostname;
+  return `ws://${h === 'localhost' ? '127.0.0.1' : h}:8765`;
+})();
 
 let _dirconWs = null;
 
