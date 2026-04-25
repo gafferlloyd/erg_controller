@@ -22,12 +22,13 @@ let wahooCP       = null;   // Wahoo proprietary CP (preferred if found)
 let ftmsCP        = null;   // FTMS control point
 
 // Public live-value globals — read by session.js, pid.js, ui.js
-let trainerLive   = false;
-let hrLive        = false;
-let lastHR        = null;
-let lastPower     = null;
-let lastCadence   = null;
-let lastSpeed     = null;   // km/h (from FTMS Indoor, always present)
+let trainerLive      = false;
+let hrLive           = false;
+let lastHR           = null;
+let lastPower        = null;
+let lastCadence      = null;
+let lastSpeed        = null;   // km/h (from FTMS Indoor, always present)
+let lastResistance   = null;   // FTMS resistance level (Machine Status 0x07)
 
 // ── HRV — R-R interval accumulation ──────────────────────────────────────────
 // FTMS HR characteristic flag bit 4 signals RR-interval presence.
@@ -214,7 +215,12 @@ function onCPResponse(e) {
 function onMachineStatus(e) {
   const v  = e.target.value;
   const op = v.getUint8(0);
-  if (op === 0x08 && v.byteLength >= 3) {
+  if (op === 0x07 && v.byteLength >= 2) {
+    // Target Resistance Level Changed — fires when user shifts gear
+    lastResistance = v.getUint8(1);
+    setVal('cv-gear', lastResistance);
+    log(`Resistance level → ${lastResistance}`, 'info');
+  } else if (op === 0x08 && v.byteLength >= 3) {
     // Target Power Changed — KICKR acknowledged our Set Target Power
     const watts = v.getUint16(1, true);
     log(`FTMS ack: Target Power → ${watts}W`, 'ok');
