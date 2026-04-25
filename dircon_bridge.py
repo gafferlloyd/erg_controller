@@ -7,10 +7,12 @@ Connects to the real KICKR via DIRCON (TCP), then:
   • Exposes a local WebSocket server (ws://localhost:8765) so index.html can
     send ERG power targets and receive live data without Web Bluetooth.
   • Advertises itself via mDNS so MyWhoosh discovers it automatically.
+  • Scans for a BLE HR monitor and streams HR over the same WebSocket.
 
-Install:  pip install websockets zeroconf
+Install:  pip install websockets zeroconf bleak
 Run:      python dircon_bridge.py [--host KICKR_IP] [--proxy-port 36866]
-                                  [--ws-port 8765] [--name "LloydLabs TRNR"] [-v]
+                                  [--ws-port 8765] [--name "LloydLabs TRNR"]
+                                  [--hr-name Fenix] [--hr-name CB100] [-v]
 """
 
 import asyncio, json, logging, argparse
@@ -19,8 +21,12 @@ from websockets.asyncio.server import serve
 from dircon_client import DirconClient, AUTO_SUBS, expand
 from dircon_proxy  import DirconProxyServer, register_mdns
 from power_map     import PowerMap
+from ble_hr        import BleHrClient
 
 log = logging.getLogger('dircon')
+
+# HR UUID must not be forwarded to the DIRCON proxy (MyWhoosh has its own HR)
+_HR_UUID_SHORT = '2a37'
 
 # ── mDNS discovery (finds the real KICKR on the network) ─────────────────────
 
@@ -92,10 +98,11 @@ class Bridge:
     """WebSocket server — lets index.html send/receive GATT traffic via JSON."""
 
     def __init__(self, dc: DirconClient, proxy: DirconProxyServer,
-                 power_map: PowerMap = None):
+                 power_map: PowerMap = None, hr_name_hints: list = None):
         self._dc        = dc
         self._proxy     = proxy
         self._power_map = power_map or PowerMap.IDENTITY
+        self._hr        = BleHrClient(self._on_notify, hr_name_hints)
         self._clients   = set()
         self._subscribed = set()
 
@@ -113,14 +120,16 @@ class Bridge:
             except Exception as e:
                 log.warning('auto-subscribe %s: %s', uuid, e)
 
-        # Both WebSocket clients and DIRCON (MyWhoosh) clients get every notification.
         self._dc.on_notify = self._on_notify
+        asyncio.ensure_future(self._hr.run())
+        log.info('BLE HR scanner started')
 
     async def _on_notify(self, uuid: str, data: bytes):
-        log.info('KICKR NOTIFY uuid=%s data=%s', uuid[-8:], data.hex())
-        # WebSocket (index.html / ERG control) receives real KICKR power unchanged.
+        log.info('NOTIFY uuid=%s data=%s', uuid[-8:], data.hex())
         await self._broadcast_ws(uuid, data)
-        # DIRCON (MyWhoosh) receives power-remapped 2AD2; all other UUIDs unchanged.
+        # HR originates from BLE, not DIRCON — don't forward to MyWhoosh proxy.
+        if uuid.replace('-', '').lower()[4:8] == _HR_UUID_SHORT:
+            return
         dircon_data = self._power_map.remap_ibd(data) if '2ad2' in uuid.lower() else data
         await self._proxy.broadcast(uuid, dircon_data)
 
@@ -138,8 +147,10 @@ class Bridge:
 
     async def handle_ws(self, ws):
         self._clients.add(ws)
-        await ws.send(json.dumps(
-            {'type': 'status', 'connected': True, 'kickr': self._dc.host}))
+        await ws.send(json.dumps({
+            'type': 'status', 'connected': True,
+            'kickr': self._dc.host, 'hr': self._hr.device_name,
+        }))
         log.info('WS client connected  (total: %d)', len(self._clients))
         try:
             async for raw in ws:
@@ -174,6 +185,8 @@ async def main():
     ap.add_argument('--name',       default=None,             help='mDNS trainer name (default: copy from KICKR)')
     ap.add_argument('--ip',         default=None,             help='Override advertised mDNS IP (e.g. 192.168.0.105)')
     ap.add_argument('--lut',        default=None,             help='Power map JSON file (default: power_map.json if present)')
+    ap.add_argument('--hr-name',    action='append', default=[], metavar='PREFIX',
+                    help='HR device name prefix (repeatable, e.g. --hr-name Fenix --hr-name CB100)')
     ap.add_argument('-v', '--verbose', action='store_true')
     args = ap.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
@@ -219,7 +232,7 @@ async def main():
 
     # ── Subscribe to KICKR characteristics BEFORE starting any servers ────────
     proxy = DirconProxyServer(dc)
-    bridge = Bridge(dc, proxy, power_map)
+    bridge = Bridge(dc, proxy, power_map, args.hr_name or None)
     await bridge.setup()
 
     # ── Start proxy server (MyWhoosh connects here) ───────────────────────────

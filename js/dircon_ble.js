@@ -32,6 +32,7 @@ function _route(uuid, data) {
   else if (s === '2ad9') onCPResponse(_synth(data));    // FTMS CP indication
   else if (s === '2ada') onMachineStatus(_synth(data)); // machine status
   else if (s === '2a63') onCPS(_synth(data));           // CPS power
+  else if (s === '2a37') onHRMeasurement(_synth(data)); // HR (from bridge BLE)
 }
 
 // ── Fake FTMS CP characteristic ───────────────────────────────────────────────
