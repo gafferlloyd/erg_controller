@@ -5,9 +5,11 @@ let sessionActive   = false;
 let sessionStart    = null;
 let sampleTimer     = null;
 let sessionDistance = 0;    // metres, accumulated from speed samples
+let sessionAltitude = 0;    // metres, running altitude (starts at 0)
+let sessionClimbed  = 0;    // metres of positive elevation gain
 
 // Timestamped samples — one per second while session is active.
-// { t, hr, power, cadence, speed (km/h), rmssd }
+// { t, hr, power, cadence, speed (km/h), rmssd, grade (%), altitude (m), gear }
 const samples = [];
 
 // Raw R-R intervals (ms) accumulated during the session for FIT HRV export.
@@ -24,6 +26,8 @@ function startSession() {
   samples.length   = 0;
   rrSession.length = 0;
   sessionDistance  = 0;
+  sessionAltitude  = 0;
+  sessionClimbed   = 0;
   sessionStart    = Date.now();
   sessionActive  = true;
   sampleTimer    = setInterval(takeSample, 1000);
@@ -42,15 +46,33 @@ function stopSession() {
 
 function takeSample() {
   if (lastSpeed != null) sessionDistance += lastSpeed / 3.6;  // km/h → m/s, ×1 s
+  if (lastSpeed != null && lastGrade != null) {
+    const dh = (lastSpeed / 3.6) * (lastGrade / 100);  // vertical metres this second
+    sessionAltitude += dh;
+    if (dh > 0) sessionClimbed += dh;
+  }
   samples.push({
-    t:       Date.now(),
-    hr:      lastHR,
-    power:   lastPower,
-    cadence: lastCadence,
-    speed:   lastSpeed,
-    rmssd:   currentRMSSD,
+    t:        Date.now(),
+    hr:       lastHR,
+    power:    lastPower,
+    cadence:  lastCadence,
+    speed:    lastSpeed,
+    rmssd:    currentRMSSD,
+    grade:    lastGrade,
+    altitude: sessionAltitude,
+    gear:     lastResistance,
   });
   onSampleTaken();      // ui.js callback — updates metrics display
+}
+
+// Total positive elevation gain (Höhenmeter) over a sample array.
+function calcClimb(sampleArr) {
+  let hm = 0;
+  for (let i = 1; i < sampleArr.length; i++) {
+    const d = (sampleArr[i].altitude ?? 0) - (sampleArr[i - 1].altitude ?? 0);
+    if (d > 0) hm += d;
+  }
+  return Math.round(hm);
 }
 
 // ── Pure metric functions (no side effects) ───────────────────────────────────

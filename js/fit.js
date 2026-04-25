@@ -98,12 +98,17 @@ function buildRecordDef() {
     { fieldDef: 7,   size: 2, baseType: 0x84 }, // power uint16
     { fieldDef: 4,   size: 1, baseType: 0x02 }, // cadence uint8
     { fieldDef: 6,   size: 2, baseType: 0x84 }, // speed uint16 (scale 1000 = mm/s)
+    { fieldDef: 2,   size: 2, baseType: 0x84 }, // altitude uint16 (scale 5, offset 500, m)
+    { fieldDef: 9,   size: 2, baseType: 0x83 }, // grade sint16 (scale 100, %)
   ]);
 }
 
-function buildRecordData(fitTs, hr, power, cadence, speed) {
-  // FIT speed: m/s × 1000 stored as uint16; 0xFFFF = invalid
-  const speedMms = (speed != null) ? Math.min(0xFFFE, Math.round(speed / 3.6 * 1000)) : 0xFFFF;
+function buildRecordData(fitTs, hr, power, cadence, speed, altitude, grade) {
+  const speedMms = (speed    != null) ? Math.min(0xFFFE, Math.round(speed / 3.6 * 1000)) : 0xFFFF;
+  // altitude: (alt_m + 500) × 5 as uint16; 0xFFFF = invalid
+  const altRaw   = (altitude != null) ? Math.min(0xFFFE, Math.round((altitude + 500) * 5)) : 0xFFFF;
+  // grade: pct × 100 as sint16; 0x7FFF = invalid
+  const gradeRaw = (grade    != null) ? Math.round(grade * 100) : 0x7FFF;
   return [
     dataHeader(1),
     ...u32(fitTs),
@@ -111,6 +116,8 @@ function buildRecordData(fitTs, hr, power, cadence, speed) {
     ...( power   != null ? u16(power)   : [0xFF, 0xFF] ),
     cadence != null ? (cadence & 0xFF)  : 0xFF,
     ...u16(speedMms),
+    ...u16(altRaw),
+    ...i16(gradeRaw),
   ];
 }
 
@@ -134,6 +141,7 @@ function buildSessionDef() {
     { fieldDef: 11,  size: 2, baseType: 0x84 }, // total_calories uint16
     { fieldDef: 9,   size: 4, baseType: 0x86 }, // total_distance uint32 (scale 100 = cm)
     { fieldDef: 14,  size: 2, baseType: 0x84 }, // avg_speed uint16 (scale 1000 = mm/s)
+    { fieldDef: 22,  size: 2, baseType: 0x84 }, // total_ascent uint16 (m)
   ]);
 }
 
@@ -153,6 +161,12 @@ function buildSessionData(startTs, endTs, sampleArr) {
   const avgSpdKmh   = spdVals.length ? spdVals.reduce((a, s) => a + s.speed, 0) / spdVals.length : 0;
   const avgSpdMms   = Math.round(avgSpdKmh / 3.6 * 1000);
 
+  const totalAscent = Math.round(sampleArr.reduce((acc, s, i) => {
+    if (i === 0) return acc;
+    const d = (s.altitude ?? 0) - (sampleArr[i - 1].altitude ?? 0);
+    return d > 0 ? acc + d : acc;
+  }, 0));
+
   return [
     dataHeader(2),
     ...u16(0),               // message_index
@@ -168,6 +182,7 @@ function buildSessionData(startTs, endTs, sampleArr) {
     ...u16(cal),
     ...u32(distCm),          // total_distance in cm
     ...u16(avgSpdMms),       // avg_speed in mm/s
+    ...u16(totalAscent),     // total_ascent in m
   ];
 }
 
@@ -242,7 +257,7 @@ function buildFitFile(sampleArr, startMs) {
   // Records — one per sample
   sampleArr.forEach((s, i) => {
     const ts = startTs + i;
-    messages.push(buildRecordData(ts, s.hr, s.power, s.cadence, s.speed));
+    messages.push(buildRecordData(ts, s.hr, s.power, s.cadence, s.speed, s.altitude, s.grade));
   });
 
   // HRV — raw R-R intervals accumulated during the session
@@ -301,16 +316,20 @@ function downloadFit() {
 function downloadCsv() {
   if (!samples.length) { log('No session data to export', 'warn'); return; }
   const startMs = sessionStart || (Date.now() - samples.length * 1000);
-  const rows = ['time_s,elapsed_s,hr_bpm,power_w,cadence_rpm,rmssd_ms'];
+  const rows = ['time_s,elapsed_s,hr_bpm,power_w,cadence_rpm,speed_kmh,grade_pct,altitude_m,gear,rmssd_ms'];
   samples.forEach((s, i) => {
     const elapsed = Math.round((s.t - startMs) / 1000);
     rows.push([
       Math.round(s.t / 1000),
       elapsed,
-      s.hr      ?? '',
-      s.power   ?? '',
-      s.cadence ?? '',
-      s.rmssd   ?? '',
+      s.hr       ?? '',
+      s.power    ?? '',
+      s.cadence  ?? '',
+      s.speed    != null ? s.speed.toFixed(2)    : '',
+      s.grade    != null ? s.grade.toFixed(2)    : '',
+      s.altitude != null ? s.altitude.toFixed(1) : '',
+      s.gear     ?? '',
+      s.rmssd    ?? '',
     ].join(','));
   });
   const blob = new Blob([rows.join('\n')], { type: 'text/csv' });

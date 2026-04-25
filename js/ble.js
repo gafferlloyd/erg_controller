@@ -29,6 +29,7 @@ let lastPower        = null;
 let lastCadence      = null;
 let lastSpeed        = null;   // km/h (from FTMS Indoor, always present)
 let lastResistance   = null;   // FTMS resistance level (Machine Status 0x07)
+let lastGrade        = null;   // grade % from Machine Status 0x12 (simulation params)
 
 // ── HRV — R-R interval accumulation ──────────────────────────────────────────
 // FTMS HR characteristic flag bit 4 signals RR-interval presence.
@@ -225,10 +226,13 @@ function onMachineStatus(e) {
     const watts = v.getUint16(1, true);
     log(`FTMS ack: Target Power → ${watts}W`, 'ok');
     onErgConfirmed(watts);
-  } else if (op === 0x12) {
-    // Indoor Bike Simulation Parameters Started — another app (e.g. MyWhoosh)
-    // sent a gradient/wind command and the KICKR has switched to simulation mode.
-    // Re-assert ERG target immediately if a servo or manual ERG is active.
+  } else if (op === 0x12 && v.byteLength >= 5) {
+    // Indoor Bike Simulation Parameters Changed — parse grade from bytes 3-4
+    // Format: wind(int16 LE, 0.001 m/s), grade(int16 LE, 0.01%), Crr, CwA
+    lastGrade = v.getInt16(3, true) * 0.01;
+    const sign = lastGrade >= 0 ? '+' : '';
+    setVal('cv-grade', `${sign}${lastGrade.toFixed(1)}`);
+    // Re-assert ERG if another app sent this and took us out of ERG mode.
     if (servoActive || ergActive) {
       log('MyWhoosh gradient intercepted — re-asserting ERG target', 'warn');
       sendPower(ergSetpoint).catch(e => log(`Re-assert ERG: ${e.message}`, 'warn'));

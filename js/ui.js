@@ -226,6 +226,12 @@ function updateSessionMetrics() {
   const hrvTxt = currentRMSSD != null ? `${currentRMSSD}` : '—';
   setStatBox('workout', 'hrv', hrvTxt);
   setStatBox('recent',  'hrv', hrvTxt);
+
+  // Höhenmeter — total positive elevation gain
+  const hmAll  = calcClimb(all);
+  const hmLast = calcClimb(last);
+  setStatBox('workout', 'hm', hmAll  > 0 ? `${hmAll}`  : '—');
+  setStatBox('recent',  'hm', hmLast > 0 ? `${hmLast}` : '—');
 }
 
 // ── DOM text helpers ──────────────────────────────────────────────────────────

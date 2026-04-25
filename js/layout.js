@@ -14,6 +14,7 @@ const METRICS = [
   { id: 'if',     lbl: 'IF',       unit: '',     cls: ''    },
   { id: 'tss',    lbl: 'TSS',      unit: '',     cls: ''    },
   { id: 'hrv',    lbl: 'HRV',      unit: 'ms',   cls: 'hrv' },
+  { id: 'hm',     lbl: 'Hm',       unit: 'm',    cls: ''    },
   { id: '_',      lbl: '',         unit: '',     cls: ''    },
 ];
 const METRIC_IDX = Object.fromEntries(METRICS.map((m, i) => [m.id, i]));
@@ -23,10 +24,10 @@ const LAYOUT_DEFAULTS = {
   scaleWk: 1.0,
   scaleRc: 1.0,
   window:  2,
-  wBoxes:  12,
-  rBoxes:  7,
-  workout: ['np','avgpwr','avghr','avgcad','avgspd','dist','wpbpm','npbpm','dcpl','if','tss','hrv'],
-  recent:  ['np','avgpwr','avghr','avgcad','wpbpm','npbpm','hrv','_','_','_','_','_'],
+  wBoxes:  13,
+  rBoxes:  8,
+  workout: ['np','avgpwr','avghr','avgcad','avgspd','dist','hm','wpbpm','npbpm','dcpl','if','tss','hrv'],
+  recent:  ['np','avgpwr','avghr','avgcad','hm','wpbpm','npbpm','hrv','_','_','_','_'],
 };
 let layoutCfg = { ...LAYOUT_DEFAULTS };
 
