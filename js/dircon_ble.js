@@ -59,14 +59,19 @@ const _dirconFtmsCP = {
 // ── Public connect function ───────────────────────────────────────────────────
 
 // Auto-connect when the page loads — if the bridge isn't running the
-// attempt fails silently and the user can still click the WiFi button.
+// attempt fails silently and the user can still click a connect button.
 document.addEventListener('DOMContentLoaded', () => {
   connectDircon().catch(() => {});
 });
 
-async function connectDircon(wsUrl = DIRCON_WS_DEFAULT) {
+// WiFi button — tell the bridge to connect to the KICKR via DIRCON/mDNS.
+function connectDirconWifi() {
+  return connectDircon(DIRCON_WS_DEFAULT, { cmd: 'connect_dircon' });
+}
+
+async function connectDircon(wsUrl = DIRCON_WS_DEFAULT, extraCmd = null) {
   if (_dirconWs) { _dirconWs.close(); _dirconWs = null; }
-  setPill('trainer', false, 'WiFi…');
+  setPill('trainer', false, extraCmd ? 'WiFi…' : 'BLE…');
 
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(wsUrl);
@@ -76,6 +81,7 @@ async function connectDircon(wsUrl = DIRCON_WS_DEFAULT) {
       log('DIRCON WebSocket open', 'info');
       // Bridge auto-subscribes 2AD2 + 2ADA; also request 2AD9 (CP indications).
       ws.send(JSON.stringify({ cmd: 'subscribe', uuid: '2ad9' }));
+      if (extraCmd) ws.send(JSON.stringify(extraCmd));
     });
 
     ws.addEventListener('message', e => {

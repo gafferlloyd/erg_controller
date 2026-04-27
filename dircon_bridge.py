@@ -236,6 +236,52 @@ class Bridge:
                 await self._dc.write(msg['uuid'], data)
             elif self._kickr_ble:
                 await self._kickr_ble.write_cp(data)
+        elif cmd == 'connect_dircon':
+            asyncio.ensure_future(self._attempt_dircon())
+
+    async def _attempt_dircon(self):
+        """Discover KICKR via mDNS and connect via DIRCON TCP."""
+        from dircon_client import DirconClient, AUTO_SUBS, expand
+        log.info('WiFi: searching for KICKR via mDNS…')
+        await self._broadcast_status_msg(False, 'WiFi scanning…')
+        host, name, _ = await discover_kickr(timeout=8.0)
+        if not host:
+            log.warning('WiFi: KICKR not found via mDNS')
+            await self._broadcast_status_msg(False, 'KICKR not found on WiFi')
+            return
+        log.info('WiFi: found %s at %s — connecting…', name, host)
+        try:
+            dc = DirconClient(host)
+            await dc.connect()
+        except OSError as e:
+            log.warning('WiFi: connect to %s failed: %s', host, e)
+            await self._broadcast_status_msg(False, 'WiFi connect failed')
+            return
+        for uuid in AUTO_SUBS:
+            try:
+                await dc.subscribe(uuid)
+            except Exception:
+                pass
+        dc.on_notify = self._on_notify
+        self._dc = dc
+        log.info('WiFi: KICKR connected at %s', host)
+        await self._broadcast_status()
+
+    async def _broadcast_status_msg(self, connected: bool, kickr_label: str):
+        connected_hr = [c.device_name for c in self._hr_clients if c.device_name]
+        msg = json.dumps({
+            'type':      'status',
+            'connected': connected,
+            'kickr':     kickr_label,
+            'hr':        ', '.join(connected_hr) if connected_hr else None,
+        })
+        dead = set()
+        for ws in self._clients:
+            try:
+                await ws.send(msg)
+            except Exception:
+                dead.add(ws)
+        self._clients -= dead
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
