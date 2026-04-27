@@ -1,0 +1,9 @@
+@echo off
+title DIRCON Bridge
+cd /d C:\Users\LLOYD\Documents\Python\dircon
+echo Starting DIRCON proxy bridge...
+echo.
+py -3 dircon_bridge.py --name "KICKR BIKE SHIFT B7C3" -v > bridge_log.txt 2>&1
+echo.
+echo Bridge stopped.
+pause

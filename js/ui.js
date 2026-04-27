@@ -335,9 +335,12 @@ function adjustErg(delta) {
 // ── Global button wiring ──────────────────────────────────────────────────────
 
 function wireButtons() {
-  bindClick('btn-connect-trainer', () => connectDevice('trainer'));
+  // All connections go through dircon_bridge.py (bleak for HR, DIRCON for trainer).
+  // connectDircon() opens the WebSocket if needed, then sends connect_kickr;
+  // the bridge reports full status (trainer + HR) in its response.
+  bindClick('btn-connect-trainer', () => connectDircon());
   bindClick('btn-connect-dircon',  () => connectDircon());
-  bindClick('btn-connect-hr',      () => connectDevice('hr'));
+  bindClick('btn-connect-hr',      () => connectDircon());
   bindClick('btn-servo',           () => toggleServo());
   bindClick('btn-pause-servo',     () => toggleServoPause());
   bindClick('btn-pause-workout',   () => toggleWorkoutPause());

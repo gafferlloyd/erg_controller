@@ -419,7 +419,7 @@ async function connectHR() {
 // ── Public dispatcher ─────────────────────────────────────────────────────────
 
 function connectDevice(role) {
-  if (!navigator.bluetooth) { log('Web Bluetooth not available — use Chrome', 'err'); return; }
+  if (!navigator.bluetooth) { log('Web Bluetooth not available in this browser', 'err'); return; }
   if (role === 'trainer') connectTrainer();
   else                    connectHR();
 }
