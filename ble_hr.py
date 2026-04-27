@@ -6,7 +6,8 @@ HR service (0x180D). Pass name_hints to prefer specific devices by name prefix
 """
 
 import asyncio, logging
-from bleak import BleakScanner, BleakClient
+from bleak import BleakClient
+from ble_scanner import find_device
 
 HR_SERVICE     = '0000180d-0000-1000-8000-00805f9b34fb'
 HR_MEASUREMENT = '00002a37-0000-1000-8000-00805f9b34fb'
@@ -40,9 +41,7 @@ class BleHrClient:
 
     async def _scan_and_run(self):
         log.info('HR: scanning (%.0fs)…', SCAN_TIMEOUT)
-        device = await BleakScanner.find_device_by_filter(
-            self._matches, timeout=SCAN_TIMEOUT,
-        )
+        device = await find_device(self._matches, timeout=SCAN_TIMEOUT)
         if device is None:
             log.info('HR: no device found')
             return

@@ -6,7 +6,8 @@ restrict to specific prefixes.
 """
 
 import asyncio, logging
-from bleak import BleakScanner, BleakClient
+from bleak import BleakClient
+from ble_scanner import find_device
 
 FTMS_SERVICE     = '00001826-0000-1000-8000-00805f9b34fb'
 CPS_SERVICE      = '00001818-0000-1000-8000-00805f9b34fb'
@@ -57,9 +58,7 @@ class BleKickrClient:
 
     async def _scan_and_run(self):
         log.info('KICKR: scanning (%.0fs)…', SCAN_TIMEOUT)
-        device = await BleakScanner.find_device_by_filter(
-            self._matches, timeout=SCAN_TIMEOUT,
-        )
+        device = await find_device(self._matches, timeout=SCAN_TIMEOUT)
         if device is None:
             log.info('KICKR: no device found')
             return
