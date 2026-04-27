@@ -10,12 +10,7 @@
 //   the WebSocket instead of BLE.  Incoming notifications are forwarded to the
 //   existing ble.js data handlers (onFTMSIndoor, onCPResponse, onMachineStatus).
 //
-// The WebSocket server now starts before the KICKR connects, so the page can
-// reach the bridge even when the KICKR is still off.  The bridge sends:
-//   {type:'status', connected:false, kickr:'Searching…'}  — while discovering
-//   {type:'status', connected:true,  kickr:'192.168.x.y'} — when ready
-// Clicking the WiFi button sends a 'connect_kickr' command that re-triggers
-// mDNS discovery if the KICKR is not yet connected.
+// Usage: call connectDircon() instead of connectTrainer().
 
 // Use the serving host so the page works from any machine on the LAN.
 // Map 'localhost' → '127.0.0.1' to avoid IPv6 (::1) on Linux.
@@ -61,29 +56,6 @@ const _dirconFtmsCP = {
   },
 };
 
-// ── Status handler (shared by auto-connect and button click) ──────────────────
-
-function _applyStatus(msg) {
-  if (msg.type !== 'status') return;
-  if (msg.connected) {
-    ftmsCP      = _dirconFtmsCP;
-    trainerLive = true;
-    setPill('trainer', true, `WiFi ${msg.kickr}`);
-    log(`DIRCON connected: ${msg.kickr}`, 'ok');
-    if (msg.hr) {
-      hrLive = true;
-      setPill('hr', true, msg.hr);
-      log(`HR connected: ${msg.hr}`, 'ok');
-    }
-    ftmsHandshake();
-    updateServoBtn();
-  } else {
-    // Interim label ('Searching…', 'Not found') — show in pill without marking live
-    const label = msg.kickr || 'WiFi…';
-    setPill('trainer', false, label);
-  }
-}
-
 // ── Public connect function ───────────────────────────────────────────────────
 
 // Auto-connect when the page loads — if the bridge isn't running the
@@ -93,12 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function connectDircon(wsUrl = DIRCON_WS_DEFAULT) {
-  // If already open, just ask the bridge to (re-)connect the KICKR.
-  if (_dirconWs && _dirconWs.readyState === WebSocket.OPEN) {
-    _dirconWs.send(JSON.stringify({ cmd: 'connect_kickr' }));
-    return;
-  }
-
   if (_dirconWs) { _dirconWs.close(); _dirconWs = null; }
   setPill('trainer', false, 'WiFi…');
 
@@ -108,16 +74,25 @@ async function connectDircon(wsUrl = DIRCON_WS_DEFAULT) {
 
     ws.addEventListener('open', () => {
       log('DIRCON WebSocket open', 'info');
-      // Subscribe to CP indications and ask bridge to connect KICKR if not yet done.
+      // Bridge auto-subscribes 2AD2 + 2ADA; also request 2AD9 (CP indications).
       ws.send(JSON.stringify({ cmd: 'subscribe', uuid: '2ad9' }));
-      ws.send(JSON.stringify({ cmd: 'connect_kickr' }));
     });
 
     ws.addEventListener('message', e => {
       const msg = JSON.parse(e.data);
-      if (msg.type === 'status') {
-        _applyStatus(msg);
-        if (msg.connected) resolve();   // resolve the promise once KICKR is live
+      if (msg.type === 'status' && msg.connected) {
+        ftmsCP      = _dirconFtmsCP;   // inject into ble.js scope
+        trainerLive = true;
+        setPill('trainer', true, `WiFi ${msg.kickr}`);
+        log(`DIRCON connected: ${msg.kickr}`, 'ok');
+        if (msg.hr) {
+          hrLive = true;
+          setPill('hr', true, msg.hr);
+          log(`HR connected: ${msg.hr}`, 'ok');
+        }
+        ftmsHandshake();
+        updateServoBtn();
+        resolve();
       } else if (msg.type === 'notify') {
         const s = msg.uuid.replace(/-/g, '').toLowerCase().slice(4, 8);
         if (s === '2a37' && !hrLive) {
@@ -145,7 +120,7 @@ async function connectDircon(wsUrl = DIRCON_WS_DEFAULT) {
     });
 
     ws.addEventListener('error', () => {
-      setPill('trainer', false, 'WiFi offline');
+      setPill('trainer', false, 'WiFi failed');
       reject(new Error(`Cannot reach DIRCON bridge at ${wsUrl}`));
     });
   });
