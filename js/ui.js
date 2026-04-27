@@ -335,9 +335,9 @@ function adjustErg(delta) {
 // ── Global button wiring ──────────────────────────────────────────────────────
 
 function wireButtons() {
-  bindClick('btn-connect-trainer', () => connectDevice('trainer'));
+  bindClick('btn-connect-trainer', () => connectDircon());
   bindClick('btn-connect-dircon',  () => connectDircon());
-  bindClick('btn-connect-hr',      () => connectDevice('hr'));
+  bindClick('btn-connect-hr',      () => connectDircon());
   bindClick('btn-servo',           () => toggleServo());
   bindClick('btn-pause-servo',     () => toggleServoPause());
   bindClick('btn-pause-workout',   () => toggleWorkoutPause());

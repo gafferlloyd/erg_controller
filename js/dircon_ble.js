@@ -80,19 +80,24 @@ async function connectDircon(wsUrl = DIRCON_WS_DEFAULT) {
 
     ws.addEventListener('message', e => {
       const msg = JSON.parse(e.data);
-      if (msg.type === 'status' && msg.connected) {
-        ftmsCP      = _dirconFtmsCP;   // inject into ble.js scope
-        trainerLive = true;
-        setPill('trainer', true, `WiFi ${msg.kickr}`);
-        log(`DIRCON connected: ${msg.kickr}`, 'ok');
+      if (msg.type === 'status') {
+        if (msg.connected) {
+          ftmsCP      = _dirconFtmsCP;   // inject into ble.js scope
+          trainerLive = true;
+          setPill('trainer', true, msg.kickr || 'Connected');
+          log(`DIRCON connected: ${msg.kickr}`, 'ok');
+          ftmsHandshake();
+          updateServoBtn();
+          resolve();
+        } else {
+          setPill('trainer', false, 'BLE scanning…');
+          log('Bridge live — scanning for KICKR…', 'info');
+        }
         if (msg.hr) {
           hrLive = true;
           setPill('hr', true, msg.hr);
           log(`HR connected: ${msg.hr}`, 'ok');
         }
-        ftmsHandshake();
-        updateServoBtn();
-        resolve();
       } else if (msg.type === 'notify') {
         const s = msg.uuid.replace(/-/g, '').toLowerCase().slice(4, 8);
         if (s === '2a37' && !hrLive) {

@@ -1,50 +1,42 @@
 #!/usr/bin/env python3
 """DIRCON proxy bridge — main entry point.
 
-Connects to the real KICKR via DIRCON (TCP), then:
-  • Accepts MyWhoosh connections as a fake DIRCON trainer ("LloydLabs TRNR")
-    and proxies all commands transparently to the KICKR.
-  • Exposes a local WebSocket server (ws://localhost:8765) so index.html can
-    send ERG power targets and receive live data without Web Bluetooth.
-  • Advertises itself via mDNS so MyWhoosh discovers it automatically.
-  • Scans for a BLE HR monitor and streams HR over the same WebSocket.
+Two modes:
+  BLE mode  (default, no --host): connects to the KICKR via BLE (bleak).
+  DIRCON mode (--host <IP>):      connects via DIRCON TCP, runs the MyWhoosh
+                                   fake-trainer proxy and mDNS advertisement.
+
+In both modes:
+  • WebSocket server (ws://…:8765) lets index.html send/receive GATT traffic.
+  • BLE HR monitor is scanned and streamed over the same WebSocket.
 
 Install:  pip install websockets zeroconf bleak
-Run:      python dircon_bridge.py [--host KICKR_IP] [--proxy-port 36866]
-                                  [--ws-port 8765] [--name "LloydLabs TRNR"]
-                                  [--hr-name Fenix] [--hr-name CB100] [-v]
+Run (BLE):      python dircon_bridge.py [--ws-port 8765] [--hr-name Fenix] [-v]
+Run (DIRCON):   python dircon_bridge.py --host KICKR_IP [--proxy-port 36866] [-v]
 """
 
 import asyncio, json, logging, argparse
 from pathlib import Path
 from websockets.asyncio.server import serve
-from dircon_client import DirconClient, AUTO_SUBS, expand
-from dircon_proxy  import DirconProxyServer, register_mdns
-from power_map     import PowerMap
-from ble_hr        import BleHrClient
+from ble_hr    import BleHrClient
+from ble_kickr import BleKickrClient
 
 log = logging.getLogger('dircon')
 
-# HR UUID must not be forwarded to the DIRCON proxy (MyWhoosh has its own HR)
 _HR_UUID_SHORT = '2a37'
 
-# ── mDNS discovery (finds the real KICKR on the network) ─────────────────────
+# ── mDNS discovery (DIRCON mode only) ────────────────────────────────────────
 
 async def discover_kickr(timeout: float = 8.0):
-    """Return (ip, instance_name, txt_properties) for the KICKR via mDNS.
-
-    instance_name is the bare label before '._wahoo-fitness-tnp._tcp.local.'
-    txt_properties is a dict of bytes→bytes TXT records from the real device.
-    Returns (None, None, {}) if not found.
-    """
+    """Return (ip, instance_name, txt_properties) for the KICKR via mDNS."""
     try:
         from zeroconf.asyncio import AsyncZeroconf, AsyncServiceBrowser
         import socket
         found   = asyncio.Event()
-        result  = [None, None, {}]   # [ip, name, props]
+        result  = [None, None, {}]
         loop    = asyncio.get_running_loop()
 
-        async def _resolve_service(azc, t: str, n: str):
+        async def _resolve(azc, t, n):
             if found.is_set():
                 return
             try:
@@ -56,17 +48,12 @@ async def discover_kickr(timeout: float = 8.0):
                 return
             raw = info.addresses[0]
             try:
-                if len(raw) == 4:
-                    result[0] = socket.inet_ntop(socket.AF_INET, raw)
-                elif len(raw) == 16:
-                    result[0] = socket.inet_ntop(socket.AF_INET6, raw)
-                else:
-                    return
+                af = socket.AF_INET if len(raw) == 4 else socket.AF_INET6
+                result[0] = socket.inet_ntop(af, raw)
             except OSError:
                 return
-            # Strip the service-type suffix to get the bare instance name
-            svc_suffix = '._wahoo-fitness-tnp._tcp.local.'
-            result[1] = n[:-len(svc_suffix)] if n.endswith(svc_suffix) else n
+            svc = '._wahoo-fitness-tnp._tcp.local.'
+            result[1] = n[:-len(svc)] if n.endswith(svc) else n
             result[2] = info.properties or {}
             found.set()
 
@@ -75,13 +62,12 @@ async def discover_kickr(timeout: float = 8.0):
                 self._azc = azc
             def add_service(self, zc, t, n):
                 if not found.is_set():
-                    loop.create_task(_resolve_service(self._azc, t, n))
+                    loop.create_task(_resolve(self._azc, t, n))
             def remove_service(self, *_): pass
             def update_service(self, *_): pass
 
         async with AsyncZeroconf() as azc:
-            b = AsyncServiceBrowser(azc.zeroconf,
-                '_wahoo-fitness-tnp._tcp.local.', H(azc))
+            b = AsyncServiceBrowser(azc.zeroconf, '_wahoo-fitness-tnp._tcp.local.', H(azc))
             try:
                 await asyncio.wait_for(found.wait(), timeout)
             except asyncio.TimeoutError:
@@ -90,62 +76,113 @@ async def discover_kickr(timeout: float = 8.0):
         return tuple(result)
     except ImportError:
         log.warning('pip install zeroconf  for auto-discovery')
-        return None
+        return None, None, {}
 
 # ── WebSocket bridge ──────────────────────────────────────────────────────────
 
 class Bridge:
-    """WebSocket server — lets index.html send/receive GATT traffic via JSON."""
+    """WebSocket server — lets index.html send/receive GATT traffic via JSON.
 
-    def __init__(self, dc: DirconClient, proxy: DirconProxyServer,
-                 power_map: PowerMap = None, hr_name_hints: list = None):
-        self._dc        = dc
-        self._proxy     = proxy
-        self._power_map = power_map or PowerMap.IDENTITY
-        # One BleHrClient per name hint so all devices connect simultaneously.
+    BLE mode:    dc=None,  proxy=None  — uses BleKickrClient internally.
+    DIRCON mode: dc=<DirconClient>, proxy=<DirconProxyServer>.
+    """
+
+    def __init__(self, dc=None, proxy=None, power_map=None,
+                 hr_name_hints=None, kickr_name_hints=None):
+        from power_map import PowerMap
+        self._dc         = dc
+        self._proxy      = proxy
+        self._power_map  = power_map or PowerMap.IDENTITY
+        self._clients    = set()
+        self._subscribed = set()
+
+        if dc is None:
+            self._kickr_ble = BleKickrClient(
+                self._on_notify,
+                name_hints=kickr_name_hints or ['KICKR'],
+                on_connected=self._on_kickr_connected,
+                on_disconnected=self._on_kickr_disconnected,
+            )
+        else:
+            self._kickr_ble = None
+
         hints = hr_name_hints or []
         if hints:
             self._hr_clients = [BleHrClient(self._on_notify, [h]) for h in hints]
         else:
             self._hr_clients = [BleHrClient(self._on_notify, None)]
-        self._clients   = set()
-        self._subscribed = set()
 
-    @property
-    def _hr(self):
-        """Return first connected HR client (for status message compat)."""
-        for c in self._hr_clients:
-            if c.device_name:
-                return c
-        return self._hr_clients[0]
+    # ── KICKR status helpers ──────────────────────────────────────────────────
+
+    def _kickr_label(self):
+        if self._dc:
+            return self._dc.host
+        return self._kickr_ble.device_name
+
+    def _kickr_online(self):
+        if self._dc:
+            return True
+        return self._kickr_ble.device_name is not None
+
+    async def _on_kickr_connected(self, name):
+        log.info('KICKR BLE connected: %s', name)
+        await self._broadcast_status()
+
+    async def _on_kickr_disconnected(self):
+        log.info('KICKR BLE disconnected')
+        await self._broadcast_status()
+
+    async def _broadcast_status(self):
+        connected_hr = [c.device_name for c in self._hr_clients if c.device_name]
+        msg = json.dumps({
+            'type':      'status',
+            'connected': self._kickr_online(),
+            'kickr':     self._kickr_label(),
+            'hr':        ', '.join(connected_hr) if connected_hr else None,
+        })
+        dead = set()
+        for ws in self._clients:
+            try:
+                await ws.send(msg)
+            except Exception:
+                dead.add(ws)
+        self._clients -= dead
+
+    # ── Setup ─────────────────────────────────────────────────────────────────
 
     async def setup(self):
-        try:
-            svcs = await self._dc.discover_services()
-            log.info('KICKR services: %s', svcs or '(none / parse error)')
-        except Exception as e:
-            log.warning('discover_services: %s — continuing', e)
-
-        for uuid in AUTO_SUBS:
+        if self._dc:
+            from dircon_client import AUTO_SUBS, expand
             try:
-                await self._dc.subscribe(uuid)
-                self._subscribed.add(expand(uuid))
+                svcs = await self._dc.discover_services()
+                log.info('KICKR services: %s', svcs or '(none / parse error)')
             except Exception as e:
-                log.warning('auto-subscribe %s: %s', uuid, e)
+                log.warning('discover_services: %s — continuing', e)
+            for uuid in AUTO_SUBS:
+                try:
+                    await self._dc.subscribe(uuid)
+                    self._subscribed.add(expand(uuid))
+                except Exception as e:
+                    log.warning('auto-subscribe %s: %s', uuid, e)
+            self._dc.on_notify = self._on_notify
+        else:
+            asyncio.ensure_future(self._kickr_ble.run())
+            log.info('KICKR BLE scanner started')
 
-        self._dc.on_notify = self._on_notify
         for client in self._hr_clients:
             asyncio.ensure_future(client.run())
         log.info('BLE HR scanners started (%d)', len(self._hr_clients))
 
+    # ── Notify / WebSocket broadcast ──────────────────────────────────────────
+
     async def _on_notify(self, uuid: str, data: bytes):
         log.info('NOTIFY uuid=%s data=%s', uuid[-8:], data.hex())
         await self._broadcast_ws(uuid, data)
-        # HR originates from BLE, not DIRCON — don't forward to MyWhoosh proxy.
         if uuid.replace('-', '').lower()[4:8] == _HR_UUID_SHORT:
             return
-        dircon_data = self._power_map.remap_ibd(data) if '2ad2' in uuid.lower() else data
-        await self._proxy.broadcast(uuid, dircon_data)
+        if self._proxy:
+            dircon_data = self._power_map.remap_ibd(data) if '2ad2' in uuid.lower() else data
+            await self._proxy.broadcast(uuid, dircon_data)
 
     async def _broadcast_ws(self, uuid: str, data: bytes):
         if not self._clients:
@@ -159,13 +196,16 @@ class Bridge:
                 dead.add(ws)
         self._clients -= dead
 
+    # ── WebSocket handler ─────────────────────────────────────────────────────
+
     async def handle_ws(self, ws):
         self._clients.add(ws)
         connected_hr = [c.device_name for c in self._hr_clients if c.device_name]
         await ws.send(json.dumps({
-            'type': 'status', 'connected': True,
-            'kickr': self._dc.host,
-            'hr': ', '.join(connected_hr) if connected_hr else None,
+            'type':      'status',
+            'connected': self._kickr_online(),
+            'kickr':     self._kickr_label(),
+            'hr':        ', '.join(connected_hr) if connected_hr else None,
         }))
         log.info('WS client connected  (total: %d)', len(self._clients))
         try:
@@ -180,106 +220,105 @@ class Bridge:
 
     async def _cmd(self, ws, msg: dict):
         cmd = msg.get('cmd')
-        if cmd == 'discover':
+        if cmd == 'discover' and self._dc:
+            from dircon_client import expand
             svcs = await self._dc.discover_services()
             await ws.send(json.dumps({'type': 'services', 'list': svcs}))
-        elif cmd == 'subscribe':
+        elif cmd == 'subscribe' and self._dc:
+            from dircon_client import expand
             u = expand(msg['uuid'])
             if u not in self._subscribed:
                 await self._dc.subscribe(u)
                 self._subscribed.add(u)
         elif cmd == 'write':
-            await self._dc.write(msg['uuid'], bytes(msg['data']))
+            data = bytes(msg['data'])
+            if self._dc:
+                await self._dc.write(msg['uuid'], data)
+            elif self._kickr_ble:
+                await self._kickr_ble.write_cp(data)
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 async def main():
     ap = argparse.ArgumentParser(description='DIRCON proxy bridge')
-    ap.add_argument('--host',       default=None,             help='KICKR IP (skip mDNS)')
-    ap.add_argument('--proxy-port', type=int, default=36866,  help='DIRCON server port for MyWhoosh')
-    ap.add_argument('--ws-port',    type=int, default=8765,   help='WebSocket port for index.html')
-    ap.add_argument('--name',       default=None,             help='mDNS trainer name (default: copy from KICKR)')
-    ap.add_argument('--ip',         default=None,             help='Override advertised mDNS IP (e.g. 192.168.0.105)')
-    ap.add_argument('--lut',        default=None,             help='Power map JSON file (default: power_map.json if present)')
-    ap.add_argument('--hr-name',    action='append', default=[], metavar='PREFIX',
-                    help='HR device name prefix (repeatable, e.g. --hr-name Fenix --hr-name CB100)')
+    ap.add_argument('--host',        default=None,            help='KICKR IP → DIRCON mode (skips BLE)')
+    ap.add_argument('--proxy-port',  type=int, default=36866, help='DIRCON server port for MyWhoosh')
+    ap.add_argument('--ws-port',     type=int, default=8765,  help='WebSocket port for index.html')
+    ap.add_argument('--name',        default=None,            help='mDNS trainer name override')
+    ap.add_argument('--ip',          default=None,            help='Override advertised mDNS IP')
+    ap.add_argument('--lut',         default=None,            help='Power map JSON file')
+    ap.add_argument('--kickr-name',  action='append', default=[], metavar='PREFIX',
+                    help='KICKR BLE name prefix (BLE mode only, repeatable)')
+    ap.add_argument('--hr-name',     action='append', default=[], metavar='PREFIX',
+                    help='HR device name prefix (repeatable)')
     ap.add_argument('-v', '--verbose', action='store_true')
     args = ap.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format='%(levelname)s  %(message)s')
 
-    # ── Connect to real KICKR ─────────────────────────────────────────────────
-    host        = args.host
-    kickr_name  = None
-    kickr_props = {}
-    if not host:
-        log.info('Searching for KICKR via mDNS (up to 8 s)…')
-        host, kickr_name, kickr_props = await discover_kickr()
-    if not host:
-        log.error('KICKR not found.  Retry with --host <IP_ADDRESS>')
-        return
-
-    # Use the name the real KICKR advertises (so MyWhoosh recognises it)
-    # unless the user explicitly overrides with --name.
-    proxy_name = args.name or kickr_name or 'KICKR SHIFT'
-    log.info('KICKR at %s  (mDNS name: %s)', host, kickr_name or '(unknown)')
-    if kickr_props:
-        log.info('KICKR TXT props: %s', kickr_props)
-
-    # ── Load power map LUT ────────────────────────────────────────────────────
-    lut_path = args.lut or 'power_map.json'
+    lut_path  = args.lut or 'power_map.json'
+    from power_map import PowerMap
     power_map = PowerMap.IDENTITY
     if Path(lut_path).exists():
         try:
             power_map = PowerMap.load(lut_path)
         except Exception as e:
-            log.warning('power_map: failed to load %s: %s — using identity', lut_path, e)
+            log.warning('power_map: %s — using identity', e)
     else:
-        log.info('power_map: %s not found — using identity (1:1) mapping', lut_path)
+        log.info('power_map: %s not found — using identity', lut_path)
 
-    dc = DirconClient(host)
-    while True:
+    proxy_srv = None
+    zc        = None
+
+    if args.host:
+        # ── DIRCON mode ───────────────────────────────────────────────────────
+        from dircon_client import DirconClient
+        from dircon_proxy  import DirconProxyServer, register_mdns
+        host        = args.host
+        kickr_name  = None
+        kickr_props = {}
+        log.info('DIRCON mode: connecting to %s', host)
+        dc = DirconClient(host)
+        while True:
+            try:
+                await dc.connect()
+                break
+            except OSError as e:
+                log.info('KICKR not ready (%s) — retrying in 5s…', e.strerror)
+                await asyncio.sleep(5)
+
+        proxy      = DirconProxyServer(dc)
+        proxy_name = args.name or kickr_name or 'KICKR SHIFT'
+        bridge     = Bridge(dc=dc, proxy=proxy, power_map=power_map,
+                            hr_name_hints=args.hr_name or None)
+        await bridge.setup()
+
+        proxy_srv = await proxy.start(port=args.proxy_port)
         try:
-            await dc.connect()
-            break
-        except OSError as e:
-            log.info('KICKR not ready (%s) — retrying in 5s…', e.strerror)
-            await asyncio.sleep(5)
-
-    # ── Subscribe to KICKR characteristics BEFORE starting any servers ────────
-    proxy = DirconProxyServer(dc)
-    bridge = Bridge(dc, proxy, power_map, args.hr_name or None)
-    await bridge.setup()
-
-    # ── Start proxy server (MyWhoosh connects here) ───────────────────────────
-    proxy_srv = await proxy.start(port=args.proxy_port)
-
-    # ── Advertise on mDNS so MyWhoosh finds us automatically ─────────────────
-    # Pass through the real KICKR's TXT properties so MyWhoosh accepts us.
-    zc = None
-    try:
-        zc = await register_mdns(proxy_name, args.proxy_port, kickr_props, ip=args.ip)
-    except Exception as e:
-        log.warning('mDNS registration failed: %r', e)
-        log.warning('MyWhoosh auto-discovery unavailable — '
-                    'select the trainer manually or check Windows Firewall / '
-                    'Bonjour service.')
+            zc = await register_mdns(proxy_name, args.proxy_port, kickr_props, ip=args.ip)
+        except Exception as e:
+            log.warning('mDNS registration failed: %r', e)
+        log.info('Proxy ready  →  "%s" on port %d', proxy_name, args.proxy_port)
+    else:
+        # ── BLE mode ──────────────────────────────────────────────────────────
+        log.info('BLE mode: scanning for KICKR via BLE')
+        bridge = Bridge(dc=None, proxy=None, power_map=power_map,
+                        hr_name_hints=args.hr_name or None,
+                        kickr_name_hints=args.kickr_name or None)
+        await bridge.setup()
 
     log.info('WebSocket ready  →  ws://localhost:%d', args.ws_port)
-    log.info('Proxy ready      →  "%s" on port %d',
-             proxy_name, args.proxy_port)
-
     try:
         async with serve(bridge.handle_ws, '0.0.0.0', args.ws_port):
-            await asyncio.Future()   # run until Ctrl-C
+            await asyncio.Future()
     except OSError as e:
-        if e.errno in (98, 10048):   # EADDRINUSE (Linux) / WSAEADDRINUSE (Windows)
-            log.error('Port %d is already in use — is another bridge window still open?',
-                      args.ws_port)
+        if e.errno in (98, 10048):
+            log.error('Port %d in use — is another bridge window open?', args.ws_port)
         else:
             raise
     finally:
-        proxy_srv.close()
+        if proxy_srv:
+            proxy_srv.close()
         if zc:
             await zc.async_close()
 

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# Start the DIRCON proxy bridge.
-# The KICKR is found automatically via mDNS — no --host needed on Linux.
+# Start the ERG bridge. KICKR connects via BLE; pass --host <IP> for DIRCON/WiFi mode.
 # Output is logged to bridge_log.txt and also shown in the terminal.
 cd "$(dirname "$0")"
-python3 dircon_bridge.py --name "KICKR BIKE SHIFT B7C3" -v 2>&1 | tee bridge_log.txt
+echo "Pulling latest code..."
+git pull
+echo ""
+echo "Starting bridge..."
+echo ""
+python3 dircon_bridge.py --hr-name CB100 --hr-name Fenix -v 2>&1 | tee bridge_log.txt
