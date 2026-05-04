@@ -15,6 +15,8 @@ const METRICS = [
   { id: 'tss',    lbl: 'TSS',      unit: '',     cls: ''    },
   { id: 'hrv',    lbl: 'HRV',      unit: 'ms',   cls: 'hrv' },
   { id: 'hm',     lbl: 'Hm',       unit: 'm',    cls: ''    },
+  { id: 'fit_m',  lbl: 'HR slope', unit: 'b/W',  cls: ''    },
+  { id: 'fit_c',  lbl: 'HR@0W',    unit: 'bpm',  cls: 'hr'  },
   { id: '_',      lbl: '',         unit: '',     cls: ''    },
 ];
 const METRIC_IDX = Object.fromEntries(METRICS.map((m, i) => [m.id, i]));

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>test_hrfit</title></head>
+<body>
+<pre id="out"></pre>
+<script>
+// Stubs for hrfit.js dependencies
+let lastHR = 0;
+const samples = [];
+function calcNP(arr) {
+  const powers = arr.map(s => s.power ?? 0);
+  if (powers.length < 30) return null;
+  let sum4 = 0, count = 0;
+  for (let i = 29; i < powers.length; i++) {
+    const w30 = powers.slice(i - 29, i + 1);
+    const a30 = w30.reduce((a, b) => a + b, 0) / 30;
+    sum4 += a30 ** 4; count++;
+  }
+  return Math.round((sum4 / count) ** 0.25);
+}
+</script>
+<script src="../js/hrfit.js"></script>
+<script>
+const out = document.getElementById('out');
+function log(msg) { out.textContent += msg + '\n'; }
+function assert(cond, msg) { log(cond ? `PASS  ${msg}` : `FAIL  ${msg}`); }
+
+// Build synthetic samples: 4 minutes, power ramps 100→250W, HR = 0.3*P + 60
+function makeSamples(n, basePwr, slope, hrIntercept) {
+  const arr = [];
+  for (let i = 0; i < n; i++) {
+    arr.push({ power: basePwr + slope * i / n, hr: hrIntercept + 0.3 * (basePwr + slope * i / n), t: Date.now() + i * 1000 });
+  }
+  return arr;
+}
+
+// ── Test 1: snapshotMinute with insufficient power data ──
+clearMinutePoints();
+samples.length = 0;
+for (let i = 0; i < 60; i++) samples.push({ power: null, hr: 120, t: Date.now() });
+lastHR = 120;
+snapshotMinute();
+assert(minutePoints.length === 0, 'no snapshot when < 30 power samples');
+
+// ── Test 2: snapshotMinute with valid data ──
+clearMinutePoints();
+samples.length = 0;
+for (let i = 0; i < 60; i++) samples.push({ power: 200, hr: 140, t: Date.now() });
+lastHR = 140;
+snapshotMinute();
+assert(minutePoints.length === 1, 'snapshot taken with valid data');
+assert(minutePoints[0].avgPwr === 200, `avgPwr=200 (got ${minutePoints[0].avgPwr})`);
+assert(minutePoints[0].hr    === 140, `hr=140 (got ${minutePoints[0].hr})`);
+
+// ── Test 3: calcLinFit with < 3 points returns null ──
+clearMinutePoints();
+minutePoints.push({ avgPwr: 150, hr: 130, t: 0 });
+minutePoints.push({ avgPwr: 200, hr: 145, t: 0 });
+assert(calcLinFit() === null, 'null when < 3 points');
+
+// ── Test 4: known linear relationship: HR = 0.3*P + 60 ──
+clearMinutePoints();
+[[100,90],[150,105],[200,120],[250,135],[300,150]].forEach(([p,h]) =>
+  minutePoints.push({ avgPwr: p, hr: h, t: 0 }));
+const fit = calcLinFit();
+assert(fit !== null, 'fit returned for 5 points');
+assert(Math.abs(fit.m - 0.3) < 0.001, `slope ≈ 0.3 (got ${fit.m.toFixed(4)})`);
+assert(Math.abs(fit.c - 60)  < 0.5,   `intercept ≈ 60 (got ${fit.c.toFixed(2)})`);
+assert(Math.abs(fit.r2 - 1)  < 0.001, `r²≈1 for perfect fit (got ${fit.r2.toFixed(4)})`);
+
+// ── Test 5: clearMinutePoints ──
+clearMinutePoints();
+assert(minutePoints.length === 0, 'clearMinutePoints empties array');
+
+log('\nDone.');
+</script>
+</body>
+</html>

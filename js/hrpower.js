@@ -80,6 +80,35 @@ function drawHRPower() {
     ctx.fill();
   });
 
+  // Per-minute snapshots — larger cyan dots
+  if (minutePoints.length > 0) {
+    ctx.fillStyle = 'rgba(100,210,255,0.9)';
+    for (const p of minutePoints) {
+      if (p.avgPwr > pMin && p.avgPwr < pMax && p.hr > hMin && p.hr < hMax) {
+        ctx.beginPath();
+        ctx.arc(xOf(p.avgPwr), yOf(p.hr), 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Regression line + label
+  const fit = calcLinFit();
+  if (fit) {
+    const ly1 = fit.m * pMin + fit.c;
+    const ly2 = fit.m * pMax + fit.c;
+    ctx.strokeStyle = 'rgba(100,210,255,0.75)';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(xOf(pMin), yOf(ly1));
+    ctx.lineTo(xOf(pMax), yOf(ly2));
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(100,210,255,0.9)';
+    ctx.font      = '9px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`m=${fit.m.toFixed(3)} c=${Math.round(fit.c)}`, PAD.left + 2, PAD.top + 10);
+  }
+
   // Axis label
   ctx.fillStyle = C.label;
   ctx.font      = '9px monospace';

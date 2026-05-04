@@ -115,6 +115,7 @@ function onSessionStarted() {
   document.getElementById('btn-start-session').disabled = true;
   document.getElementById('btn-stop-session').disabled  = false;
   clearChartData();
+  clearMinutePoints();
   startChartLoop();
   _timerInterval = setInterval(updateSessionTimer, 1000);
 }
@@ -154,7 +155,8 @@ function onSampleTaken() {
   const target = (servoActive || ergActive) ? ergSetpoint : null;
   pushChartPoint(s.hr, s.power, np, s.cadence, target, currentRMSSD, lastSpeed, lastResistance);
 
-  // Refresh metrics every 5 samples; charts every 30 s
+  // Refresh metrics every 5 samples; charts every 30 s; minute snapshot
+  if (samples.length % 60 === 0) snapshotMinute();
   if (samples.length % 5  === 0) updateSessionMetrics();
   if (samples.length % 30 === 0) { drawPowerCurve(); drawHRPower(); }
 }
@@ -232,6 +234,13 @@ function updateSessionMetrics() {
   const hmLast = calcClimb(last);
   setStatBox('workout', 'hm', hmAll  > 0 ? `${hmAll}`  : '—');
   setStatBox('recent',  'hm', hmLast > 0 ? `${hmLast}` : '—');
+
+  // HR vs Power linear fit
+  const fit = calcLinFit();
+  setStatBox('workout', 'fit_m', fit ? fit.m.toFixed(3) : '—');
+  setStatBox('workout', 'fit_c', fit ? Math.round(fit.c).toString() : '—');
+  setStatBox('recent',  'fit_m', fit ? fit.m.toFixed(3) : '—');
+  setStatBox('recent',  'fit_c', fit ? Math.round(fit.c).toString() : '—');
 }
 
 // ── DOM text helpers ──────────────────────────────────────────────────────────
