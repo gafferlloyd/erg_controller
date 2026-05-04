@@ -108,9 +108,17 @@ class Bridge:
 
         hints = hr_name_hints or []
         if hints:
-            self._hr_clients = [BleHrClient(self._on_notify, [h]) for h in hints]
+            self._hr_clients = [
+                BleHrClient(self._on_notify, [h],
+                            on_connected=self._on_hr_connected,
+                            on_disconnected=self._on_hr_disconnected)
+                for h in hints
+            ]
         else:
-            self._hr_clients = [BleHrClient(self._on_notify, None)]
+            self._hr_clients = [BleHrClient(self._on_notify, None,
+                                            on_connected=self._on_hr_connected,
+                                            on_disconnected=self._on_hr_disconnected)]
+        self._hr_tasks: list = []
 
     # ── KICKR status helpers ──────────────────────────────────────────────────
 
@@ -130,6 +138,14 @@ class Bridge:
 
     async def _on_kickr_disconnected(self):
         log.info('KICKR BLE disconnected')
+        await self._broadcast_status()
+
+    async def _on_hr_connected(self, name):
+        log.info('HR BLE connected: %s', name)
+        await self._broadcast_status()
+
+    async def _on_hr_disconnected(self):
+        log.info('HR BLE disconnected')
         await self._broadcast_status()
 
     async def _broadcast_status(self):
@@ -170,7 +186,7 @@ class Bridge:
             log.info('KICKR BLE scanner started')
 
         for client in self._hr_clients:
-            asyncio.ensure_future(client.run())
+            self._hr_tasks.append(asyncio.ensure_future(client.run()))
         log.info('BLE HR scanners started (%d)', len(self._hr_clients))
 
     # ── Notify / WebSocket broadcast ──────────────────────────────────────────
@@ -238,6 +254,27 @@ class Bridge:
                 await self._kickr_ble.write_cp(data)
         elif cmd == 'connect_dircon':
             asyncio.ensure_future(self._attempt_dircon())
+        elif cmd == 'switch_hr':
+            name = msg.get('name', '').strip()
+            if name:
+                asyncio.ensure_future(self._switch_hr(name))
+
+    async def _switch_hr(self, name: str):
+        """Cancel current HR tasks and start a fresh scan for a specific device."""
+        log.info('HR: switching to %s', name)
+        for task in self._hr_tasks:
+            task.cancel()
+        if self._hr_tasks:
+            await asyncio.gather(*self._hr_tasks, return_exceptions=True)
+        self._hr_tasks.clear()
+        for c in self._hr_clients:
+            c.device_name = None
+        new_client = BleHrClient(self._on_notify, [name],
+                                 on_connected=self._on_hr_connected,
+                                 on_disconnected=self._on_hr_disconnected)
+        self._hr_clients = [new_client]
+        self._hr_tasks.append(asyncio.ensure_future(new_client.run()))
+        await self._broadcast_status()
 
     async def _attempt_dircon(self):
         """Discover KICKR via mDNS and connect via DIRCON TCP."""

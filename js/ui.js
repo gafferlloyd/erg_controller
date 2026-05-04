@@ -346,7 +346,8 @@ function adjustErg(delta) {
 function wireButtons() {
   bindClick('btn-connect-trainer', () => connectDircon());
   bindClick('btn-connect-dircon',  () => connectDirconWifi());
-  bindClick('btn-connect-hr',      () => connectDircon());
+  bindClick('btn-hr-cb100', () => switchHR('CB100'));
+  bindClick('btn-hr-fenix', () => switchHR('Fenix'));
   bindClick('btn-servo',           () => toggleServo());
   bindClick('btn-pause-servo',     () => toggleServoPause());
   bindClick('btn-pause-workout',   () => toggleWorkoutPause());

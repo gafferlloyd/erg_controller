@@ -69,6 +69,16 @@ function connectDirconWifi() {
   return connectDircon(DIRCON_WS_DEFAULT, { cmd: 'connect_dircon' });
 }
 
+// HR buttons — cancel current HR connection and scan for a specific device.
+function switchHR(name) {
+  if (!_dirconWs || _dirconWs.readyState !== WebSocket.OPEN) {
+    log('HR switch: WebSocket not open', 'warn');
+    return;
+  }
+  setPill('hr', false, `${name}…`);
+  _dirconWs.send(JSON.stringify({ cmd: 'switch_hr', name }));
+}
+
 async function connectDircon(wsUrl = DIRCON_WS_DEFAULT, extraCmd = null) {
   if (_dirconWs) { _dirconWs.close(); _dirconWs = null; }
   setPill('trainer', false, extraCmd ? 'WiFi…' : 'BLE…');
@@ -103,6 +113,8 @@ async function connectDircon(wsUrl = DIRCON_WS_DEFAULT, extraCmd = null) {
           hrLive = true;
           setPill('hr', true, msg.hr);
           log(`HR connected: ${msg.hr}`, 'ok');
+        } else {
+          setPill('hr', false, 'Searching…');
         }
       } else if (msg.type === 'notify') {
         const s = msg.uuid.replace(/-/g, '').toLowerCase().slice(4, 8);
