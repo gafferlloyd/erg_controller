@@ -156,7 +156,7 @@ function onSampleTaken() {
   pushChartPoint(s.hr, s.power, np, s.cadence, target, currentRMSSD, lastSpeed, lastResistance);
 
   // Refresh metrics every 5 samples; charts every 30 s; minute snapshot
-  if (samples.length % 60 === 0) snapshotMinute();
+  if (samples.length % 60 === 0) { snapshotMinute(); showMinutePopup(); }
   if (samples.length % 5  === 0) updateSessionMetrics();
   if (samples.length % 30 === 0) { drawPowerCurve(); drawHRPower(); }
 }

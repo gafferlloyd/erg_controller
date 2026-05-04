@@ -289,6 +289,19 @@
 
 </div><!-- /page-layout -->
 
+<!-- Minute popup — populated and shown by showMinutePopup() in hrfit.js -->
+<div id="minute-popup">
+  <div class="mp-cell"><span class="mp-lbl">Avg Power</span><span class="mp-num sv-pwr"   data-mp="avgpwr">—</span><span class="mp-unit">W</span></div>
+  <div class="mp-cell"><span class="mp-lbl">NP</span>        <span class="mp-num sv-np"    data-mp="np">—</span>    <span class="mp-unit">W</span></div>
+  <div class="mp-cell"><span class="mp-lbl">HR</span>        <span class="mp-num sv-hr"    data-mp="hr">—</span>    <span class="mp-unit">bpm</span></div>
+  <div class="mp-cell"><span class="mp-lbl">Slope m</span>   <span class="mp-num sv-fit"   data-mp="fit_m">—</span> <span class="mp-unit">bpm/W</span></div>
+  <div class="mp-cell"><span class="mp-lbl">HR @ 0W</span>   <span class="mp-num sv-fit"   data-mp="fit_c">—</span> <span class="mp-unit">bpm</span></div>
+  <div class="mp-cell"><span class="mp-lbl">HRV</span>       <span class="mp-num sv-hrv"   data-mp="hrv">—</span>   <span class="mp-unit">ms</span></div>
+  <div class="mp-cell"><span class="mp-lbl">Cadence</span>   <span class="mp-num sv-cad"   data-mp="cadence">—</span><span class="mp-unit">rpm</span></div>
+  <div class="mp-cell"><span class="mp-lbl">Speed</span>     <span class="mp-num"          data-mp="speed">—</span>  <span class="mp-unit">km/h</span></div>
+  <div class="mp-cell"><span class="mp-lbl">Minute</span>    <span class="mp-num sv-amber" data-mp="minute">—</span> <span class="mp-unit"></span></div>
+</div>
+
 <!-- Scripts — load order matches dependency graph -->
 <script src="js/log.js"></script>
 <script src="js/ble.js"></script>

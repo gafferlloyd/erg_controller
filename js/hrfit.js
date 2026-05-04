@@ -43,3 +43,30 @@ function calcLinFit() {
 }
 
 function clearMinutePoints() { minutePoints.length = 0; }
+
+// Populate and show the minute popup for 5 s (CSS animation handles timing).
+function showMinutePopup() {
+  const el = document.getElementById('minute-popup');
+  if (!el) return;
+  const last = minutePoints.length ? minutePoints[minutePoints.length - 1] : null;
+  const fit  = calcLinFit();
+
+  function set(id, val) {
+    const node = el.querySelector(`[data-mp="${id}"]`);
+    if (node) node.textContent = val != null ? String(val) : '—';
+  }
+
+  set('avgpwr',  last ? last.avgPwr : null);
+  set('np',      last && last.np != null ? last.np : null);
+  set('hr',      last ? last.hr : null);
+  set('fit_m',   fit  ? fit.m.toFixed(3) : null);
+  set('fit_c',   fit  ? Math.round(fit.c) : null);
+  set('hrv',     currentRMSSD != null ? currentRMSSD : null);
+  set('cadence', lastCadence  != null ? Math.round(lastCadence) : null);
+  set('speed',   lastSpeed    != null ? lastSpeed.toFixed(1) : null);
+  set('minute',  minutePoints.length);
+
+  el.classList.remove('mp-show');
+  void el.offsetWidth;          // force reflow to restart animation
+  el.classList.add('mp-show');
+}
