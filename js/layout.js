@@ -15,20 +15,20 @@ const METRICS = [
   { id: 'tss',    lbl: 'TSS',      unit: '',     cls: ''    },
   { id: 'hrv',    lbl: 'HRV',      unit: 'ms',   cls: 'hrv' },
   { id: 'hm',     lbl: 'Hm',       unit: 'm',    cls: ''    },
-  { id: 'fit_m',  lbl: 'HR slope', unit: 'b/W',  cls: ''    },
-  { id: 'fit_c',  lbl: 'HR@0W',    unit: 'bpm',  cls: 'hr'  },
+  { id: 'fit_m',  lbl: 'Efficiency', unit: 'W/b',  cls: ''    },
+  { id: 'fit_c',  lbl: 'HR@0W',     unit: 'bpm',  cls: 'hr'  },
   { id: '_',      lbl: '',         unit: '',     cls: ''    },
 ];
 const METRIC_IDX = Object.fromEntries(METRICS.map((m, i) => [m.id, i]));
 
-const LAYOUT_KEY = 'erg_layout_v1';
+const LAYOUT_KEY = 'erg_layout_v2';
 const LAYOUT_DEFAULTS = {
   scaleWk: 1.0,
   scaleRc: 1.0,
   window:  2,
-  wBoxes:  13,
+  wBoxes:  15,
   rBoxes:  8,
-  workout: ['np','avgpwr','avghr','avgcad','avgspd','dist','hm','wpbpm','npbpm','dcpl','if','tss','hrv'],
+  workout: ['np','avgpwr','avghr','avgcad','avgspd','dist','hm','wpbpm','npbpm','dcpl','if','tss','hrv','fit_m','fit_c'],
   recent:  ['np','avgpwr','avghr','avgcad','hm','wpbpm','npbpm','hrv','_','_','_','_'],
 };
 let layoutCfg = { ...LAYOUT_DEFAULTS };

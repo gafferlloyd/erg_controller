@@ -111,7 +111,7 @@ function drawHRPower(canvasId = 'hr-power-canvas', fSize = 9) {
     ctx.fillStyle = 'rgba(100,210,255,0.9)';
     ctx.font      = `${fSize}px monospace`;
     ctx.textAlign = 'left';
-    ctx.fillText(`m=${fit.m.toFixed(3)} c=${Math.round(fit.c)}`, PAD.left + 2, PAD.top + fSize + 1);
+    ctx.fillText(`eff=${(1/fit.m).toFixed(1)}W/b  c=${Math.round(fit.c)}`, PAD.left + 2, PAD.top + fSize + 1);
   }
 
   // Axis label

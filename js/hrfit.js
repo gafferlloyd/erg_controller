@@ -77,7 +77,7 @@ function showMinutePopup() {
   set('avgpwr',  last ? last.avgPwr : null);
   set('np',      last && last.np != null ? last.np : null);
   set('hr',      last ? last.hr : null);
-  set('fit_m',   fit  ? fit.m.toFixed(3) : null);
+  set('fit_m',   fit && fit.m ? (1 / fit.m).toFixed(1) : null);
   set('fit_c',   fit  ? Math.round(fit.c) : null);
   set('hrv',     currentRMSSD != null ? currentRMSSD : null);
   set('cadence', last ? last.avgCad : null);

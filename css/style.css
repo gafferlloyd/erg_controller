@@ -647,12 +647,11 @@ label { cursor: pointer; }
   display: flex;
   gap: 16px;
   padding: 20px;
-  width: 80vw;
-  max-width: 1400px;
 }
 #chart-popup canvas {
-  flex: 1;
-  aspect-ratio: 1 / 1;
+  width: 380px;
+  height: 380px;
+  flex: none;
   display: block;
 }
 #chart-popup.cp-show {

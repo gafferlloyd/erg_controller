@@ -238,9 +238,9 @@ function updateSessionMetrics() {
 
   // HR vs Power linear fit
   const fit = calcLinFit();
-  setStatBox('workout', 'fit_m', fit ? fit.m.toFixed(3) : '—');
+  setStatBox('workout', 'fit_m', fit && fit.m ? (1 / fit.m).toFixed(1) : '—');
   setStatBox('workout', 'fit_c', fit ? Math.round(fit.c).toString() : '—');
-  setStatBox('recent',  'fit_m', fit ? fit.m.toFixed(3) : '—');
+  setStatBox('recent',  'fit_m', fit && fit.m ? (1 / fit.m).toFixed(1) : '—');
   setStatBox('recent',  'fit_c', fit ? Math.round(fit.c).toString() : '—');
 }
 
