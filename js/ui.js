@@ -158,7 +158,8 @@ function onSampleTaken() {
   // Refresh metrics every 5 samples; charts every 30 s; minute snapshot
   if (samples.length % 60 === 0) { snapshotMinute(); showMinutePopup(); }
   if (samples.length % 5  === 0) updateSessionMetrics();
-  if (samples.length % 30 === 0) { drawPowerCurve(); drawHRPower(); showChartPopup(); }
+  if (samples.length % 30 === 0) { drawPowerCurve(); drawHRPower(); }
+  if (samples.length % 60 === 30) showChartPopup();
 }
 
 // ── Metrics panel ─────────────────────────────────────────────────────────────
