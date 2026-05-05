@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>test_chartpopup</title>
+<style>
+  body { background: #0d1117; color: #c9d1d9; font-family: monospace; padding: 16px; }
+  button { margin: 4px; padding: 8px 16px; font-family: monospace; cursor: pointer; }
+  #chart-popup {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    z-index: 1001; opacity: 0; pointer-events: none;
+    background: rgba(13,17,23,0.98); border: 2px solid #30363d; border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+    display: flex; gap: 16px; padding: 20px; width: 80vw; max-width: 1400px;
+  }
+  #chart-popup canvas { flex: 1; aspect-ratio: 1/1; display: block; }
+  #chart-popup.cp-show { animation: mp-fade 5s ease forwards; }
+  @keyframes mp-fade {
+    0%  { opacity: 0; } 8%  { opacity: 1; } 78% { opacity: 1; } 100% { opacity: 0; }
+  }
+</style>
+</head>
+<body>
+<h3>Chart Popup Test</h3>
+<button onclick="triggerPopup()">Show popup (fSize=20)</button>
+<button onclick="triggerSmall()">Show popup (fSize=9)</button>
+
+<div id="chart-popup">
+  <canvas id="popup-power-curve-canvas"></canvas>
+  <canvas id="popup-hr-power-canvas"></canvas>
+</div>
+
+<script>
+// Minimal stubs
+const profile = { ftp: 250, maxHR: 180, restHR: 50 };
+const samples = [];
+const minutePoints = [];
+const MMP_DURATIONS = [1,2,3,5,8,10,15,20,30,45,60,90,120,180,300,480,600,1200,1800,3600];
+
+// Inject synthetic data
+for (let i = 0; i < 600; i++) {
+  samples.push({
+    power: 150 + Math.sin(i / 60) * 80 + Math.random() * 20,
+    hr:    130 + Math.sin(i / 120) * 20 + Math.random() * 5,
+    cadence: 88 + Math.random() * 4,
+  });
+}
+for (let m = 1; m <= 8; m++) {
+  minutePoints.push({ avgPwr: 160 + m * 10, hr: 130 + m * 3 });
+}
+
+function calcLinFit() {
+  const pts = minutePoints.filter(p => p.avgPwr > 0 && p.hr > 0);
+  if (pts.length < 3) return null;
+  const n = pts.length;
+  let sx=0,sy=0,sxy=0,sx2=0;
+  for (const p of pts) { sx+=p.avgPwr; sy+=p.hr; sxy+=p.avgPwr*p.hr; sx2+=p.avgPwr**2; }
+  const d = n*sx2-sx*sx;
+  if (Math.abs(d) < 1e-9) return null;
+  const m=(n*sxy-sx*sy)/d, c=(sy-m*sx)/n;
+  return {m,c,r2:0.9};
+}
+
+function calcMMP(s) {
+  return MMP_DURATIONS.filter(d => d <= s.length).map(d => ({
+    dur: d,
+    power: Math.round(300 - d * 0.05 + Math.random() * 5),
+  }));
+}
+function calcNPCurve(s) { return calcMMP(s).map(p => ({dur:p.dur, power:Math.round(p.power*0.95)})); }
+function niceTicks(lo,hi,n){
+  const r=hi-lo,s=Math.pow(10,Math.floor(Math.log10(r/n)));
+  const ns=[1,2,5,10].map(f=>f*s).find(v=>r/v<=n+1)||s;
+  const st=Math.ceil(lo/ns)*ns,t=[];
+  for(let v=st;v<=hi+0.001;v+=ns)t.push(Math.round(v));
+  return t;
+}
+</script>
+<script src="../js/chart.js"></script>
+<script src="../js/hrpower.js"></script>
+<script src="../js/chartpopup.js"></script>
+<script>
+function triggerPopup() { showChartPopup(); }
+function triggerSmall() {
+  const el = document.getElementById('chart-popup');
+  if (!el) return;
+  drawPowerCurve('popup-power-curve-canvas', 9);
+  drawHRPower('popup-hr-power-canvas', 9);
+  el.classList.remove('cp-show');
+  void el.offsetWidth;
+  el.classList.add('cp-show');
+}
+</script>
+</body>
+</html>

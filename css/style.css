@@ -358,7 +358,7 @@ label { cursor: pointer; }
 /* ── Main display grid ─────────────────────────────── */
 .main-display {
   display: grid;
-  grid-template-columns: 160px 1fr 120px;
+  grid-template-columns: 1fr 1fr 120px;
   gap: 6px;
   height: 260px;
   flex-shrink: 0;
@@ -630,3 +630,31 @@ label { cursor: pointer; }
 .mp-num.sv-hrv   { color: var(--green2); }
 .mp-num.sv-cad   { color: var(--blue2); }
 .mp-num.sv-amber { color: var(--amber); }
+
+/* ── 30-second chart popup ─────────────────────────── */
+#chart-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1001;
+  opacity: 0;
+  pointer-events: none;
+  background: rgba(13,17,23,0.98);
+  border: 2px solid var(--border2);
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  width: 80vw;
+  max-width: 1400px;
+}
+#chart-popup canvas {
+  flex: 1;
+  aspect-ratio: 1 / 1;
+  display: block;
+}
+#chart-popup.cp-show {
+  animation: mp-fade 5s ease forwards;
+}

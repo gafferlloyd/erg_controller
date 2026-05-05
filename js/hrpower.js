@@ -7,8 +7,8 @@
 //                          session.js (samples)
 //                          profile.js (profile)
 
-function drawHRPower() {
-  const c = getCtx('hr-power-canvas');
+function drawHRPower(canvasId = 'hr-power-canvas', fSize = 9) {
+  const c = getCtx(canvasId);
   if (!c) return;
   const { ctx, w, h } = c;
 
@@ -18,13 +18,18 @@ function drawHRPower() {
 
   if (!valid.length) {
     ctx.fillStyle = C.label;
-    ctx.font      = '10px monospace';
+    ctx.font      = `${fSize + 1}px monospace`;
     ctx.textAlign = 'center';
     ctx.fillText('No data yet', w / 2, h / 2);
     return;
   }
 
-  const PAD = { top: 12, right: 8, bottom: 22, left: 36 };
+  const PAD = {
+    top:    Math.round(fSize * 1.3),
+    right:  Math.round(fSize * 0.9),
+    bottom: Math.round(fSize * 2.5),
+    left:   Math.round(fSize * 4),
+  };
   const cw  = w - PAD.left - PAD.right;
   const ch  = h - PAD.top  - PAD.bottom;
 
@@ -55,7 +60,7 @@ function drawHRPower() {
   ctx.strokeStyle = C.grid;
   ctx.lineWidth   = 0.5;
   ctx.fillStyle   = C.label;
-  ctx.font        = '9px monospace';
+  ctx.font        = `${fSize}px monospace`;
 
   ctx.textAlign = 'right';
   for (const t of niceTicks(hMin, hMax, 4)) {
@@ -104,14 +109,14 @@ function drawHRPower() {
     ctx.lineTo(xOf(pMax), yOf(ly2));
     ctx.stroke();
     ctx.fillStyle = 'rgba(100,210,255,0.9)';
-    ctx.font      = '9px monospace';
+    ctx.font      = `${fSize}px monospace`;
     ctx.textAlign = 'left';
-    ctx.fillText(`m=${fit.m.toFixed(3)} c=${Math.round(fit.c)}`, PAD.left + 2, PAD.top + 10);
+    ctx.fillText(`m=${fit.m.toFixed(3)} c=${Math.round(fit.c)}`, PAD.left + 2, PAD.top + fSize + 1);
   }
 
   // Axis label
   ctx.fillStyle = C.label;
-  ctx.font      = '9px monospace';
+  ctx.font      = `${fSize}px monospace`;
   ctx.textAlign = 'center';
   ctx.fillText('Power (W)', PAD.left + cw / 2, h - 4);
 }

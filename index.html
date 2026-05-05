@@ -306,6 +306,12 @@
   <div class="mp-cell"><span class="mp-lbl">HRV</span>        <span class="mp-num sv-hrv"   data-mp="hrv">—</span>   <span class="mp-unit">ms</span></div>
 </div>
 
+<!-- 30-second chart popup — drawn by showChartPopup() in chartpopup.js -->
+<div id="chart-popup">
+  <canvas id="popup-power-curve-canvas"></canvas>
+  <canvas id="popup-hr-power-canvas"></canvas>
+</div>
+
 <!-- Scripts — load order matches dependency graph -->
 <script src="js/log.js"></script>
 <script src="js/ble.js"></script>
@@ -317,6 +323,7 @@
 <script src="js/workout.js"></script>
 <script src="js/chart.js"></script>
 <script src="js/hrpower.js"></script>
+<script src="js/chartpopup.js"></script>
 <script src="js/hrfit.js"></script>
 <script src="js/fit.js"></script>
 <script src="js/layout.js"></script>

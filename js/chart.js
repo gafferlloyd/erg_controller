@@ -9,8 +9,8 @@ const ROLLING_SECS = 120;
 
 // ── Layout constants (fractions of canvas height) ─────────────────────────────
 const BAND = {
-  power:   { top: 0.00, bot: 0.45 },
-  hr:      { top: 0.47, bot: 0.78 },
+  hr:      { top: 0.00, bot: 0.31 },
+  power:   { top: 0.33, bot: 0.78 },
   cadence: { top: 0.80, bot: 1.00 },
 };
 
@@ -232,7 +232,7 @@ function drawOverview() {
   const gRange = gearRange(data);
 
   drawHRZoneBands(ctx, w, h, hRange.min, hRange.max);
-  drawBandSeparator(ctx, w, h, BAND.hr.top);
+  drawBandSeparator(ctx, w, h, BAND.power.top);
   drawBandSeparator(ctx, w, h, BAND.cadence.top);
 
   // Map each data point to an x pixel
@@ -295,7 +295,7 @@ function drawRolling() {
   const gRange = gearRange(data);
 
   drawHRZoneBands(ctx, w, h, hRange.min, hRange.max);
-  drawBandSeparator(ctx, w, h, BAND.hr.top);
+  drawBandSeparator(ctx, w, h, BAND.power.top);
   drawBandSeparator(ctx, w, h, BAND.cadence.top);
 
   // Fixed-width: each second is (w / ROLLING_SECS) pixels; right-aligned.
@@ -361,8 +361,8 @@ function drawRolling() {
 // Log-scale x-axis (duration), linear y-axis (watts).
 // mmpData / npData: [{dur, power}] from session.js calcMMP / calcNPCurve.
 
-function drawPowerCurve() {
-  const c = getCtx('power-curve-canvas');
+function drawPowerCurve(canvasId = 'power-curve-canvas', fSize = 9) {
+  const c = getCtx(canvasId);
   if (!c) return;
   const { ctx, w, h } = c;
   fillBg(ctx, w, h);
@@ -372,13 +372,18 @@ function drawPowerCurve() {
 
   if (!mmpData.length) {
     ctx.fillStyle = C.label;
-    ctx.font = '10px monospace';
+    ctx.font = `${fSize + 1}px monospace`;
     ctx.textAlign = 'center';
     ctx.fillText('No data yet', w / 2, h / 2);
     return;
   }
 
-  const PAD = { top: 12, right: 8, bottom: 22, left: 36 };
+  const PAD = {
+    top:    Math.round(fSize * 1.3),
+    right:  Math.round(fSize * 0.9),
+    bottom: Math.round(fSize * 2.5),
+    left:   Math.round(fSize * 4),
+  };
   const cw  = w - PAD.left - PAD.right;
   const ch  = h - PAD.top  - PAD.bottom;
 
@@ -406,7 +411,7 @@ function drawPowerCurve() {
   ctx.strokeStyle = C.grid;
   ctx.lineWidth   = 0.5;
   ctx.fillStyle   = C.label;
-  ctx.font        = '9px monospace';
+  ctx.font        = `${fSize}px monospace`;
   ctx.textAlign   = 'right';
   for (const t of pTicks) {
     const y = yOf(t);
@@ -422,7 +427,7 @@ function drawPowerCurve() {
   ];
   ctx.fillStyle = C.label;
   ctx.textAlign = 'center';
-  ctx.font      = '9px monospace';
+  ctx.font      = `${fSize}px monospace`;
   for (const [dur, lbl] of xLabels) {
     if (dur < durMin || dur > durMax) continue;
     const x = xOf(dur);
@@ -473,10 +478,10 @@ function drawPowerCurve() {
   }
 
   // Legend
-  ctx.font = '9px monospace';
+  ctx.font = `${fSize}px monospace`;
   ctx.textAlign = 'left';
-  ctx.fillStyle = C.power; ctx.fillText('MMP', PAD.left + 2, PAD.top + 10);
-  ctx.fillStyle = C.np;    ctx.fillText('NP',  PAD.left + 2, PAD.top + 20);
+  ctx.fillStyle = C.power; ctx.fillText('MMP', PAD.left + 2, PAD.top + fSize + 1);
+  ctx.fillStyle = C.np;    ctx.fillText('NP',  PAD.left + 2, PAD.top + fSize * 2 + 2);
 }
 
 // ── Utility: nice tick values ─────────────────────────────────────────────────
