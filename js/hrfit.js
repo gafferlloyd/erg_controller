@@ -12,7 +12,25 @@ function snapshotMinute() {
   if (!lastHR || lastHR <= 0) return;
   const avgPwr = Math.round(withPwr.reduce((a, s) => a + s.power, 0) / withPwr.length);
   const np     = calcNP(slice);
-  minutePoints.push({ avgPwr, np, hr: lastHR, t: Date.now() });
+
+  const withCad = slice.filter(s => s.cadence != null && s.cadence > 0);
+  const avgCad  = withCad.length
+    ? Math.round(withCad.reduce((a, s) => a + s.cadence, 0) / withCad.length)
+    : null;
+
+  const withSpd = slice.filter(s => s.speed != null && s.speed > 0);
+  const avgSpd  = withSpd.length
+    ? (withSpd.reduce((a, s) => a + s.speed, 0) / withSpd.length).toFixed(1)
+    : null;
+
+  const totalVert = slice.reduce((a, s) => {
+    if (s.speed == null || s.grade == null) return a;
+    const dh = (s.speed / 3.6) * (s.grade / 100);
+    return a + (dh > 0 ? dh : 0);
+  }, 0);
+  const avgVam = Math.round(totalVert * 60);
+
+  minutePoints.push({ avgPwr, np, hr: lastHR, avgCad, avgSpd, avgVam, t: Date.now() });
 }
 
 // Least-squares linear regression: y = mx + c  (x = avgPwr, y = hr)
@@ -62,8 +80,9 @@ function showMinutePopup() {
   set('fit_m',   fit  ? fit.m.toFixed(3) : null);
   set('fit_c',   fit  ? Math.round(fit.c) : null);
   set('hrv',     currentRMSSD != null ? currentRMSSD : null);
-  set('cadence', lastCadence  != null ? Math.round(lastCadence) : null);
-  set('speed',   lastSpeed    != null ? lastSpeed.toFixed(1) : null);
+  set('cadence', last ? last.avgCad : null);
+  set('speed',   last ? last.avgSpd : null);
+  set('vam',     last ? last.avgVam : null);
   set('minute',  minutePoints.length);
 
   el.classList.remove('mp-show');
