@@ -6,8 +6,8 @@
 function showChartPopup() {
   const el = document.getElementById('chart-popup');
   if (!el) return;
-  drawPowerCurve('popup-power-curve-canvas', 14);
-  drawHRPower('popup-hr-power-canvas', 14);
+  drawPowerCurve('popup-power-curve-canvas', 20);
+  drawHRPower('popup-hr-power-canvas', 20);
   el.classList.remove('cp-show');
   void el.offsetWidth;
   el.classList.add('cp-show');

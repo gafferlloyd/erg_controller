@@ -33,24 +33,21 @@ function snapshotMinute() {
   minutePoints.push({ avgPwr, np, hr: lastHR, avgCad, avgSpd, avgVam, t: Date.now() });
 }
 
-// Least-squares linear regression: y = mx + c  (x = avgPwr, y = hr)
+// Least-squares slope with intercept fixed at 20% HRR (aerobic baseline).
+// c = restHR + 0.20 × (maxHR − restHR);  m = Σ xᵢ(yᵢ − c) / Σ xᵢ²
 // Returns {m, c, r2} or null if fewer than 3 points.
 function calcLinFit() {
   const pts = minutePoints.filter(p => p.avgPwr > 0 && p.hr > 0);
   if (pts.length < 3) return null;
-  const n = pts.length;
-  let sx = 0, sy = 0, sxy = 0, sx2 = 0;
+  const c = profile.restHR + 0.20 * (profile.maxHR - profile.restHR);
+  let sxy = 0, sx2 = 0;
   for (const p of pts) {
-    sx  += p.avgPwr;
-    sy  += p.hr;
-    sxy += p.avgPwr * p.hr;
+    sxy += p.avgPwr * (p.hr - c);
     sx2 += p.avgPwr ** 2;
   }
-  const denom = n * sx2 - sx * sx;
-  if (Math.abs(denom) < 1e-9) return null;
-  const m    = (n * sxy - sx * sy) / denom;
-  const c    = (sy - m * sx) / n;
-  const meanY = sy / n;
+  if (sx2 < 1e-9) return null;
+  const m = sxy / sx2;
+  const meanY = pts.reduce((a, p) => a + p.hr, 0) / pts.length;
   let ss_tot = 0, ss_res = 0;
   for (const p of pts) {
     ss_tot += (p.hr - meanY) ** 2;
