@@ -6,6 +6,7 @@ const profile = {
   restHR:  43,
   maxHR:   173,
   ftp:     250,
+  wprime:  20000,  // W' anaerobic capacity (joules)
   modelA:  0.35,   // HR = modelA × Power + modelB
   modelB:  60,
 };
@@ -25,7 +26,7 @@ function saveProfile() {
   readProfileFromDOM();
   localStorage.setItem('erg_profile_v2', JSON.stringify(profile));
   localStorage.setItem('erg_char_v2',    JSON.stringify(hrCharStored));
-  const msg = `Profile saved — restHR ${profile.restHR}  maxHR ${profile.maxHR}  FTP ${profile.ftp}W`;
+  const msg = `Profile saved — restHR ${profile.restHR}  maxHR ${profile.maxHR}  FTP ${profile.ftp}W  W' ${profile.wprime}J`;
   log(msg, 'ok');
   document.getElementById('prof-status').textContent = 'Saved ✓';
   setTimeout(() => { document.getElementById('prof-status').textContent = ''; }, 2000);
@@ -39,13 +40,14 @@ function loadProfile() {
     if (char) hrCharStored = JSON.parse(char);
   } catch (_) {}
   writeProfileToDOM();
-  log(`Profile loaded — restHR ${profile.restHR}  maxHR ${profile.maxHR}  FTP ${profile.ftp}W  char ${hrCharStored.length} pts`, 'info');
+  log(`Profile loaded — restHR ${profile.restHR}  maxHR ${profile.maxHR}  FTP ${profile.ftp}W  W' ${profile.wprime}J  char ${hrCharStored.length} pts`, 'info');
 }
 
 function readProfileFromDOM() {
   profile.restHR  = parseInt(document.getElementById('prof-rest').value)    || profile.restHR;
   profile.maxHR   = parseInt(document.getElementById('prof-max').value)      || profile.maxHR;
   profile.ftp     = parseInt(document.getElementById('prof-ftp').value)      || profile.ftp;
+  profile.wprime  = parseInt(document.getElementById('prof-wprime').value)   || profile.wprime;
   profile.modelA  = parseFloat(document.getElementById('prof-model-a').value) || profile.modelA;
   profile.modelB  = parseFloat(document.getElementById('prof-model-b').value) || profile.modelB;
 }
@@ -54,6 +56,7 @@ function writeProfileToDOM() {
   document.getElementById('prof-rest').value    = profile.restHR;
   document.getElementById('prof-max').value     = profile.maxHR;
   document.getElementById('prof-ftp').value     = profile.ftp;
+  document.getElementById('prof-wprime').value  = profile.wprime;
   document.getElementById('prof-model-a').value = profile.modelA;
   document.getElementById('prof-model-b').value = profile.modelB;
 }

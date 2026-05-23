@@ -17,6 +17,8 @@ const METRICS = [
   { id: 'hm',     lbl: 'Hm',       unit: 'm',    cls: ''    },
   { id: 'fit_m',  lbl: 'Efficiency', unit: 'W/b',  cls: ''    },
   { id: 'fit_c',  lbl: 'HR@0W',     unit: 'bpm',  cls: 'hr'  },
+  { id: 'wbal',     lbl: "W'bal",   unit: 'kJ',  cls: ''    },
+  { id: 'wbal_min', lbl: "W'min",   unit: 'kJ',  cls: ''    },
   { id: '_',      lbl: '',         unit: '',     cls: ''    },
 ];
 const METRIC_IDX = Object.fromEntries(METRICS.map((m, i) => [m.id, i]));
@@ -28,8 +30,8 @@ const LAYOUT_DEFAULTS = {
   window:  2,
   wBoxes:  15,
   rBoxes:  8,
-  workout: ['np','avgpwr','avghr','avgcad','avgspd','dist','hm','wpbpm','npbpm','dcpl','if','tss','hrv','fit_m','fit_c'],
-  recent:  ['np','avgpwr','avghr','avgcad','hm','wpbpm','npbpm','hrv','_','_','_','_'],
+  workout: ['np','avgpwr','avghr','avgcad','avgspd','dist','hm','wpbpm','npbpm','dcpl','if','tss','hrv','fit_m','fit_c','wbal','wbal_min'],
+  recent:  ['np','avgpwr','avghr','avgcad','hm','wpbpm','npbpm','hrv','wbal','wbal_min','_','_'],
 };
 let layoutCfg = { ...LAYOUT_DEFAULTS };
 

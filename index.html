@@ -52,7 +52,8 @@
       <div class="sidebar-head">Profile</div>
       <div class="profile-row"><label>Rest HR</label>  <input type="number" id="prof-rest"    value="43"   min="30"  max="80"  step="1"  ><span>bpm</span></div>
       <div class="profile-row"><label>Max HR</label>   <input type="number" id="prof-max"     value="173"  min="100" max="230" step="1"  ><span>bpm</span></div>
-      <div class="profile-row"><label>FTP</label>      <input type="number" id="prof-ftp"     value="250"  min="50"  max="600" step="5"  ><span>W</span></div>
+      <div class="profile-row"><label>FTP</label>      <input type="number" id="prof-ftp"     value="250"  min="50"  max="600"   step="5"  ><span>W</span></div>
+      <div class="profile-row"><label>W'</label>       <input type="number" id="prof-wprime"  value="20000" min="5000" max="60000" step="500"><span>J</span></div>
       <div class="profile-row"><label>Model A</label>  <input type="number" id="prof-model-a" value="0.35" min="0.1" max="1"   step="0.01"></div>
       <div class="profile-row"><label>Model B</label>  <input type="number" id="prof-model-b" value="60"   min="20"  max="100" step="1"  ></div>
       <button id="btn-save-profile" class="full-btn" style="margin-top:5px">Save Profile</button>
@@ -171,6 +172,9 @@
       <div class="chart-panel">
         <canvas id="rolling-canvas"></canvas>
       </div>
+      <div class="wbal-panel" id="wbal-panel">
+        <canvas id="wbal-canvas"></canvas>
+      </div>
       <div class="values-panel">
         <div class="cv-block hr" id="cv-hr">
           <div class="cv-val">—</div>
@@ -226,18 +230,6 @@
           <span id="rc-grid-info" style="opacity:0.5"></span>
         </div>
         <div class="stat-grid" id="grid-recent"></div>
-      </div>
-    </div>
-
-    <!-- CHARTS ROW ═════════════════════════════════════ -->
-    <div class="charts-row">
-      <div class="power-curve-panel" id="power-curve-panel">
-        <div class="metric-head">Power Curve &nbsp;<span style="color:var(--blue2)">&#9644; MMP</span> &nbsp;<span style="color:var(--orange)">&#8943; NP (t&gt;2min)</span></div>
-        <canvas id="power-curve-canvas"></canvas>
-      </div>
-      <div class="hr-power-panel" id="hr-power-panel">
-        <div class="metric-head">HR vs Power</div>
-        <canvas id="hr-power-canvas"></canvas>
       </div>
     </div>
 
@@ -327,6 +319,7 @@
 <script src="js/hrfit.js"></script>
 <script src="js/fit.js"></script>
 <script src="js/layout.js"></script>
+<script src="js/wbal.js"></script>
 <script src="js/ui.js"></script>
 
 </body>

@@ -129,8 +129,7 @@ function onSessionStopped() {
   stopChartLoop();
   drawOverview();
   drawRolling();
-  drawPowerCurve();
-  drawHRPower();
+  drawWbalChart();
   updateSessionMetrics();
   downloadFit();
   downloadLog();
@@ -158,7 +157,7 @@ function onSampleTaken() {
   // Refresh metrics every 5 samples; charts every 30 s; minute snapshot
   if (samples.length % 60 === 0) { snapshotMinute(); showMinutePopup(); }
   if (samples.length % 5  === 0) updateSessionMetrics();
-  if (samples.length % 15 === 0) { drawPowerCurve(); drawHRPower(); showChartPopup(); }
+  if (samples.length % 15 === 0) { drawWbalChart(); showChartPopup(); }
 }
 
 // ── Metrics panel ─────────────────────────────────────────────────────────────
@@ -241,6 +240,17 @@ function updateSessionMetrics() {
   setStatBox('workout', 'fit_c', fit ? Math.round(fit.c).toString() : '—');
   setStatBox('recent',  'fit_m', fit && fit.m ? (1 / fit.m).toFixed(1) : '—');
   setStatBox('recent',  'fit_c', fit ? Math.round(fit.c).toString() : '—');
+
+  // W' balance
+  const wbalArr = calcWbal(all, profile.ftp, profile.wprime || 20000);
+  if (wbalArr.length) {
+    const wbalCur = wbalArr[wbalArr.length - 1];
+    const wbalMin = Math.min(...wbalArr);
+    setStatBox('workout', 'wbal',     (wbalCur / 1000).toFixed(1));
+    setStatBox('recent',  'wbal',     (wbalCur / 1000).toFixed(1));
+    setStatBox('workout', 'wbal_min', (wbalMin / 1000).toFixed(1));
+    setStatBox('recent',  'wbal_min', (wbalMin / 1000).toFixed(1));
+  }
 }
 
 // ── DOM text helpers ──────────────────────────────────────────────────────────
@@ -398,6 +408,7 @@ function wireResize() {
     debounce = setTimeout(() => {
       drawOverview();
       drawRolling();
+      drawWbalChart();
       drawWorkoutProfile(workoutRawSegs);
     }, 150);
   });
