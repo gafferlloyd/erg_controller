@@ -6,7 +6,7 @@ const profile = {
   restHR:  43,
   maxHR:   173,
   ftp:     250,
-  wprime:  20000,  // W' anaerobic capacity (joules)
+  wprime:  20019,  // W' anaerobic capacity (joules)
   modelA:  0.35,   // HR = modelA × Power + modelB
   modelB:  60,
 };

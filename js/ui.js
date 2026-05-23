@@ -242,7 +242,7 @@ function updateSessionMetrics() {
   setStatBox('recent',  'fit_c', fit ? Math.round(fit.c).toString() : '—');
 
   // W' balance
-  const wbalArr = calcWbal(all, profile.ftp, profile.wprime || 20000);
+  const wbalArr = calcWbal(all, profile.ftp, profile.wprime || 20019);
   if (wbalArr.length) {
     const wbalCur = wbalArr[wbalArr.length - 1];
     const wbalMin = Math.min(...wbalArr);
