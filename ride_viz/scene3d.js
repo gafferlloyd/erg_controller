@@ -103,6 +103,9 @@ export class Scene3D {
       ...(route.land_cover?.length
         ? [['land cover', () => this._buildLandCover(group, route.land_cover, route.terrain_grid)]]
         : []),
+      ...(route.rivers?.length
+        ? [['rivers', () => this._buildRivers(group, route.rivers, route.terrain_grid)]]
+        : []),
       ['road',       () => this._buildRoad(group)],
       ...(route.junctions?.length
         ? [['junctions',  () => this._buildJunctions(group, route.junctions)]]
@@ -415,6 +418,42 @@ export class Scene3D {
     }
   }
 
+  _buildRivers(group, rivers, tg) {
+    if (!rivers || !rivers.length) return;
+    const RIVER_HALF_W = 2.0;
+    const mat = new THREE.MeshLambertMaterial({ color: 0x4488cc, transparent: true, opacity: 0.82,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+    for (const river of rivers) {
+      const pts = river.points;
+      if (!pts || pts.length < 2) continue;
+      const verts = [];
+      const indices = [];
+      let vi = 0;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const ax = pts[i].lx,   ay = pts[i].ly;
+        const bx = pts[i+1].lx, by = pts[i+1].ly;
+        // Three.js coords: x=lx, z=-ly
+        const dx = bx - ax, dz = -(by - ay);
+        const len = Math.sqrt(dx*dx + dz*dz) || 1;
+        const px = -dz / len * RIVER_HALF_W;
+        const pz =  dx / len * RIVER_HALF_W;
+        const ya = this._terrainHeight(ax, ay, tg) + 0.15;
+        const yb = this._terrainHeight(bx, by, tg) + 0.15;
+        verts.push(ax - px, ya, -ay - pz);
+        verts.push(ax + px, ya, -ay + pz);
+        verts.push(bx - px, yb, -by - pz);
+        verts.push(bx + px, yb, -by + pz);
+        indices.push(vi, vi+1, vi+2,  vi+1, vi+3, vi+2);
+        vi += 4;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      group.add(new THREE.Mesh(geo, mat));
+    }
+  }
+
   // Build a MeshLambertMaterial that colours terrain by elevation + slope in the
   // fragment shader.  This avoids any vertex-colour buffer issues and works
   // correctly with logarithmicDepthBuffer.
@@ -545,7 +584,7 @@ export class Scene3D {
     // from poking through the road ribbon on hillsides and in valley cuttings.
     // _buildVerge reads from the JSON grid (not these clamped values), so the
     // verge outer edge still uses raw EUDEM and correctly shows the slope.
-    const clampR2 = Math.max(sx, sy) ** 2;
+    const clampR2 = (ROAD_HALF_W + 4) ** 2;  // ~81m² — only clamp vertices physically under the road ribbon
     const h = heights.slice();
 
     // Scrub DEM no-data sentinels (Copernicus uses -9999; also catches null→0 anomalies).

@@ -492,6 +492,71 @@ def project_water(polygons: list[list[tuple]], waypoints: list[dict]) -> list[di
     return water_out
 
 
+def fetch_osm_rivers(bbox: dict) -> list[list[tuple]]:
+    lat_min = bbox["lat_min"] - 0.001
+    lat_max = bbox["lat_max"] + 0.001
+    lon_min = bbox["lon_min"] - 0.001
+    lon_max = bbox["lon_max"] + 0.001
+    b = f"{lat_min},{lon_min},{lat_max},{lon_max}"
+
+    query = f"""
+[out:json][timeout:60];
+(
+  way["waterway"~"river|stream|canal"]({b});
+);
+out geom;
+"""
+    print("  Querying Overpass API for waterways...", flush=True)
+    resp = None
+    for url in OSM_OVERPASS_URLS:
+        try:
+            resp = requests.post(url, data={"data": query}, timeout=90)
+            if resp.ok:
+                break
+            print(f"  {url} returned {resp.status_code}, trying next...")
+        except requests.RequestException as e:
+            print(f"  {url} failed ({e}), trying next...")
+    if resp is None or not resp.ok:
+        print("  Waterway fetch failed, continuing without rivers")
+        return []
+    polylines = []
+    for el in resp.json().get("elements", []):
+        geom = el.get("geometry", [])
+        if len(geom) >= 2:
+            polylines.append([(pt["lat"], pt["lon"]) for pt in geom])
+    print(f"  Got {len(polylines)} waterway polylines", flush=True)
+    return polylines
+
+
+def project_rivers(polylines: list[list[tuple]], waypoints: list[dict]) -> list[dict]:
+    if not polylines:
+        return []
+    origin_lat = waypoints[0]["lat"]
+    origin_lon = waypoints[0]["lon"]
+    cos_lat = math.cos(math.radians(origin_lat))
+    wlat = np.array([w["lat"] for w in waypoints])
+    wlon = np.array([w["lon"] for w in waypoints])
+
+    rivers_out = []
+    for poly in polylines:
+        close = False
+        for lat, lon in poly:
+            dlat = (wlat - lat) * 111_320
+            dlon = (wlon - lon) * cos_lat * 111_320
+            if float(np.sqrt(dlat**2 + dlon**2).min()) < 500:
+                close = True
+                break
+        if not close:
+            continue
+        points = [
+            {"lx": round((lon - origin_lon) * cos_lat * 111_320, 1),
+             "ly": round((lat - origin_lat) * 111_320, 1)}
+            for lat, lon in poly
+        ]
+        rivers_out.append({"points": points})
+    return rivers_out
+
+
 def project_scenery(features: list[dict], waypoints: list[dict]) -> list[dict]:
     wlat = np.array([w["lat"] for w in waypoints])
     wlon = np.array([w["lon"] for w in waypoints])
@@ -646,6 +711,7 @@ def main():
 
     scenery = []
     water   = []
+    rivers  = []
     if not args.no_osm:
         if not args.no_snap:
             try:
@@ -672,6 +738,13 @@ def main():
             print(f"  {len(water)} water bodies near route")
         except Exception as e:
             print(f"  OSM water fetch failed ({e}), continuing without water")
+
+        try:
+            river_lines = fetch_osm_rivers(bbox)
+            rivers = project_rivers(river_lines, waypoints)
+            print(f"  {len(rivers)} waterway polylines near route")
+        except Exception as e:
+            print(f"  OSM waterway fetch failed ({e}), continuing without rivers")
 
     terrain_grid = None
     if not args.no_osm and not args.no_elevation:
@@ -702,6 +775,7 @@ def main():
         "waypoints":    waypoints,
         "scenery":      scenery,
         "water":        water,
+        "rivers":       rivers,
         "terrain_grid": terrain_grid,
     }
 
@@ -712,7 +786,7 @@ def main():
     print(f"\nWrote {out_path} ({size_kb} KB)")
     print(f"  Total distance: {route['total_dist_m']/1000:.1f} km")
     grid_info = f", Terrain {terrain_grid['nx']}×{terrain_grid['ny']}" if terrain_grid else ""
-    print(f"  Waypoints: {len(waypoints)}, Scenery: {len(scenery)}, Water: {len(water)}{grid_info}")
+    print(f"  Waypoints: {len(waypoints)}, Scenery: {len(scenery)}, Water: {len(water)}, Rivers: {len(rivers)}{grid_info}")
 
 
 if __name__ == "__main__":
