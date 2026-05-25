@@ -584,7 +584,7 @@ export class Scene3D {
     // from poking through the road ribbon on hillsides and in valley cuttings.
     // _buildVerge reads from the JSON grid (not these clamped values), so the
     // verge outer edge still uses raw EUDEM and correctly shows the slope.
-    const clampR2 = (ROAD_HALF_W + 4) ** 2;  // ~81m² — only clamp vertices physically under the road ribbon
+    const clampR2 = Math.max(sx, sy) ** 2;
     const h = heights.slice();
 
     // Scrub DEM no-data sentinels (Copernicus uses -9999; also catches null→0 anomalies).
