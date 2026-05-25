@@ -1,0 +1,17 @@
+# Un-ignore source .fit files stored here (root .gitignore blocks *.fit)
+!*.fit
+
+__pycache__/
+terrain_data/
+routes/cache/
+terrain_contour.html
+
+# Large compiled route variants (regenerate with route_compiler.py)
+routes/falkenberg_24_34_terrain.json
+routes/falkenberg_24_34_worldcover.json
+routes/falkenberg_24_34_worldcover_lidar.json
+routes/falkenberg_steinsee_22_0_58_worldcover_lidar.json
+routes/falkenberg_steinsee_22_0_58_worldcover_lidar_minimap.png
+routes/tegernsee_ahornboden_25_0_101_worldcover.json
+routes/tegernsee_ahornboden_25_0_101_worldcover_minimap.png
+routes/falkenberg_buildings_cache.json

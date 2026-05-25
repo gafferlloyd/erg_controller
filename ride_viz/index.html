@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ride Viz</title>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js" } }
+</script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #111;
+    color: #eee;
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 12px;
+    gap: 10px;
+  }
+  h1 { font-size: 1.1em; color: #aac; letter-spacing: 2px; text-transform: uppercase; }
+  #route-name { font-size: 0.85em; color: #88a; min-height: 1.2em; }
+
+  #canvas-wrap {
+    position: relative;
+    border: 2px solid #334;
+    border-radius: 4px;
+    overflow: hidden;
+    width: 100%;
+    max-width: 960px;
+    aspect-ratio: 16 / 9;
+    background: #1a1a2e;
+  }
+  #three-container {
+    width: 100%;
+    height: 100%;
+  }
+  #three-container canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  #minimap {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    border: 2px solid rgba(255,255,255,0.7);
+    border-radius: 4px;
+    background: #223;
+    pointer-events: none;
+  }
+
+  #no-route {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #1a1a2e;
+    color: #667;
+    font-size: 0.9em;
+    gap: 8px;
+    pointer-events: none;
+  }
+  #no-route.hidden { display: none; }
+
+  #load-overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: rgba(10, 10, 30, 0.88);
+    gap: 10px; z-index: 10;
+  }
+  #load-overlay.hidden { display: none; }
+  #load-phase { color: #aac; font-size: 0.9em; letter-spacing: 1px; }
+  #load-bar-wrap {
+    width: 60%; height: 8px;
+    background: #1a1a3a; border-radius: 4px; overflow: hidden;
+    border: 1px solid #446;
+  }
+  #load-bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #4466bb, #88aaee);
+    border-radius: 4px;
+    transition: width 0.12s ease;
+  }
+  #load-eta { color: #556; font-size: 0.78em; min-height: 1em; }
+
+  #controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 960px;
+  }
+  #load-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  #route-select {
+    flex: 1;
+    background: #1a1a2e;
+    color: #cce;
+    border: 1px solid #446;
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-family: monospace;
+    font-size: 0.9em;
+    cursor: pointer;
+  }
+  #file-input { display: none; }
+
+  #scrub-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #scrub { flex: 1; accent-color: #5588cc; cursor: pointer; }
+  #time-label { font-size: 0.8em; color: #89a; min-width: 110px; text-align: right; }
+
+  #btn-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  button {
+    background: #223;
+    color: #cce;
+    border: 1px solid #446;
+    border-radius: 3px;
+    padding: 6px 14px;
+    font-family: monospace;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  button:hover  { background: #334; }
+  button.active { background: #446; border-color: #88c; color: #fff; }
+  button#btn-play { min-width: 70px; }
+  .speed-btns { display: flex; gap: 4px; margin-left: auto; }
+
+  #stats-row {
+    display: flex;
+    gap: 20px;
+    font-size: 0.82em;
+    color: #89a;
+    padding: 2px 0;
+  }
+  .stat-val { color: #dde; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>Ride Viz</h1>
+<div id="route-name">no route loaded</div>
+
+<div id="canvas-wrap">
+  <div id="three-container"></div>
+  <canvas id="minimap" width="180" height="180"></canvas>
+  <div id="no-route">
+    <span style="font-size:2em">&#x1F6B4;</span>
+    <span>Load a compiled route to begin</span>
+  </div>
+  <div id="load-overlay" class="hidden">
+    <div id="load-phase">Loading…</div>
+    <div id="load-bar-wrap"><div id="load-bar"></div></div>
+    <div id="load-eta"></div>
+  </div>
+</div>
+
+<div id="controls">
+  <div id="load-row">
+    <select id="route-select">
+      <option value="">-- select a compiled route --</option>
+    </select>
+    <button id="btn-file">Open .json…</button>
+    <input type="file" id="file-input" accept=".json">
+    <button id="btn-cam">Chase cam</button>
+  </div>
+
+  <div id="scrub-row">
+    <input type="range" id="scrub" min="0" max="10000" value="0" step="1">
+    <span id="time-label">0.00 / 0.0 km</span>
+  </div>
+
+  <div id="btn-row">
+    <button id="btn-play">&#9654; Play</button>
+    <div class="speed-btns">
+      <button class="speed active" data-mult="1">1&times;</button>
+      <button class="speed" data-mult="2">2&times;</button>
+      <button class="speed" data-mult="4">4&times;</button>
+    </div>
+  </div>
+
+  <div id="stats-row">
+    <span>Grade: <span class="stat-val" id="stat-grade">—</span></span>
+    <span>Speed: <span class="stat-val" id="stat-speed">—</span></span>
+    <span>Dist:  <span class="stat-val" id="stat-dist">—</span></span>
+    <span>Ele:   <span class="stat-val" id="stat-ele">—</span></span>
+  </div>
+</div>
+
+<script type="module">
+import { Scene3D } from './scene3d.js';
+import { Minimap } from './minimap.js';
+
+(function () {
+  const noRoute   = document.getElementById('no-route');
+  const btnPlay   = document.getElementById('btn-play');
+  const btnCam    = document.getElementById('btn-cam');
+  const scrub     = document.getElementById('scrub');
+  const timeLabel = document.getElementById('time-label');
+  const routeSel  = document.getElementById('route-select');
+  const fileInput = document.getElementById('file-input');
+  const routeName = document.getElementById('route-name');
+  const statGrade = document.getElementById('stat-grade');
+  const statSpeed = document.getElementById('stat-speed');
+  const statDist  = document.getElementById('stat-dist');
+  const statEle   = document.getElementById('stat-ele');
+
+  const container   = document.getElementById('three-container');
+  const scene3d     = new Scene3D(container);
+  const minimap     = new Minimap(document.getElementById('minimap'));
+  const loadOverlay = document.getElementById('load-overlay');
+  const loadPhaseEl = document.getElementById('load-phase');
+  const loadBarEl   = document.getElementById('load-bar');
+  const loadEtaEl   = document.getElementById('load-eta');
+
+  // Inline player (no separate file needed for the interface change)
+  let route    = null;
+  let playing  = false;
+  let distM    = 0;
+  let speedMult = 1;
+  let lastTime  = null;
+  let rafId     = null;
+
+  function wpIndex(dist) {
+    const wps = route.waypoints;
+    let lo = 0, hi = wps.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (wps[mid].dist_m <= dist) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+  }
+
+  function interpWp(dist) {
+    const wps = route.waypoints;
+    const i   = wpIndex(dist);
+    if (i >= wps.length - 1) return wps[wps.length - 1];
+    const a = wps[i], b = wps[i+1];
+    const t = (b.dist_m - a.dist_m) > 0 ? (dist - a.dist_m) / (b.dist_m - a.dist_m) : 0;
+    return {
+      dist_m:      dist,
+      lat:         a.lat      + t * (b.lat      - a.lat),
+      lon:         a.lon      + t * (b.lon      - a.lon),
+      ele_m:       a.ele_m    + t * (b.ele_m    - a.ele_m),
+      grade_pct:   a.grade_pct + t * (b.grade_pct - a.grade_pct),
+      speed_mps:   Math.max(a.speed_mps + t * (b.speed_mps - a.speed_mps), 2.0),
+    };
+  }
+
+  function sceneryAhead(dist) {
+    const sc = route.scenery;
+    if (!sc || !sc.length) return [];
+    let lo = 0, hi = sc.length;
+    while (lo < hi) { const mid=(lo+hi)>>1; if(sc[mid].dist_m < dist) lo=mid+1; else hi=mid; }
+    const out = [];
+    for (let i = lo; i < sc.length && sc[i].dist_m <= dist + 600; i++) out.push(sc[i]);
+    return out;
+  }
+
+  function buildState() {
+    const wp = interpWp(distM);
+    return {
+      dist_m:       distM,
+      total_dist_m: route.total_dist_m,
+      grade_pct:    wp.grade_pct,
+      speed_mps:    wp.speed_mps * speedMult,
+      lat:          wp.lat,
+      lon:          wp.lon,
+      ele_m:        wp.ele_m,
+      waypoints_ahead: route.waypoints.slice(wpIndex(distM), wpIndex(distM) + 80),
+      scenery_ahead:   sceneryAhead(distM),
+    };
+  }
+
+  function render() {
+    if (!route) return;
+    const state = buildState();
+    scene3d.update(state);
+    minimap.update(state);
+    const wp = interpWp(distM);
+    const sign = wp.grade_pct >= 0 ? '+' : '';
+    statGrade.textContent = sign + wp.grade_pct.toFixed(1) + '%';
+    statSpeed.textContent = (wp.speed_mps * 3.6 * speedMult).toFixed(0) + ' km/h';
+    statDist.textContent  = (distM / 1000).toFixed(2) + ' km';
+    statEle.textContent   = wp.ele_m.toFixed(0) + ' m';
+    scrub.value = Math.round(distM / route.total_dist_m * 10000);
+    timeLabel.textContent = (distM/1000).toFixed(2) + ' / ' + (route.total_dist_m/1000).toFixed(1) + ' km';
+  }
+
+  function tick(now) {
+    if (!playing) return;
+    if (lastTime !== null) {
+      const dt    = (now - lastTime) / 1000;
+      const speed = interpWp(distM).speed_mps * speedMult;
+      distM = Math.min(route.total_dist_m, distM + speed * dt);
+    }
+    lastTime = now;
+    render();
+    if (distM >= route.total_dist_m) { playing = false; btnPlay.textContent = '&#9654; Play'; return; }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function play()  { if (!route) return; playing = true;  lastTime = null; rafId = requestAnimationFrame(tick); btnPlay.textContent = '&#9646;&#9646; Pause'; }
+  function pause() { playing = false; if (rafId) cancelAnimationFrame(rafId); btnPlay.textContent = '&#9654; Play'; }
+
+  function _showLoad(phase, frac, eta) {
+    loadOverlay.classList.remove('hidden');
+    noRoute.classList.add('hidden');
+    loadPhaseEl.textContent = phase;
+    loadBarEl.style.width   = (Math.min(1, frac) * 100).toFixed(1) + '%';
+    loadEtaEl.textContent   = eta ?? '';
+  }
+
+  async function _buildAndShow(r, startFrac) {
+    const range  = 1 - startFrac;
+    const tBuild = Date.now();
+    await scene3d.load(r, (name, phFrac) => {
+      const elapsed = ((Date.now() - tBuild) / 1000).toFixed(0);
+      _showLoad(`Building ${name}…`, startFrac + phFrac * range, `${elapsed} s`);
+    });
+    minimap.load(r);
+    route = r;
+    distM = 0;
+    pause();
+    noRoute.classList.add('hidden');
+    routeName.textContent = r.name + ' — ' + (r.total_dist_m / 1000).toFixed(1) + ' km';
+    render();
+    loadOverlay.classList.add('hidden');
+  }
+
+  btnPlay.addEventListener('click', () => playing ? pause() : play());
+  btnCam.addEventListener('click', () => {
+    scene3d.toggleCamera();
+    btnCam.textContent = btnCam.textContent === 'Chase cam' ? 'Iso cam' : 'Chase cam';
+  });
+
+  scrub.addEventListener('mousedown', () => pause());
+  scrub.addEventListener('input', () => {
+    if (!route) return;
+    distM = (scrub.value / 10000) * route.total_dist_m;
+    render();
+  });
+
+  document.querySelectorAll('.speed').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.speed').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      speedMult = parseFloat(btn.dataset.mult);
+    });
+  });
+
+  routeSel.addEventListener('change', async () => {
+    if (!routeSel.value) return;
+    const hadRoute = route !== null;
+    const t0 = Date.now();
+    _showLoad('Connecting…', 0, '');
+    try {
+      const resp = await fetch(routeSel.value);
+      if (!resp.ok) throw new Error(resp.statusText);
+      const totalBytes = parseInt(resp.headers.get('Content-Length') || '0', 10);
+      let r;
+      if (totalBytes > 0 && resp.body) {
+        const reader = resp.body.getReader();
+        const chunks = [];
+        let received = 0;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.length;
+          const dlFrac  = received / totalBytes * 0.65;
+          const elapsed = (Date.now() - t0) / 1000;
+          const eta     = elapsed > 0.5 && received > 0
+            ? 'ETA ' + (elapsed * (totalBytes - received) / received).toFixed(0) + ' s'
+            : '';
+          _showLoad(
+            `Downloading… ${(received/1e6).toFixed(0)} / ${(totalBytes/1e6).toFixed(0)} MB`,
+            dlFrac, eta);
+        }
+        _showLoad('Parsing JSON…', 0.65, '');
+        await new Promise(res => setTimeout(res, 0));
+        const buf = new Uint8Array(received);
+        let off = 0;
+        for (const c of chunks) { buf.set(c, off); off += c.length; }
+        r = JSON.parse(new TextDecoder().decode(buf));
+      } else {
+        _showLoad('Loading…', 0, '');
+        r = await resp.json();
+      }
+      await _buildAndShow(r, totalBytes > 0 ? 0.65 : 0);
+    } catch (e) {
+      loadOverlay.classList.add('hidden');
+      if (!hadRoute) noRoute.classList.remove('hidden');
+      alert('Failed to load route: ' + e.message);
+    }
+  });
+
+  document.getElementById('btn-file').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const f = fileInput.files[0];
+    if (!f) return;
+    const hadRoute = route !== null;
+    _showLoad('Reading file…', 0, '');
+    await new Promise(res => setTimeout(res, 0));
+    try {
+      const r = JSON.parse(await f.text());
+      await _buildAndShow(r, 0);
+    } catch (e) {
+      loadOverlay.classList.add('hidden');
+      if (!hadRoute) noRoute.classList.remove('hidden');
+      alert('Failed to load route: ' + e.message);
+    }
+  });
+
+  async function populateRoutes() {
+    try {
+      const resp = await fetch('routes/index.json');
+      if (!resp.ok) return;
+      const list = await resp.json();
+      list.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = 'routes/' + name;
+        opt.textContent = name.replace('.json','').replace(/_/g,' ');
+        routeSel.appendChild(opt);
+      });
+    } catch (_) {}
+  }
+
+  populateRoutes();
+})();
+</script>
+</body>
+</html>
