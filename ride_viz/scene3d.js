@@ -111,6 +111,9 @@ export class Scene3D {
         ? [['junctions',  () => this._buildJunctions(group, route.junctions)]]
         : []),
       ['scenery',    () => this._buildScenery(group, route.scenery, route.terrain_grid)],
+      ...(route.cliffs?.length
+        ? [['cliffs', () => this._buildCliffs(group, route.cliffs, route.terrain_grid)]]
+        : []),
     ];
 
     for (let i = 0; i < steps.length; i++) {
@@ -443,6 +446,41 @@ export class Scene3D {
         verts.push(ax + px, ya, -ay + pz);
         verts.push(bx - px, yb, -by - pz);
         verts.push(bx + px, yb, -by + pz);
+        indices.push(vi, vi+1, vi+2,  vi+1, vi+3, vi+2);
+        vi += 4;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      group.add(new THREE.Mesh(geo, mat));
+    }
+  }
+
+  _buildCliffs(group, cliffs, tg) {
+    if (!cliffs || !cliffs.length) return;
+    const CLIFF_DEPTH = 150;  // metres extruded downward
+    const mat = new THREE.MeshLambertMaterial({
+      color: 0x7a6a58, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+    });
+    for (const cliff of cliffs) {
+      const pts = cliff.points;
+      if (!pts || pts.length < 2) continue;
+      const verts = [];
+      const indices = [];
+      let vi = 0;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const ax = pts[i].lx,   ay = pts[i].ly;
+        const bx = pts[i+1].lx, by = pts[i+1].ly;
+        const ya = this._terrainHeight(ax, ay, tg);
+        const yb = this._terrainHeight(bx, by, tg);
+        // top-A, top-B, bottom-A, bottom-B
+        verts.push(ax, ya,            -ay);
+        verts.push(bx, yb,            -by);
+        verts.push(ax, ya - CLIFF_DEPTH, -ay);
+        verts.push(bx, yb - CLIFF_DEPTH, -by);
+        // two triangles forming a quad: top-A, top-B, bottom-A; top-B, bottom-B, bottom-A
         indices.push(vi, vi+1, vi+2,  vi+1, vi+3, vi+2);
         vi += 4;
       }

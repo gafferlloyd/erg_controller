@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Patch a compiled route JSON to add OSM waterway river data.
+"""Patch a compiled route JSON to add OSM waterway and cliff data.
 
-Usage: python3 patch_rivers.py <route.json>
+Usage: python3 patch_rivers.py <route.json> [--force]
 """
 
 import sys, json, math, requests
@@ -11,44 +11,51 @@ from pathlib import Path
 OSM_OVERPASS_URLS = [
     "https://overpass.kumi.systems/api/interpreter",
     "https://overpass-api.de/api/interpreter",
-    "https://overpass.osm.ch/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "https://overpass.openstreetmap.ru/api/interpreter",
 ]
 
 
-def fetch_osm_rivers(bbox):
-    lat_min = bbox["lat_min"] - 0.001
-    lat_max = bbox["lat_max"] + 0.001
-    lon_min = bbox["lon_min"] - 0.001
-    lon_max = bbox["lon_max"] + 0.001
-    b = f"{lat_min},{lon_min},{lat_max},{lon_max}"
-    query = f"""
-[out:json][timeout:60];
-(
-  way["waterway"~"river|stream|canal"]({b});
-);
-out geom;
-"""
+def overpass_query(query):
+    import subprocess, time
+    # Try requests first
     for url in OSM_OVERPASS_URLS:
         try:
-            resp = requests.post(url, data={"data": query}, timeout=90)
+            resp = requests.post(url, data={"data": query}, timeout=60)
             if resp.ok:
-                break
+                els = resp.json().get("elements", [])
+                # Reject if only a count sentinel with 0 (Swiss server covers only CH)
+                if els and els[0].get("type") == "count" and els[0].get("tags", {}).get("total") == "0":
+                    continue
+                return els
             print(f"  {url} returned {resp.status_code}, trying next...")
         except requests.RequestException as e:
             print(f"  {url} failed ({e}), trying next...")
-    else:
-        print("All Overpass mirrors failed"); return []
+        time.sleep(2)
+    # Last resort: curl (works even when requests hits rate limits)
+    print("  Trying curl fallback...")
+    url = OSM_OVERPASS_URLS[0]
+    try:
+        result = subprocess.run(
+            ["curl", "-s", "--max-time", "60", url, "--data-urlencode", f"data={query}"],
+            capture_output=True, text=True, timeout=65,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            els = json.loads(result.stdout).get("elements", [])
+            if els:
+                return els
+    except Exception as e:
+        print(f"  curl failed: {e}")
+    print("  All Overpass methods failed")
+    return None
 
-    polylines = []
-    for el in resp.json().get("elements", []):
-        geom = el.get("geometry", [])
-        if len(geom) >= 2:
-            polylines.append([(pt["lat"], pt["lon"]) for pt in geom])
-    print(f"  Got {len(polylines)} waterway polylines")
-    return polylines
+
+def bbox_str(bbox):
+    return (f"{bbox['lat_min']-0.001},{bbox['lon_min']-0.001},"
+            f"{bbox['lat_max']+0.001},{bbox['lon_max']+0.001}")
 
 
-def project_rivers(polylines, waypoints):
+def project_polylines(polylines, waypoints, proximity_m=500):
     if not polylines:
         return []
     origin_lat = waypoints[0]["lat"]
@@ -56,48 +63,80 @@ def project_rivers(polylines, waypoints):
     cos_lat = math.cos(math.radians(origin_lat))
     wlat = np.array([w["lat"] for w in waypoints])
     wlon = np.array([w["lon"] for w in waypoints])
-
-    rivers_out = []
+    out = []
     for poly in polylines:
-        close = False
-        for lat, lon in poly:
-            dlat = (wlat - lat) * 111_320
-            dlon = (wlon - lon) * cos_lat * 111_320
-            if float(np.sqrt(dlat**2 + dlon**2).min()) < 500:
-                close = True
-                break
+        close = any(
+            float(np.sqrt(((wlat - lat) * 111_320)**2 + ((wlon - lon) * cos_lat * 111_320)**2).min()) < proximity_m
+            for lat, lon in poly
+        )
         if not close:
             continue
-        points = [
+        out.append({"points": [
             {"lx": round((lon - origin_lon) * cos_lat * 111_320, 1),
              "ly": round((lat - origin_lat) * 111_320, 1)}
             for lat, lon in poly
-        ]
-        rivers_out.append({"points": points})
-    return rivers_out
+        ]})
+    return out
+
+
+def fetch_rivers(bbox):
+    b = bbox_str(bbox)
+    els = overpass_query(f'[out:json][timeout:60];(way["waterway"~"river|stream|canal"]({b}););out geom;')
+    if els is None:
+        return None
+    polys = [[(pt["lat"], pt["lon"]) for pt in el.get("geometry", [])]
+             for el in els if len(el.get("geometry", [])) >= 2]
+    print(f"  Got {len(polys)} waterway polylines")
+    return polys
+
+
+def fetch_cliffs(bbox):
+    b = bbox_str(bbox)
+    els = overpass_query(f'[out:json][timeout:60];(way["natural"="cliff"]({b}););out geom;')
+    if els is None:
+        return None
+    polys = [[(pt["lat"], pt["lon"]) for pt in el.get("geometry", [])]
+             for el in els if len(el.get("geometry", [])) >= 2]
+    print(f"  Got {len(polys)} cliff polylines")
+    return polys
 
 
 def main():
-    path = Path(sys.argv[1] if len(sys.argv) > 1 else "routes/tegernsee_ahornboden_25_0_101_worldcover.json")
+    path = Path(sys.argv[1] if len(sys.argv) > 1 else
+                "routes/tegernsee_ahornboden_25_0_101_worldcover.json")
+    force = "--force" in sys.argv
     print(f"Loading {path}...")
     with open(path) as f:
         route = json.load(f)
 
-    if route.get("rivers"):
-        print(f"Route already has {len(route['rivers'])} river polylines. Use --force to overwrite.")
-        if "--force" not in sys.argv:
-            return
+    wps = route["waypoints"]
+    bbox = route["bbox"]
+    changed = False
 
-    print("Fetching OSM waterways...")
-    polylines = fetch_osm_rivers(route["bbox"])
-    rivers = project_rivers(polylines, route["waypoints"])
-    print(f"  {len(rivers)} polylines near route")
+    for key, fetcher, label in [
+        ("rivers", fetch_rivers, "waterways"),
+        ("cliffs", fetch_cliffs, "cliffs"),
+    ]:
+        if route.get(key) and not force:
+            print(f"{key.capitalize()}: already {len(route[key])} polylines (use --force to refresh)")
+            continue
+        print(f"Fetching OSM {label}...")
+        raw = fetcher(bbox)
+        if raw is None:
+            print(f"  API failed — keeping existing {key} data unchanged")
+            continue
+        projected = project_polylines(raw, wps)
+        print(f"  {len(projected)} near route")
+        if not projected and route.get(key):
+            print(f"  API returned 0 results but route already has {len(route[key])} — keeping existing")
+            continue
+        route[key] = projected
+        changed = True
 
-    route["rivers"] = rivers
-    with open(path, "w") as f:
-        json.dump(route, f, separators=(",", ":"))
-    size_kb = path.stat().st_size // 1024
-    print(f"Patched {path} ({size_kb} KB)")
+    if changed:
+        with open(path, "w") as f:
+            json.dump(route, f, separators=(",", ":"))
+        print(f"Patched {path} ({path.stat().st_size // 1024} KB)")
 
 
 if __name__ == "__main__":
