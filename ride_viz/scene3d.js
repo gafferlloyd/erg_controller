@@ -502,7 +502,7 @@ export class Scene3D {
     const origin_lat = this._route?.origin_lat ?? 47;
     const TL = 4550 - 60 * origin_lat;   // treeline m ASL (~1730 at 47°N, ~1790 at 46°N)
 
-    const mat = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide });
+    const mat = new THREE.MeshLambertMaterial();
     mat.onBeforeCompile = shader => {
       shader.uniforms.uBaseEle = { value: base_ele };
       shader.uniforms.uTL      = { value: TL };
@@ -628,10 +628,9 @@ export class Scene3D {
     // Scrub DEM no-data sentinels (Copernicus uses -9999; also catches null→0 anomalies).
     // First pass: mark bad cells; second pass: fill from 3×3 neighbourhood average.
     const BAD_THRESH = -500;
-    const MAX_ELE = (this._route?.base_ele ?? 0) + 3500;  // >3500m above start = bad DEM spike
     const bad = new Uint8Array(h.length);
     for (let i = 0; i < h.length; i++) {
-      if (h[i] === null || h[i] !== h[i] /* NaN */ || h[i] < BAD_THRESH || h[i] > MAX_ELE) bad[i] = 1;
+      if (h[i] === null || h[i] !== h[i] /* NaN */ || h[i] < BAD_THRESH) bad[i] = 1;
     }
     for (let iy = 0; iy < ny; iy++) {
       for (let ix = 0; ix < nx; ix++) {

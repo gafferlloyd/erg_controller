@@ -425,63 +425,6 @@ def snap_to_osm_roads(waypoints: list[dict], roads: list[list[tuple]], threshold
     print(f"  Snapped {snapped}/{len(waypoints)} waypoints to OSM road centerlines")
 
 
-def normalize_elevation_repeats(waypoints: list[dict], radius_m: float = 6.0) -> int:
-    """Cluster waypoints at the same physical location and normalise local_z to the median.
-
-    On out-and-back or loop routes the GPS altitude drifts between passes, so the
-    same physical road appears at different elevations.  Pairing waypoints within
-    radius_m (horizontal) and medianing their local_z fixes this for both the road
-    ribbon and the terrain clamp.  Returns the number of waypoints adjusted.
-    """
-    from collections import defaultdict
-    cell = int(radius_m)
-    grid: dict = defaultdict(list)
-    for i, wp in enumerate(waypoints):
-        grid[(int(wp['local_x'] / cell), int(wp['local_y'] / cell))].append(i)
-
-    parent = list(range(len(waypoints)))
-
-    def find(x: int) -> int:
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
-    def union(x: int, y: int) -> None:
-        px, py = find(x), find(y)
-        if px != py:
-            parent[px] = py
-
-    r2 = radius_m ** 2
-    for (kx, ky), members in grid.items():
-        for dx in range(-1, 2):
-            for dy in range(-1, 2):
-                neighbours = grid.get((kx + dx, ky + dy), [])
-                for i in members:
-                    wi = waypoints[i]
-                    for j in neighbours:
-                        if j <= i:
-                            continue
-                        wj = waypoints[j]
-                        if (wi['local_x'] - wj['local_x']) ** 2 + (wi['local_y'] - wj['local_y']) ** 2 < r2:
-                            union(i, j)
-
-    clusters: dict = defaultdict(list)
-    for i in range(len(waypoints)):
-        clusters[find(i)].append(i)
-
-    adjusted = 0
-    for members in clusters.values():
-        if len(members) < 2:
-            continue
-        med = float(np.median([waypoints[i]['local_z'] for i in members]))
-        for i in members:
-            if abs(waypoints[i]['local_z'] - med) > 0.5:
-                waypoints[i]['local_z'] = round(med, 2)
-                adjusted += 1
-    return adjusted
-
-
 def fetch_osm_water(bbox: dict) -> list[list[tuple]]:
     lat_min = bbox["lat_min"] - 0.001
     lat_max = bbox["lat_max"] + 0.001
@@ -823,9 +766,6 @@ def main():
     print("Computing geometry...")
     waypoints = compute_geometry(raw)
     print(f"  {len(waypoints)} waypoints at {RESAMPLE_INTERVAL_M}m resolution")
-    adj = normalize_elevation_repeats(waypoints)
-    if adj:
-        print(f"  {adj} waypoints elevation-normalised for repeated road sections")
 
     bbox = {
         "lat_min": min(w["lat"] for w in waypoints),
