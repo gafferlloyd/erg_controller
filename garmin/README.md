@@ -18,6 +18,10 @@ language gotchas — read it before making changes here.
 - **WPrimeGraphDF/** — "WBal Graph". Same model as WPrimeValueDF, plus a 5-minute rolling graph
   (60 samples @ 5s) of W' balance.
 
+Both W' fields' `_cp`/`_wPrime` defaults are rider-calibrated values, not arbitrary — see
+[`docs/wprime_calibration.md`](../docs/wprime_calibration.md) for the current numbers, how they
+were derived, and how to validate any future change to them.
+
 ## superseded/
 
 Earlier iterations, kept for reference — not maintained:
