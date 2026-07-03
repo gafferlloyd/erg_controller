@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="1">
+    <iq:application entry="HelloGarminApp"
+                    id="a7b3c9d1e5f2a8b4c0d6e2f8a1b3c9d5"
+                    launcherIcon="@Drawables.LauncherIcon"
+                    minSdkVersion="3.2.0"
+                    name="@Strings.AppName"
+                    type="watch-app">
+        <iq:products>
+            <iq:product id="fenix7s" />
+            <iq:product id="edge530" />
+        </iq:products>
+        <iq:permissions />
+        <iq:languages>
+            <iq:language>eng</iq:language>
+        </iq:languages>
+    </iq:application>
+</iq:manifest>

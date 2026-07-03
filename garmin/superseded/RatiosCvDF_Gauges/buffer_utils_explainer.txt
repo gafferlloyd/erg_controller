@@ -1,0 +1,53 @@
+🧠 How it fits into your architecture
+
+Now your system becomes:
+
+📦 GRAPH FIELD
+BufferUtils.push(HR, info.currentHeartRate, 60);
+BufferUtils.push(PW, info.currentPower, 60);
+📦 DASHBOARD FIELD
+
+Same logic:
+
+BufferUtils.push(HR, info.currentHeartRate, 60);
+BufferUtils.push(PW, info.currentPower, 60);
+📦 WARM-UP DETECTION (cleaned up version)
+
+Instead of manual loops:
+
+var varHR = BufferUtils.variance(HR);
+var meanHR = BufferUtils.mean(HR);
+
+This replaces all repeated boilerplate in both fields.
+
+🧠 Why BufferUtils matters (architecturally)
+
+Without it:
+
+GraphField and DashboardField drift apart over time
+bugs get duplicated
+regression logic becomes inconsistent
+
+With it:
+
+both fields become mathematically identical views of the same signal stream
+
+⚙️ What you now have (correct 3-layer system)
+🧠 CVCore
+regression
+decoupling
+scoring
+🧰 BufferUtils (NEW missing piece)
+buffer management
+statistics
+stability helpers
+📊 GraphField
+visualisation only
+📋 DashboardField
+metrics + gauges only
+✔️ Final answer
+❗ BufferUtils was missing because it should be a separate shared utility module
+✔ It contains all buffer + stats operations (push, mean, variance, sizing)
+✔ Both Graph and Dashboard use it identically
+✔ This enforces consistency across the whole CV system
+✔ This is the correct way to prevent divergence between views on Garmin devices

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<drawables>
+    <bitmap id="LauncherIcon" filename="launcher_icon.png" />
+    <bitmap id="IconHeart"    filename="heart-18.png"  />
+    <bitmap id="IconPower"    filename="power-18.png"  />
+    <bitmap id="IconSpeed"    filename="speed-18.png"  />
+</drawables>

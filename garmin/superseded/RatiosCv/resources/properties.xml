@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<properties>
+    <property id="windowSecs" type="number">60</property>
+</properties>

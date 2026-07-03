@@ -1,0 +1,125 @@
+Here’s the executive summary of what you’ve built—no fluff, just the system-level view.
+
+🧠 CV System — Executive Summary
+
+You’ve designed a real-time physiological analytics system for a Garmin Edge device (Garmin Edge 530) that transforms raw heart rate and power data into a continuously updated endurance performance model.
+
+It is structured as a modular 3-layer architecture with shared computation logic and dual visual outputs.
+
+🏗️ System Architecture
+1. Core Layer (CVCore)
+Stateless mathematical engine
+Implements:
+HR–Power regression (CV Efficiency)
+decoupling (fatigue drift)
+normalization/scoring
+Shared by all UI layers
+Ensures consistency of all derived metrics
+2. Utility Layer (BufferUtils)
+Standardised buffer management
+Rolling window control (fixed-size physiological memory)
+Statistical primitives:
+mean HR
+variance (stability detection)
+Guarantees identical behaviour across fields
+3. Graph Field
+Lightweight visualisation layer
+Shows:
+CV trend over time
+optionally smoothed dynamics
+No heavy computation beyond buffer updates
+4. Dashboard Field (Primary Interface)
+Athlete-facing performance cockpit
+Displays:
+CV Efficiency (W/bpm)
+baseline CV (fresh-state fitness reference)
+decoupling (% drift from baseline)
+HR/W efficiency
+gauge-style visual score
+Includes adaptive warm-up detection
+5. Manifest Layer
+Declares system to Garmin OS
+Binds execution entry point
+Defines device compatibility (Edge 530)
+Exposes optional configuration (warm-up mode, thresholds)
+⚙️ Runtime Behaviour (what happens during a ride)
+Phase 1 — Data acquisition
+HR + power streamed at ~1 Hz
+Stored in rolling buffers (last ~60 samples)
+Phase 2 — Adaptive warm-up detection
+No timer dependency
+Warm-up ends when:
+HR stabilises (low variance)
+HR–power relationship stabilises (slope convergence)
+Phase 3 — Baseline calibration
+First stable physiological state becomes:
+CV baseline (fresh efficiency reference)
+Phase 4 — Live performance tracking
+
+Continuously computes:
+
+CV Efficiency (current slope)
+Decoupling (fatigue drift vs baseline)
+HR/W metabolic cost
+Normalised performance score
+📊 System Outputs
+Primary metric
+CV Efficiency (W/bpm) → core cardiovascular efficiency index
+Derived insights
+Fatigue drift (% decoupling)
+Efficiency stability score
+Heart-rate cost per watt
+Visual outputs
+Graph (trend view)
+Dashboard (numeric + gauges)
+🧠 Key Design Principles
+1. Single computation truth
+
+All metrics come from:
+
+one regression model + one buffer system
+
+2. No duplicated logic
+Core math is centralised (CVCore)
+Buffers standardised (BufferUtils)
+UI layers are thin views
+3. Physiological realism
+Warm-up is adaptive, not time-based
+Baseline is dynamically discovered, not assumed
+Fatigue is measured as deviation from personal baseline
+4. Device efficiency constraints respected
+bounded buffers (O(1) memory growth)
+simple O(n) regression on small window
+no background threads or storage abuse
+🚴 What this system actually is
+
+At a high level, this is:
+
+a real-time endurance performance estimator embedded inside a cycling head unit
+
+It converts raw sensor data into:
+
+fitness efficiency
+fatigue drift
+cardiovascular economy
+
+in real time, during training.
+
+⚠️ Important limitation (honest engineering note)
+
+This is not a medical or lab-grade metabolic model.
+
+It is:
+
+a field-based proxy model
+optimised for consistency and comparative training insight
+sensitive to sensor quality and pacing strategy
+✔️ Final takeaway
+
+You now have a system that:
+
+continuously learns a rider’s cardiovascular efficiency curve
+self-calibrates without external input
+separates warm-up, steady-state, and fatigue phases
+runs within Garmin Edge constraints
+produces actionable endurance metrics in real time

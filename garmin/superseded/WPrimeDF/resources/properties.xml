@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<properties>
+    <!-- Critical Power proxy (= FTP in watts) -->
+    <property id="ftpWatts" type="number">250</property>
+
+    <!-- W' (anaerobic work capacity) in joules — set from intervals.icu or field test -->
+    <property id="wPrime"   type="number">20019</property>
+</properties>

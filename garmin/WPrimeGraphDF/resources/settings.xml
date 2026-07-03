@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings>
+    <setting propertyKey="@Properties.ftpWatts" title="@Strings.FtpLabel">
+        <settingConfig type="numeric" min="50" max="500"/>
+    </setting>
+    <setting propertyKey="@Properties.wPrime" title="@Strings.WPrimeLabel">
+        <settingConfig type="numeric" min="1000" max="60000"/>
+    </setting>
+</settings>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<strings>
+    <string id="AppName">Ratios: CV</string>
+    <string id="WindowTitle">Rolling Window</string>
+    <string id="LabelNow">Now</string>
+    <string id="LabelAll">All</string>
+    <string id="LabelWPerBpm">W/bpm</string>
+    <string id="LabelNPPerBpm">NP/bpm</string>
+    <string id="LabelSummary">Summary</string>
+    <string id="LabelScatter">Power vs HR</string>
+</strings>

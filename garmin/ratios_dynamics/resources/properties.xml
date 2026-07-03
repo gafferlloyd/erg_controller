@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<properties>
+    <!-- Mass of bike + accessories in kg (rider mass read from athlete profile) -->
+    <property id="bikeSystemMass"  type="float">10.0</property>
+
+    <!-- EMA smoothing window in seconds — same window applied to power, speed and altitude
+         so that the energy balance equation remains physically consistent.
+         Range 3..30; default 10 s -->
+    <property id="smoothingWindow" type="number">10</property>
+
+    <!-- Fallback FTP in watts — only used when the athlete profile has no cyclingFtp set -->
+    <property id="ftpWatts"        type="number">250</property>
+
+    <!-- Drivetrain efficiency η (0..1) — accounts for chain/cassette losses.
+         Power at wheel = P_measured × η.  Default 0.98 (≈ 2% loss) -->
+    <property id="drivetrainEff"   type="float">0.98</property>
+</properties>

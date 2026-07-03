@@ -1,0 +1,118 @@
+On a Garmin Edge 530, session-to-session persistence is possible in Connect IQ, but only in a limited, explicit way.
+
+You don’t get a database or shared model memory. You get a few controlled mechanisms:
+
+🧠 What is actually possible in Connect IQ
+✔ 1. Persistent storage (YES)
+
+You can store values between activities using:
+
+Application.Storage (key-value store)
+
+This survives:
+
+app restart
+device reboot
+new ride/session
+
+Example:
+
+baseline CV
+last ride decoupling
+rolling fitness score
+❌ 2. What is NOT possible
+
+You cannot:
+
+store full HR/power time series long-term
+train a model across sessions on-device
+share memory between apps in real time
+⚙️ 3. What session-to-session tracking looks like in practice
+
+Instead of storing raw data, you store summaries:
+
+After each ride:
+
+You persist:
+
+baseline CV
+average CV
+decoupling (fatigue drift)
+max sustained CV
+warm-up stability time
+optional “fitness index”
+📦 Example implementation pattern
+Save at end of activity:
+Application.Storage.setValue("cv_base", m_base);
+Application.Storage.setValue("cv_avg", avgCV);
+Application.Storage.setValue("cv_decay", decoupling);
+Load at start of next ride:
+m_base = Application.Storage.getValue("cv_base");
+
+if (m_base == null) {
+    m_base = 0.0; // first ride fallback
+}
+🧠 4. What this enables in your CV system
+
+Once you add persistence, your system becomes:
+
+Before (single ride model)
+measures within-session efficiency
+After (multi-session model)
+tracks fitness trend over weeks/months
+detects adaptation or fatigue accumulation
+builds athlete-specific baseline evolution
+📊 5. What you should store (recommended minimal set)
+
+For your CV system:
+
+Core persistence variables
+cv_base → baseline efficiency
+cv_mean_ride → average CV per session
+cv_decoupling → fatigue drift indicator
+cv_score → normalised performance index
+Optional advanced metrics
+warmup_time_to_stable
+hr_efficiency_ratio
+peak_cv
+⚠️ 6. Critical design limitation (important)
+
+Application.Storage is:
+
+small (not meant for large datasets)
+flash-based (write cost exists)
+not suited for high-frequency logging
+
+So:
+
+You store features, not signals
+
+🧠 7. Correct mental model
+
+Your system becomes:
+
+Real-time layer (on ride)
+buffers + regression + warm-up detection
+Persistence layer (after ride)
+distilled physiological summary
+Cross-session layer (trend)
+evolving baseline adaptation
+🚴 8. What this unlocks for your CV system
+
+With session persistence, you can build:
+
+fitness progression curve (CV base over time)
+fatigue accumulation detection
+training adaptation tracking
+“efficiency improvement rate”
+
+This is essentially:
+
+a lightweight endurance training model embedded in the device
+
+✔️ Final answer
+✔ Yes, session-to-session tracking is possible in Connect IQ
+✔ It is done via Application.Storage (key-value persistence)
+✔ You store summary metrics, not raw data
+✔ It enables long-term CV adaptation tracking
+❌ It does NOT support full ML-style model training on-device
