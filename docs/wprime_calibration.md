@@ -96,7 +96,15 @@ breakeven line.
 
 ## Open items
 
-- The Garmin datafield source (`WPrimeModel.mc` in both `WPrimeValueDF` and `WPrimeGraphDF`) has
-  the 277W/21000J defaults, but the compiled `.prg` has **not been rebuilt and redeployed** to
-  the physical Edge 530 since this calibration was set.
-- No dedicated 3min+20min maximal test has been done yet (see above).
+- No dedicated 3min+20min maximal test has been done yet (see above) — still needed to resolve
+  277W/21kJ vs. the 267W/26.6kJ alternate candidate.
+
+## Change log
+
+- **2026-07-03**: a ride that day (`2026-07-03-14-52-50.fit`) hit W'bal=0 twice on-device.
+  Investigation found the on-device settings for both datafields were still `ftpWatts=250,
+  wPrime=20019` (saved 2026-05-24, before this calibration existed) — decoded directly from the
+  `.SET` file bytes. Replayed through `wbal_review.py`, the current 277W/21000J candidate passed
+  this ride cleanly (min 17% floor, never negative) while 250W/20019J failed exactly as observed.
+  No change to the calibration; rebuilt and redeployed `WPrimeValueDF`/`WPrimeGraphDF` to the
+  Edge 530 with the settings reset so the device now actually reflects 277W/21000J.
