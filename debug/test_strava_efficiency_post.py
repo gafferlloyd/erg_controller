@@ -6,59 +6,78 @@ Run from project root:
   python debug/test_strava_efficiency_post.py
 """
 import fcntl
+import struct
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import strava_efficiency_post
 from strava_efficiency_post import process_activity
 
 
-def _synthetic_streams(duration_s=1500):
-    time_s = list(range(duration_s))
-    return {'time': {'data': time_s},
-            'watts': {'data': [220.0] * duration_s},
-            'heartrate': {'data': [140.0] * duration_s}}
+def _make_synthetic_fit_bytes() -> bytes:
+    """Not a real .fit file -- process_activity's own parse call is mocked out
+    directly in these tests, so the bytes just need to be non-empty."""
+    return b'\x0efake fit bytes for testing, never actually parsed'
+
+
+def _synthetic_parsed_ride(duration_s=1500):
+    import numpy as np
+    elapsed = np.arange(duration_s, dtype=float)
+    raw_p = [220.0] * duration_s
+    raw_h = [140.0] * duration_s
+    return elapsed, raw_p, raw_h, {}
 
 
 def test_process_activity_dry_run_does_not_send():
-    client = MagicMock()
-    client.get_streams.return_value = _synthetic_streams()
-    activity = {'id': 1, 'name': 'Test', 'start_date_local': '2026-07-04'}
-
-    with patch('signal_notify.send') as mock_send:
-        summary = process_activity(client, activity, weight_kg=70.0, cp=277.0, wprime=21000.0,
-                                     solve_wprimes=(15000.0, 25000.0), dry_run=True)
+    activity = {'id': 'i1', 'name': 'Test', 'start_date_local': '2026-07-04'}
+    with patch('strava_efficiency_post.download_fit', return_value=_make_synthetic_fit_bytes()), \
+         patch('strava_efficiency_post.parse_fit_records', return_value=_synthetic_parsed_ride()), \
+         patch('signal_notify.send') as mock_send:
+        summary = process_activity(auth=None, activity=activity, weight_kg=70.0, cp=277.0,
+                                     wprime=21000.0, solve_wprimes=(15000.0, 25000.0), dry_run=True)
         mock_send.assert_not_called()
     assert 'Ride: Test' in summary
     print('  test_process_activity_dry_run_does_not_send  PASS')
 
 
 def test_process_activity_live_sends():
-    client = MagicMock()
-    client.get_streams.return_value = _synthetic_streams()
-    activity = {'id': 2, 'name': 'Test2', 'start_date_local': '2026-07-04'}
-
-    with patch('signal_notify.send') as mock_send:
-        process_activity(client, activity, weight_kg=70.0, cp=277.0, wprime=21000.0,
+    activity = {'id': 'i2', 'name': 'Test2', 'start_date_local': '2026-07-04'}
+    with patch('strava_efficiency_post.download_fit', return_value=_make_synthetic_fit_bytes()), \
+         patch('strava_efficiency_post.parse_fit_records', return_value=_synthetic_parsed_ride()), \
+         patch('signal_notify.send') as mock_send:
+        process_activity(auth=None, activity=activity, weight_kg=70.0, cp=277.0, wprime=21000.0,
                           solve_wprimes=(15000.0, 25000.0), dry_run=False)
         mock_send.assert_called_once()
     print('  test_process_activity_live_sends       PASS')
 
 
-def test_process_activity_rejects_empty_streams():
-    client = MagicMock()
-    client.get_streams.return_value = {'time': {'data': []}, 'watts': {'data': []}}
-    activity = {'id': 3, 'name': 'Empty', 'start_date_local': '2026-07-04'}
-    try:
-        process_activity(client, activity, weight_kg=None, cp=277.0, wprime=21000.0,
-                          solve_wprimes=(15000.0,), dry_run=True)
-        assert False, 'expected ValueError'
-    except ValueError:
-        pass
-    print('  test_process_activity_rejects_empty_streams  PASS')
+def test_process_activity_rejects_missing_fit():
+    activity = {'id': 'i3', 'name': 'Empty', 'start_date_local': '2026-07-04'}
+    with patch('strava_efficiency_post.download_fit', return_value=None):
+        try:
+            process_activity(auth=None, activity=activity, weight_kg=None, cp=277.0,
+                              wprime=21000.0, solve_wprimes=(15000.0,), dry_run=True)
+            assert False, 'expected ValueError'
+        except ValueError:
+            pass
+    print('  test_process_activity_rejects_missing_fit  PASS')
+
+
+def test_process_activity_rejects_unparseable_fit():
+    activity = {'id': 'i4', 'name': 'Bad', 'start_date_local': '2026-07-04'}
+    with patch('strava_efficiency_post.download_fit', return_value=_make_synthetic_fit_bytes()), \
+         patch('strava_efficiency_post.parse_fit_records', return_value=None):
+        try:
+            process_activity(auth=None, activity=activity, weight_kg=None, cp=277.0,
+                              wprime=21000.0, solve_wprimes=(15000.0,), dry_run=True)
+            assert False, 'expected ValueError'
+        except ValueError:
+            pass
+    print('  test_process_activity_rejects_unparseable_fit  PASS')
 
 
 def test_flock_prevents_concurrent_holder():
@@ -83,6 +102,7 @@ def test_flock_prevents_concurrent_holder():
 if __name__ == '__main__':
     test_process_activity_dry_run_does_not_send()
     test_process_activity_live_sends()
-    test_process_activity_rejects_empty_streams()
+    test_process_activity_rejects_missing_fit()
+    test_process_activity_rejects_unparseable_fit()
     test_flock_prevents_concurrent_holder()
     print('\nAll tests passed.')

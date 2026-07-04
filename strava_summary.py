@@ -1,21 +1,17 @@
-"""Assemble the Signal message text for one ride from its Strava streams.
+"""Assemble the Signal message text for one ride, from arrays already
+extracted from its .fit file (source-agnostic -- doesn't care whether the
+.fit came from intervals.icu, a local archive, or anywhere else).
 
-Plain text, no markdown (this is a Signal message, not a Strava description --
-no append/preserve-existing-text concerns either, it's a fresh message).
+Plain text, no markdown. This is meant to be copy-pasted by hand into the
+ride's Strava description, not written there automatically.
 """
 from __future__ import annotations
 import numpy as np
 
 from wbal_review import calc_wbal
 from cp_solver import solve_cp_for_wprime
-from strava_resample import resample_to_1hz
 from power_curve import best_power_by_minute, be_ftp_model, pinot_grappe_model, apply_ftp_model, power_curve_window
-from hr_efficiency import bin_by_minute, linear_regression_fixed, pct_hrr, REST_HR, MAX_HR
-
-
-def _stream_data(streams: dict, key: str) -> list:
-    entry = streams.get(key)
-    return entry.get('data', []) if entry else []
+from hr_efficiency import bin_by_minute, linear_regression_fixed, pct_hrr, REST_HR, MAX_HR, WEIGHT_KG
 
 
 def _cp_check_line(power_1hz: np.ndarray, cp: float, wprime: float) -> str:
@@ -79,15 +75,13 @@ def _efficiency_line(time_s: list, watts: list, heartrate: list, hrr_fraction: f
             f"R^2={reg['r2']:.2f}): {1/reg['m']:.2f} W/bpm")
 
 
-def build_summary(activity: dict, streams: dict, weight_kg: float | None,
+def build_summary(activity: dict, power_1hz: np.ndarray, hr_1hz: np.ndarray,
+                   time_s: list, watts_raw: list, heartrate_raw: list,
+                   weight_kg: float | None = None,
                    cp: float = 277.0, wprime: float = 21000.0,
                    solve_wprimes: tuple = (15000.0, 25000.0)) -> str:
-    time_s = _stream_data(streams, 'time')
-    watts = _stream_data(streams, 'watts')
-    heartrate = _stream_data(streams, 'heartrate')
-
-    power_1hz = resample_to_1hz(watts, time_s)
-    hr_1hz = resample_to_1hz(heartrate, time_s)
+    if weight_kg is None:
+        weight_kg = WEIGHT_KG
     ride_min = len(power_1hz) // 60
 
     name = activity.get('name', 'Ride')
@@ -98,6 +92,6 @@ def build_summary(activity: dict, streams: dict, weight_kg: float | None,
     lines += _ftp_model_lines(power_1hz)
     lines.append(_window_line(power_1hz, hr_1hz, 1200, '20min', weight_kg, ride_min))
     lines.append(_window_line(power_1hz, hr_1hz, 3600, '60min', weight_kg, ride_min))
-    lines.append(_efficiency_line(time_s, watts, heartrate))
+    lines.append(_efficiency_line(time_s, watts_raw, heartrate_raw))
 
     return '\n'.join(lines)

@@ -7,8 +7,9 @@ js/profile.js and js/fit_profile.js for this rider.
 """
 from __future__ import annotations
 
-REST_HR = 43   # mirrors js/profile.js / js/fit_profile.js
-MAX_HR = 173   # mirrors js/profile.js / js/fit_profile.js
+REST_HR = 43     # mirrors js/profile.js / js/fit_profile.js
+MAX_HR = 173     # mirrors js/profile.js / js/fit_profile.js
+WEIGHT_KG = 66.0  # current rider weight (2026-07-04) -- js/fit_profile.js's 68 is now stale
 
 
 def bin_by_minute(time_s: list, watts: list, heartrate: list) -> list[dict]:
