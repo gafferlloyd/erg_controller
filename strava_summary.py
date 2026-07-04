@@ -14,24 +14,29 @@ from power_curve import best_power_by_minute, be_ftp_model, pinot_grappe_model, 
 from hr_efficiency import bin_by_minute, linear_regression_fixed, pct_hrr, REST_HR, MAX_HR, WEIGHT_KG
 
 
-def _cp_check_line(power_1hz: np.ndarray, cp: float, wprime: float) -> str:
+def _wkg_str(watts: float, weight_kg: float | None) -> str:
+    return f' ({watts/weight_kg:.1f} W/kg)' if weight_kg else ''
+
+
+def _cp_check_line(power_1hz: np.ndarray, cp: float, wprime: float, weight_kg: float | None) -> str:
     wbal = calc_wbal(power_1hz, cp, wprime)
     floor_j = float(wbal.min())
     floor_pct = floor_j / wprime * 100
     verdict = 'cleared' if floor_j > 0 else 'HIT ZERO'
-    return f"\U0001F50B CP/W' check @ {cp:.0f}W/{wprime/1000:.1f}kJ: floor {floor_pct:.0f}% ({floor_j/1000:.1f}kJ) -- {verdict}"
+    return (f"\U0001F50B CP/W' check @ {cp:.0f}W/{wprime/1000:.1f}kJ{_wkg_str(cp, weight_kg)}: "
+            f"floor {floor_pct:.0f}% ({floor_j/1000:.1f}kJ) -- {verdict}")
 
 
-def _solved_cp_line(power_1hz: np.ndarray, wprime: float) -> str:
+def _solved_cp_line(power_1hz: np.ndarray, wprime: float, weight_kg: float | None) -> str:
     result = solve_cp_for_wprime(power_1hz, wprime)
     if result['status'] == 'ok':
-        return f"\U0001F3AF Solved CP @ W'={wprime/1000:.0f}kJ: {result['cp']:.0f}W"
+        return f"\U0001F3AF Solved CP @ W'={wprime/1000:.0f}kJ: {result['cp']:.0f}W{_wkg_str(result['cp'], weight_kg)}"
     if result['status'] == 'ride_too_easy':
         return f"\U0001F3AF Solved CP @ W'={wprime/1000:.0f}kJ: ride not hard enough to solve"
     return f"\U0001F3AF Solved CP @ W'={wprime/1000:.0f}kJ: ride harder than the search range"
 
 
-def _ftp_model_lines(power_1hz: np.ndarray, hr_1hz: np.ndarray) -> list[str]:
+def _ftp_model_lines(power_1hz: np.ndarray, hr_1hz: np.ndarray, weight_kg: float | None) -> list[str]:
     best_powers = best_power_by_minute(power_1hz)
     if not best_powers:
         return ['\U0001F4CA BE-FTP est.: n/a (ride too short)',
@@ -60,7 +65,8 @@ def _ftp_model_lines(power_1hz: np.ndarray, hr_1hz: np.ndarray) -> list[str]:
         model = model_fn()
         applied = apply_ftp_model([power_for_model], model)
         if applied:
-            lines.append(f"\U0001F4CA {label} est.: {applied[0]['ftp_est']:.0f}W "
+            ftp_est = applied[0]['ftp_est']
+            lines.append(f"\U0001F4CA {label} est.: {ftp_est:.0f}W{_wkg_str(ftp_est, weight_kg)} "
                           f"(from best {longest['t_min']}min{hrr_str})")
         else:
             lines.append(f'\U0001F4CA {label} est.: n/a')
@@ -106,11 +112,12 @@ def build_summary(activity: dict, power_1hz: np.ndarray, hr_1hz: np.ndarray,
     name = activity.get('name', 'Ride')
     date = (activity.get('start_date_local') or '')[:10]
 
-    lines = [f'\U0001F6B4 Ride: {name}, {date}', _cp_check_line(power_1hz, cp, wprime)]
-    lines += [_solved_cp_line(power_1hz, wp) for wp in solve_wprimes]
-    lines += _ftp_model_lines(power_1hz, hr_1hz)
+    lines = [_cp_check_line(power_1hz, cp, wprime, weight_kg)]
+    lines += [_solved_cp_line(power_1hz, wp, weight_kg) for wp in solve_wprimes]
+    lines += _ftp_model_lines(power_1hz, hr_1hz, weight_kg)
     lines.append(_window_line(power_1hz, hr_1hz, 1200, '20min', weight_kg, ride_min))
     lines.append(_window_line(power_1hz, hr_1hz, 3600, '60min', weight_kg, ride_min))
     lines.append(_efficiency_line(time_s, watts_raw, heartrate_raw))
+    lines.append(f'\U0001F6B4 Ride: {name}, {date}')
 
     return '\n'.join(lines)

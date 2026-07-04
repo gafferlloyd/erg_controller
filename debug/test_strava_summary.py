@@ -105,6 +105,25 @@ def test_emojis_present():
     print('  test_emojis_present                    PASS')
 
 
+def test_ride_tag_is_last_line():
+    summary = test_short_ride_degrades_gracefully_no_weight()
+    lines = summary.splitlines()
+    assert lines[-1].startswith('\U0001F6B4 Ride:'), lines[-1]
+    assert not lines[0].startswith('\U0001F6B4'), 'ride tag should no longer be first'
+    print('  test_ride_tag_is_last_line             PASS')
+
+
+def test_wkg_on_cp_and_ftp_lines():
+    power_1hz, hr_1hz, time_s, watts, heartrate = _make_ride(
+        70 * 60, lambda t: 250.0, lambda t: 140.0)
+    activity = {'name': 'Wkg Test', 'start_date_local': '2026-07-04'}
+    summary = build_summary(activity, power_1hz, hr_1hz, time_s, watts, heartrate, weight_kg=70.0)
+    for line in summary.splitlines():
+        if any(tag in line for tag in ("CP/W' check", 'Solved CP', 'BE-FTP est.', 'Pinot-Grappe FTP est.')):
+            assert 'W/kg' in line, f'missing W/kg in: {line!r}'
+    print('  test_wkg_on_cp_and_ftp_lines           PASS')
+
+
 def test_ftp_models_use_np_not_average_power():
     """A variable-power ride: NP should be well above the plain average, and the
     reported FTP estimate must reflect the NP-based value, not the (lower) average."""
@@ -116,7 +135,7 @@ def test_ftp_models_use_np_not_average_power():
     power_1hz = np.array([500.0 if (t // 60) % 2 == 0 else 0.0 for t in range(duration)])
     hr_1hz = np.full(duration, 140.0)
 
-    lines = _ftp_model_lines(power_1hz, hr_1hz)
+    lines = _ftp_model_lines(power_1hz, hr_1hz, weight_kg=0)
     be_ftp_line = next(l for l in lines if 'BE-FTP est.' in l)
     reported_watts = float(be_ftp_line.split(':')[1].strip().split('W')[0])
 
@@ -141,5 +160,7 @@ if __name__ == '__main__':
     test_ftp_lines_include_hrr_qualifier()
     test_efficiency_line_has_no_fit_metadata_overhead()
     test_emojis_present()
+    test_ride_tag_is_last_line()
+    test_wkg_on_cp_and_ftp_lines()
     test_ftp_models_use_np_not_average_power()
     print('\nAll tests passed.')
