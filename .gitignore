@@ -10,3 +10,6 @@ weblog_*.txt
 *.fit
 *.csv
 archive/
+
+# Local, non-secret state (credentials themselves live outside the repo)
+state/
