@@ -108,3 +108,19 @@ breakeven line.
   this ride cleanly (min 17% floor, never negative) while 250W/20019J failed exactly as observed.
   No change to the calibration; rebuilt and redeployed `WPrimeValueDF`/`WPrimeGraphDF` to the
   Edge 530 with the settings reset so the device now actually reflects 277W/21000J.
+
+- **2026-07-05**: another real ride (85km, `i162857839`) hit W'bal=0 on-device; the automated
+  Signal summary disagreed (7% floor at 277W/21kJ, not zero). Two real bugs found and fixed along
+  the way: `normalized_power()` wasn't NaN-safe (poisoned FTP estimates with "nan" whenever a
+  best-effort window touched a data gap), and W'bal/CP-solving used wall-clock elapsed time
+  instead of moving time, letting a device auto-pause (this ride had ~43min across 3 stops) grant
+  free recovery credit a live datafield never actually gives (see `moving_time.py`). Neither fix
+  closed the gap on its own (7%→7% floor). Root cause turned out to be the device settings again
+  — decoding the `.SET` bytes found `ftpWatts=241, wPrime=20019`, neither the old nor the new
+  default. **Not** a Garmin Connect Mobile sync issue (this is a sideloaded app, no Store listing,
+  the phone app has no relationship with it) — Connect IQ field settings are exposed through the
+  Edge 530's own on-device menu regardless of store status, so this was set directly on the
+  device at some point. Once replayed against the *intended* 277W/21kJ, this ride's 7% floor is
+  consistent with the established pattern (max HR only 161bpm all ride, nowhere near this
+  rider's 173bpm max) — **no change to the calibration**. Settings reset again; durable this time
+  against everything except another on-device edit.
