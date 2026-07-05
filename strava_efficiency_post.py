@@ -25,7 +25,8 @@ import requests
 import strava_state
 import signal_notify
 from strava_summary import build_summary
-from wprime_locus import parse_fit_records, _to_1s_grid
+from wprime_locus import parse_fit_records
+from moving_time import to_moving_time_1hz
 from intervals_pull import load_env, download_fit, ENV_PATH
 from intervals_activity_source import fetch_activities, qualifies, get_auth
 
@@ -51,7 +52,12 @@ def process_activity(auth, activity: dict, weight_kg: float | None,
         raise ValueError('no usable records in downloaded .fit')
 
     elapsed, raw_p, raw_h, _meta = result
-    power_1hz, hr_1hz = _to_1s_grid(elapsed, raw_p, raw_h)
+    # Moving time, not wall-clock elapsed -- a real device pause (auto-pause at
+    # a stop) must not grant free W'bal recovery the live datafield never
+    # credited. The efficiency line still gets the raw elapsed/raw_p/raw_h
+    # below (bin_by_minute already skips paused minutes naturally, since no
+    # samples were recorded then).
+    power_1hz, hr_1hz = to_moving_time_1hz(elapsed, raw_p, raw_h)
 
     summary = build_summary(activity, power_1hz, hr_1hz, elapsed.tolist(), raw_p, raw_h,
                              weight_kg, cp, wprime, solve_wprimes)

@@ -9,6 +9,10 @@ can confirm/quantify moments where the model's behaviour looks wrong (e.g.
 W'bal hitting zero while power well above CP is still sustained easily,
 which points at CP and/or W' being set too low).
 
+Uses moving time (moving_time.to_moving_time_1hz), not wall-clock elapsed
+time -- a real device pause must not grant free W'bal recovery the live
+on-device datafield never actually credited (it doesn't tick during a pause).
+
 Usage:
     python3 wbal_review.py <fitfile> [--cp 277] [--wprime 21000]
 """
@@ -17,7 +21,8 @@ from pathlib import Path
 
 import numpy as np
 
-from wprime_locus import parse_fit_records, _to_1s_grid
+from wprime_locus import parse_fit_records
+from moving_time import to_moving_time_1hz
 
 
 def calc_wbal(power: np.ndarray, cp: float, wprime: float) -> np.ndarray:
@@ -51,7 +56,9 @@ def review(path: Path, cp: float, wprime: float) -> None:
         print(f'No usable data in {path}')
         return
     elapsed, raw_p, raw_h, _meta = result
-    p, h = _to_1s_grid(elapsed, raw_p, raw_h)
+    # Moving time, not wall-clock elapsed -- a real pause must not grant free
+    # W'bal recovery the live on-device datafield never actually credited.
+    p, h = to_moving_time_1hz(elapsed, raw_p, raw_h)
 
     wbal = calc_wbal(p, cp, wprime)
     n = len(wbal)
@@ -63,7 +70,7 @@ def review(path: Path, cp: float, wprime: float) -> None:
     window = slice(max(0, tmin - 60), min(n, tmin + 61))
     win_p = p[window]
     win_h = h[window]
-    print(f"Lowest W'bal point: {_fmt_mmss(tmin)} elapsed, {wbal[tmin]:.0f}J "
+    print(f"Lowest W'bal point: {_fmt_mmss(tmin)} moving time, {wbal[tmin]:.0f}J "
           f"({wbal[tmin]/wprime*100:.0f}% of W').")
     if not np.all(np.isnan(win_p)):
         print(f'  Power in +/-60s window around it: avg {np.nanmean(win_p):.0f}W  max {np.nanmax(win_p):.0f}W')
@@ -76,7 +83,7 @@ def review(path: Path, cp: float, wprime: float) -> None:
               f"= {wbal.min()/wprime*100:.0f}% floor).")
     else:
         t0 = zero_idxs[0]
-        print(f"W'bal first hit zero at {_fmt_mmss(t0)} elapsed.")
+        print(f"W'bal first hit zero at {_fmt_mmss(t0)} moving time.")
 
         after_p = p[t0:]
         after_h = h[t0:]

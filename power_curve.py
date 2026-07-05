@@ -15,11 +15,17 @@ from best_efforts import best_effort
 
 
 def normalized_power(power_slice: np.ndarray) -> float | None:
-    """30s rolling average -> 4th-power mean -> 4th root. None if <30 samples."""
+    """30s rolling average -> 4th-power mean -> 4th root. None if <30 samples.
+
+    Gaps (NaN) are treated as 0W, matching the convention already used by
+    wprime_locus.py / best_efforts.best_effort() -- np.cumsum is not NaN-safe
+    (one NaN poisons every value after it), so this must be filled first.
+    """
     n = len(power_slice)
     if n < 30:
         return None
-    prefix = np.concatenate(([0.0], np.cumsum(power_slice)))
+    p_filled = np.where(np.isnan(power_slice), 0.0, power_slice)
+    prefix = np.concatenate(([0.0], np.cumsum(p_filled)))
     rolling_avg = (prefix[30:] - prefix[:-30]) / 30.0
     return float(np.mean(rolling_avg ** 4) ** 0.25)
 

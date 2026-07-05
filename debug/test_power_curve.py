@@ -25,6 +25,18 @@ def test_np_short_slice_returns_none():
     print('  test_np_short_slice_returns_none      PASS')
 
 
+def test_np_handles_nan_gaps_without_poisoning_result():
+    """A single NaN gap must not turn the whole NP computation into NaN --
+    np.cumsum is not NaN-safe on its own, this guards the fix for that."""
+    power = np.full(300, 200.0)
+    power[150] = np.nan  # one dropped sample mid-window
+    result = normalized_power(power)
+    assert result is not None and not np.isnan(result), result
+    # Gap treated as 0W -> NP should be at or below the gap-free 200W case, not NaN/higher.
+    assert result <= 200.0, result
+    print('  test_np_handles_nan_gaps_without_poisoning_result  PASS')
+
+
 def test_np_variable_power_exceeds_average():
     # Alternating 0/400W -- NP should be well above the plain average (100W)
     power = np.tile([0.0, 0.0, 0.0, 400.0], 100)
