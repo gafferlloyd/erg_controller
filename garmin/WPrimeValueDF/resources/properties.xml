@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <properties>
     <!-- Critical Power proxy (= FTP in watts) -->
-    <property id="ftpWatts" type="number">241</property>
+    <property id="ftpWatts" type="number">277</property>
 
     <!-- W' (anaerobic work capacity) in joules -->
-    <property id="wPrime"   type="number">20019</property>
+    <property id="wPrime"   type="number">21000</property>
 </properties>

@@ -117,10 +117,22 @@ breakeven line.
   free recovery credit a live datafield never actually gives (see `moving_time.py`). Neither fix
   closed the gap on its own (7%→7% floor). Root cause turned out to be the device settings again
   — decoding the `.SET` bytes found `ftpWatts=241, wPrime=20019`, neither the old nor the new
-  default. **Not** a Garmin Connect Mobile sync issue (this is a sideloaded app, no Store listing,
-  the phone app has no relationship with it) — Connect IQ field settings are exposed through the
-  Edge 530's own on-device menu regardless of store status, so this was set directly on the
-  device at some point. Once replayed against the *intended* 277W/21kJ, this ride's 7% floor is
-  consistent with the established pattern (max HR only 161bpm all ride, nowhere near this
-  rider's 173bpm max) — **no change to the calibration**. Settings reset again; durable this time
-  against everything except another on-device edit.
+  default. Once replayed against the *intended* 277W/21kJ, this ride's 7% floor is consistent
+  with the established pattern (max HR only 161bpm all ride, nowhere near this rider's 173bpm
+  max) — **no change to the calibration**. At the time, guessed this was an on-device manual
+  settings edit (ruled out Garmin Connect Mobile sync since sideloaded apps have no Store
+  listing for the phone app to manage) — **that guess was wrong, see 2026-07-10**.
+
+- **2026-07-10**: same disagreement recurred on a new ride (`i164158896`) — device showed W'bal
+  negative, reconstruction showed a healthy 26% floor. This time found the *actual* root cause:
+  `resources/properties.xml` in both `WPrimeValueDF` and `WPrimeGraphDF` declared its own
+  property defaults (`ftpWatts=241`, `wPrime=20019`) — a completely different mechanism from the
+  `.mc` source's `_cp`/`_wPrime` variable declarations (which were correctly updated to
+  277/21000 back on 2026-06-28). Connect IQ's `Application.Properties` initializes from
+  `properties.xml`'s declared value, not the `.mc` fallback — so `Application.Properties.getValue(...)`
+  was returning 241 the whole time, never null, meaning the `.mc` source's 277.0 fallback was
+  **never actually reachable code**. This is why every previous `.SET` reset "worked" briefly
+  then reverted to the exact same 241/20019 within hours — it was re-initializing from
+  `properties.xml` every time, not drifting from anything on-device at all. Fixed
+  `properties.xml` in both projects to 277/21000, rebuilt, redeployed, reset `.SET` again — this
+  time the fresh-init value itself is correct, so it should actually be durable.
