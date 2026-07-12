@@ -136,3 +136,19 @@ breakeven line.
   `properties.xml` every time, not drifting from anything on-device at all. Fixed
   `properties.xml` in both projects to 277/21000, rebuilt, redeployed, reset `.SET` again — this
   time the fresh-init value itself is correct, so it should actually be durable.
+
+- **2026-07-12**: notable performance data point supporting the current calibration (not a
+  change). A 189min/84.7km ride (`i164953973`) contained a 40-minute stint of **246.3W Normalized
+  Power at 126.5bpm avg HR (max 157bpm, 73% of this rider's 173bpm max)** — the best NP window of
+  the whole ride, well above the ride's own 211W NP. Two things make it notable: (1) it started
+  ~2h02m/50.8km into the ride, i.e. it's the rider's strongest sustained output of the day *after*
+  substantial prior fatigue, not a fresh-legs opener; (2) the same ride's on-device `VO2MaxGarmin`
+  session field hit 63.6 — a new high in the cycling-specific trend pulled from the last 4 rides'
+  `.fit` files (60.4 on 06-26 → 61.2 on 06-28 → 61.5 on 07-05 → 62.6 on 07-09 → 63.6 on 07-12),
+  confirmed as a genuine Garmin-side VO2max PB, not a one-off reading. W'bal for the full ride
+  never went below a 30% floor (6.4kJ) at 277W/21kJ. Run through the FTP breakeven models, the
+  246W/40min stint alone implies only ~242W (BE-FTP) / ~232W (Pinot-Grappe) — but per the
+  established pattern, those models assume a near-maximal effort at that duration, and 73% max HR
+  means this was nowhere close to one. The low-HR/high-power/late-ride combination is more
+  supportive of the current 277W CP being reasonable (or conservative) than of any of the
+  duration-model's lower readings. No change to the calibration; recorded as supporting evidence.
