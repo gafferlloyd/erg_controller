@@ -30,10 +30,12 @@ class WPrimeValueField extends WatchUi.DataField {
         var h = dc.getHeight();
         var m = _model;
 
-        var fNum  = Graphics.FONT_NUMBER_MEDIUM;
-        var fTiny = Graphics.FONT_TINY;
-        var fhNum = dc.getFontHeight(fNum);
-        var fhTiny = dc.getFontHeight(fTiny);
+        var fNum   = Graphics.FONT_NUMBER_MEDIUM;
+        var fTiny  = Graphics.FONT_TINY;
+        var fXTiny = Graphics.FONT_XTINY;
+        var fhNum   = dc.getFontHeight(fNum);
+        var fhTiny  = dc.getFontHeight(fTiny);
+        var fhXTiny = dc.getFontHeight(fXTiny);
 
         var pct   = m.wBal / m.wPrime;
         var color = _wbalColor(pct);
@@ -47,12 +49,18 @@ class WPrimeValueField extends WatchUi.DataField {
         var pairW = valW + 2 + unitW;
         var xVal  = (w - pairW) / 2;
 
-        // Vertical: number row + min row, centred together
-        var minStr  = "min " + (m.wBalMin / 1000.0).format("%.1f") + "kJ";
-        var gap     = 2;
-        var blockH  = fhNum + gap + fhTiny;
-        var yNum    = (h - blockH) / 2;
-        var yMin    = yNum + fhNum + gap;
+        // Vertical: config row + number row + min row, centred together
+        var minStr = "min " + (m.wBalMin / 1000.0).format("%.1f") + "kJ";
+        var cfgStr = "CP " + m.cp.format("%.0f") + "W  W' " + (m.wPrime / 1000.0).format("%.1f") + "kJ";
+        var gap    = 2;
+        var blockH = fhXTiny + gap + fhNum + gap + fhTiny;
+        var yCfg   = (h - blockH) / 2;
+        var yNum   = yCfg + fhXTiny + gap;
+        var yMin   = yNum + fhNum + gap;
+
+        // ── Configured CP/W' — lets you spot stale device settings at a glance ──
+        dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(w / 2, yCfg, fXTiny, cfgStr, Graphics.TEXT_JUSTIFY_CENTER);
 
         // ── W'bal number ──────────────────────────────────────────────
         dc.setColor(color, Graphics.COLOR_TRANSPARENT);

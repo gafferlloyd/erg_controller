@@ -89,6 +89,12 @@ class WPrimeGraphField extends WatchUi.DataField {
             dc.setColor(COL_MIN, Graphics.COLOR_TRANSPARENT);
             dc.drawText(2, 2, font, minStr, Graphics.TEXT_JUSTIFY_LEFT);
         }
+
+        // ── Configured CP/W', top-right corner — lets you spot stale
+        // device settings at a glance without decoding .SET bytes ──────
+        var cfgStr = "CP" + m.cp.format("%.0f") + " W'" + (wp / 1000.0).format("%.1f");
+        dc.setColor(COL_MIN, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(w - 2, 2, Graphics.FONT_XTINY, cfgStr, Graphics.TEXT_JUSTIFY_RIGHT);
     }
 
     // Largest font that fits within targetH pixels tall

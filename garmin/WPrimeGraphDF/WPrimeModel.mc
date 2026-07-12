@@ -30,6 +30,7 @@ class WPrimeModel {
     var wBal    as Float = 21000.0;
     var wBalMin as Float = 21000.0;
     var wPrime  as Float = 21000.0;
+    var cp      as Float = 277.0;
 
     function initialize() {
         _loadConfig();
@@ -38,6 +39,7 @@ class WPrimeModel {
         wBal     = _wPrime;
         wBalMin  = _wPrime;
         wPrime   = _wPrime;
+        cp       = _cp;
         for (var i = 0; i < N_GRAPH; i++) {
             _graphBuf[i] = 0.0;
         }
